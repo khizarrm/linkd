@@ -67,7 +67,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-[#e8e8e8] font-serif flex flex-col">
+    <div className="min-h-screen bg-[#0a0a0a] text-[#e8e8e8] font-serif">
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&display=swap');
 
@@ -138,10 +138,10 @@ export default function Home() {
         }
       `}</style>
 
-      <main className="relative mx-auto w-full max-w-4xl px-4 sm:px-6 flex-grow pt-6 sm:pt-8 md:pt-12 pb-8 sm:pb-12">
-        <div className={`w-full transition-transform duration-700 ease-out ${result || loading || error ? 'translate-y-[4vh] sm:translate-y-[8vh] md:translate-y-[12vh]' : 'translate-y-[8vh] sm:translate-y-[15vh] md:translate-y-[20vh]'}`}>
+      <main className="flex items-center justify-center min-h-screen px-4 sm:px-6">
+        <div className="w-full max-w-4xl -mt-16">
           {/* Heading */}
-          <div className="mb-5 sm:mb-6 md:mb-8 text-center max-w-4xl mx-auto">
+          <div className="mb-5 sm:mb-6 md:mb-8 text-center">
             <h1 className="text-3xl sm:text-5xl md:text-7xl font-light tracking-tight leading-[1.1] opacity-0 animate-fade-in-up">
               outreach
             </h1>
@@ -346,21 +346,6 @@ export default function Home() {
           )}
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="text-center py-4 sm:py-5 px-4 mt-auto bg-[#0a0a0a]">
-        <p className="text-xs sm:text-sm font-sans font-light text-[#4a4a4a]">
-          made by{' '}
-          <a
-            href="https://khizarmalik.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[#6a6a6a] hover:text-[#e8e8e8] active:text-white transition-colors duration-300 underline decoration-[#3a3a3a] hover:decoration-[#6a6a6a]"
-          >
-            Khizar
-          </a>
-        </p>
-      </footer>
     </div>
   );
 }
