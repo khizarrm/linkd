@@ -4,6 +4,7 @@ import { Calendar, Home, Inbox, Search, Settings, User, LogOut, Sparkles } from 
 import { useRouter } from "next/navigation"
 import { authClient } from "@/lib/auth-client"
 import Image from "next/image"
+import { useState } from "react"
 
 import {
   Sidebar,
@@ -52,6 +53,8 @@ const items = [
 export function AppSidebar() {
   const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
+  const [imageError, setImageError] = useState(false);
+  const [showSignOut, setShowSignOut] = useState(false);
 
   const handleSignOut = async () => {
     try {
@@ -102,18 +105,20 @@ export function AppSidebar() {
             <SidebarMenuButton
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              onClick={() => setShowSignOut(!showSignOut)}
             >
-              {userImage ? (
+              {userImage && !imageError ? (
                 <Image 
                   src={userImage} 
                   alt={userName}
                   width={32}
                   height={32}
-                  className="rounded-full object-cover"
-                  unoptimized
+                  className="rounded-full object-cover bg-sidebar-primary"
+                  onError={() => setImageError(true)}
+                  referrerPolicy="no-referrer"
                 />
               ) : (
-                <div className="flex aspect-square size-8 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-primary-foreground">
+                <div className="flex aspect-square size-8 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-primary-foreground border border-sidebar-border">
                   <User className="size-4" />
                 </div>
               )}
@@ -123,16 +128,18 @@ export function AppSidebar() {
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              onClick={handleSignOut}
-              tooltip="Sign out"
-              className="text-muted-foreground hover:text-destructive"
-            >
-              <LogOut />
-              <span>Sign out</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+          {showSignOut && (
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={handleSignOut}
+                tooltip="Sign out"
+                className="text-muted-foreground hover:text-destructive animate-in slide-in-from-top-2 fade-in duration-200"
+              >
+                <LogOut />
+                <span>Sign out</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
         </SidebarMenu>
       </SidebarFooter>
       <SidebarRail />
