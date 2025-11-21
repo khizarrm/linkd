@@ -41,7 +41,7 @@ export default function Home() {
 
   if (isPending) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] text-[#e8e8e8] font-serif flex items-center justify-center">
+      <div className="min-h-screen bg-[#0a0a0a] text-[#e8e8e8] font-sans flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-[#6a6a6a]" />
           <p className="text-sm font-light text-[#6a6a6a]">Loading...</p>
@@ -55,7 +55,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-[#e8e8e8] font-serif">
+    <div className="min-h-screen bg-[#0a0a0a] text-[#e8e8e8] font-sans">
       <main className="flex items-center justify-center min-h-screen px-4 sm:px-6">
         <div className="w-full max-w-4xl -mt-16">
           <SearchHeader />

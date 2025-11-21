@@ -27,7 +27,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark bg-[#0a0a0a]">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#0a0a0a]`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#0a0a0a] font-sans`}
       >
         <AuthProvider>
           <ConditionalLayout>{children}</ConditionalLayout>

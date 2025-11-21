@@ -1,6 +1,5 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&display=swap');
 
 @custom-variant dark (&:is(.dark *));
 
@@ -119,14 +118,6 @@
   }
   body {
     @apply bg-background text-foreground;
-  }
-
-  .font-serif {
-    font-family: 'DM Sans', sans-serif;
-  }
-
-  .font-sans {
-    font-family: 'DM Sans', sans-serif;
   }
 }
 

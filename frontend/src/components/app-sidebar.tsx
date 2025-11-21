@@ -78,7 +78,7 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <div className="flex h-12 items-center gap-2 px-4 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-          <span className="font-semibold text-lg group-data-[collapsible=icon]:hidden">outreach</span>
+          <span className="font-medium text-lg tracking-tight group-data-[collapsible=icon]:hidden">outreach</span>
           <SidebarTrigger className="ml-auto group-data-[collapsible=icon]:ml-0" />
         </div>
       </SidebarHeader>
@@ -136,7 +136,7 @@ export function AppSidebar() {
                 />
               ) : (
                 <div className="flex aspect-square size-8 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-primary-foreground border border-sidebar-border">
-                  <User className="size-4" />
+                  <User className="size-5" />
                 </div>
               )}
               <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">

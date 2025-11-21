@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { protectedApi } from '@/lib/api';
+import { useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Plus, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
@@ -12,33 +11,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { TemplateDialog } from './create-template-dialog';
+import { protectedApi } from '@/lib/api';
+import { useTemplates } from '@/hooks/use-templates';
 
 export function TemplateList() {
-  const [templates, setTemplates] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { templates, isLoading, mutateTemplates } = useTemplates();
   const [editingTemplate, setEditingTemplate] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-
-  const loadTemplates = async () => {
-    try {
-      const data = await protectedApi.listTemplates();
-      if (data.success) setTemplates(data.templates);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadTemplates();
-  }, []);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this template?')) return;
     try {
       await protectedApi.deleteTemplate(id);
-      setTemplates(prev => prev.filter(t => t.id !== id));
+      mutateTemplates(); // Instantly triggers a re-fetch to update the list
     } catch (err) {
       console.error('Failed to delete template:', err);
     }
@@ -54,7 +39,7 @@ export function TemplateList() {
     setIsDialogOpen(true);
   };
 
-  if (loading) return <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{[1,2,3].map(i => <Skeleton key={i} className="h-[200px]" />)}</div>;
+  if (isLoading) return <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{[1,2,3].map(i => <Skeleton key={i} className="h-[200px]" />)}</div>;
 
   return (
     <>
@@ -136,7 +121,7 @@ export function TemplateList() {
         open={isDialogOpen} 
         onOpenChange={setIsDialogOpen}
         initialData={editingTemplate}
-        onSuccess={loadTemplates}
+        onSuccess={mutateTemplates} /* Simply call mutate on success */
       />
     </>
   );

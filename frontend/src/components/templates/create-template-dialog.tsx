@@ -81,6 +81,15 @@ export function TemplateDialog({ open, onOpenChange, onSuccess, initialData }: T
 
         {/* Body */}
         <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
+          {/* Tips Alert */}
+          <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg p-4">
+            <h4 className="text-sm font-medium text-[#e8e8e8] mb-1">Pro Tips</h4>
+            <ul className="text-sm text-[#8a8a8a] list-disc pl-4 space-y-0.5">
+              <li>Keep your message brief and concise.</li>
+              <li>Include important contact info in the footer.</li>
+            </ul>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="name" className="text-sm font-medium text-gray-400 font-sans font-light tracking-wide">Template Name</Label>
             <Input
