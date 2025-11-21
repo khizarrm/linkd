@@ -9,8 +9,10 @@
     "cf-typegen": "wrangler types"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^2.0.71",
     "@opennextjs/cloudflare": "^1.10.1",
     "agents": "^0.2.13",
+    "ai": "^5.0.98",
     "better-auth-cloudflare": "^0.2.7",
     "chanfana": "^2.6.3",
     "exa-js": "^1.0.0",

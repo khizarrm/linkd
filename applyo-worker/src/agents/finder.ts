@@ -1,7 +1,6 @@
 import { Agent } from "agents";
 import { openai } from "@ai-sdk/openai";
-import { streamText, tool, stepCountIs } from "ai";
-import { z } from "zod";
+import { streamText, tool } from "ai";
 import { vectorizeSearch } from "../lib/tools";
 import type { CloudflareBindings } from "../env.d";
 
@@ -41,8 +40,6 @@ class FinderV2 extends Agent<CloudflareBindings> {
 
     const prompt = `You are a smart research assistant that helps users find information about companies and employees. Users call to you with the intent to either find companies that align with their interests,
     or to find emails at specific companies. The goal is for the user to find these emails to reach out to for internship oppurtunities. 
-    
-    You can speak like a normal person btw, no need to be super formal, just have the imporant info. 
 
 **Phase 1: Analyze & Configure Search**
 1. **Determine "type":**
@@ -68,8 +65,6 @@ class FinderV2 extends Agent<CloudflareBindings> {
 - **Emails/People:** consistently check "employees" array and list names + emails.
 - **Format:** Clean, concise, conversational. No formatting clutter.
 
-User query: ${query}
-
 User query: ${query}`;
 
     try {
@@ -77,24 +72,16 @@ User query: ${query}`;
         model,
         tools,
         prompt,
-        toolChoice: "auto",
-        stopWhen: stepCountIs(10),
+        toolChoice: "auto"
       });
 
-      return result.toTextStreamResponse({
-        headers: {
-          "Content-Type": "text/plain; charset=utf-8",
-        },
-      });
+      return result.toTextStreamResponse()
     } catch (error) {
       console.error("Researcher agent error:", error);
       return new Response(
         JSON.stringify({
-          query: query,
-          summary: "",
           error: "Failed to complete research",
           errorMessage: error instanceof Error ? error.message : String(error),
-          state: this.state,
         }),
         {
           status: 500,
@@ -106,4 +93,3 @@ User query: ${query}`;
 }
 
 export default FinderV2;
-
