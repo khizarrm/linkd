@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Check, Mail, X, Send } from 'lucide-react';
+import { Check, BadgeCheck, X, Send, Mail, Building2 } from 'lucide-react';
 import type { OrchestratorPerson } from '@/lib/api';
 import { protectedApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,9 @@ export function PersonCard({ person, favicon, companyName, index }: PersonCardPr
 
   const hasEmail = person.emails && person.emails.length > 0;
   const targetEmail = hasEmail ? person.emails[0] : null;
+  
+  const domain = targetEmail ? targetEmail.split('@')[1] : null;
+  const companyUrl = domain ? `https://${domain}` : null;
 
   const handleSendEmail = async () => {
     if (!targetEmail) return;
@@ -55,57 +58,84 @@ export function PersonCard({ person, favicon, companyName, index }: PersonCardPr
 
   return (
     <>
-      <article
-        className="opacity-0 animate-fade-in-up bg-[#151515] border border-[#2a2a2a] rounded-2xl sm:rounded-3xl p-5 sm:p-6 md:p-8 hover:border-[#3a3a3a] active:scale-[0.98] transition-all duration-300 flex flex-col relative"
-        style={{ animationDelay: `${index * 0.1}s` }}
-      >
-        {/* Favicon - Top Right */}
-        {favicon && (
-          <div className="absolute top-5 right-5 sm:top-6 sm:right-6 md:top-8 md:right-8">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-lg sm:rounded-xl bg-[#0a0a0a] border border-[#2a2a2a] p-1.5 sm:p-2 flex items-center justify-center">
-              <img
-                src={favicon}
-                alt={`${companyName} logo`}
-                className="w-full h-full object-contain"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                }}
-              />
+    <article
+        className="opacity-0 animate-fade-in-up bg-[#151515] border border-[#2a2a2a] rounded-2xl sm:rounded-3xl p-5 sm:p-6 md:p-8 hover:border-[#3a3a3a] active:scale-[0.98] transition-all duration-300 flex flex-col h-full"
+      style={{ animationDelay: `${index * 0.1}s` }}
+    >
+        <div className="flex flex-col gap-4">
+          {/* Header: Name and Badge */}
+          <div className="flex justify-between items-start gap-4">
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-light tracking-tight break-words hyphens-auto min-w-0">
+              {person.name}
+            </h2>
+            {hasEmail && (
+              <Badge variant="secondary" className="bg-blue-500 text-white dark:bg-blue-600 h-6 px-2 font-sans font-light tracking-wide shrink-0 whitespace-nowrap ml-2">
+                <BadgeCheck className="w-3.5 h-3.5 mr-1.5" />
+                Verified
+              </Badge>
+            )}
+          </div>
+            
+          {/* Info Section */}
+          <div className="space-y-3 flex-grow">
+            {person.role && (
+              <p className="text-xs sm:text-sm md:text-base font-sans font-light text-[#6a6a6a] leading-relaxed break-words">
+                {person.role}
+              </p>
+            )}
+
+            {/* Company Info Row */}
+            <div className="flex items-center gap-2 text-[#6a6a6a]">
+              {companyUrl ? (
+                <a 
+                  href={companyUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 hover:text-[#e8e8e8] transition-colors group min-w-0"
+                >
+                  {favicon ? (
+                    <div className="w-5 h-5 rounded bg-white/5 p-0.5 flex items-center justify-center border border-white/10 group-hover:border-white/20 transition-colors shrink-0">
+            <img
+              src={favicon}
+              alt={`${companyName} logo`}
+              className="w-full h-full object-contain"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+                    </div>
+                  ) : (
+                    <Building2 className="w-4 h-4 shrink-0" />
+                  )}
+                  <span className="text-xs sm:text-sm font-sans font-light tracking-wide underline decoration-white/20 hover:decoration-white/50 transition-all truncate">
+                    {companyName || domain || 'Company Website'}
+                  </span>
+                </a>
+              ) : (
+                <div className="flex items-center gap-2 min-w-0">
+                  <Building2 className="w-4 h-4 shrink-0" />
+                  <span className="text-xs sm:text-sm font-sans font-light tracking-wide truncate">
+                    {companyName}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
-        )}
-
-        {/* Person Info */}
-        <div className="mb-5 sm:mb-6 flex-grow pr-12 sm:pr-14 md:pr-16">
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-light tracking-tight mb-2 sm:mb-3">
-            {person.name}
-          </h2>
-          {person.role && (
-            <p className="text-xs sm:text-sm md:text-base font-sans font-light text-[#6a6a6a] leading-relaxed">
-              {person.role}
-            </p>
-          )}
         </div>
 
         {/* Email Status & Action */}
         {hasEmail ? (
-          <div className="flex items-center gap-3 mt-auto">
-            <Badge variant="secondary" className="gap-1.5 py-1.5 px-3 font-sans font-light tracking-wide">
-              <Check className="w-3 h-3" />
-              Email Found
-            </Badge>
-            
+          <div className="mt-auto pt-6">
             <Button 
               onClick={() => setIsComposing(true)}
-              size="sm" 
-              className="bg-white text-black hover:bg-gray-200 font-sans font-light tracking-wide"
+              className="w-full bg-white text-black hover:bg-gray-200 font-sans font-light tracking-wide"
             >
               <Mail className="w-4 h-4 mr-2" />
-              Send Email
+              Compose
             </Button>
           </div>
         ) : (
-          <p className="text-xs sm:text-sm font-sans font-light text-[#4a4a4a] italic">
+          <p className="text-xs sm:text-sm font-sans font-light text-[#4a4a4a] italic mt-auto pt-6">
             No verified emails found
           </p>
         )}
@@ -122,7 +152,7 @@ export function PersonCard({ person, favicon, companyName, index }: PersonCardPr
           <div className="relative w-full max-w-lg bg-[#151515] border border-[#2a2a2a] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             {/* Header */}
             <div className="flex items-center justify-between p-4 sm:p-6 border-b border-[#2a2a2a]">
-              <h3 className="text-lg font-medium text-white">
+              <h3 className="text-lg font-medium text-white font-sans font-light tracking-wide">
                 Send Email to {person.name}
               </h3>
               <Button
@@ -138,27 +168,27 @@ export function PersonCard({ person, favicon, companyName, index }: PersonCardPr
             {/* Body */}
             <div className="p-4 sm:p-6 space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-400">Subject</label>
+                <label className="text-sm font-medium text-gray-400 font-sans font-light tracking-wide">Subject</label>
                 <Input
                   placeholder="Enter subject..."
                   value={emailSubject}
                   onChange={(e) => setEmailSubject(e.target.value)}
-                  className="bg-[#0a0a0a] border-[#2a2a2a] text-white focus:border-blue-500"
+                  className="bg-[#0a0a0a] border-[#2a2a2a] text-white focus:border-gray-700 font-sans font-light tracking-wide"
                 />
-              </div>
-              
+      </div>
+
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-400">Message</label>
+                <label className="text-sm font-medium text-gray-400 font-sans font-light tracking-wide">Message</label>
                 <Textarea
                   placeholder="Write your message..."
                   value={emailBody}
                   onChange={(e) => setEmailBody(e.target.value)}
-                  className="min-h-[150px] bg-[#0a0a0a] border-[#2a2a2a] text-white focus:border-blue-500 resize-none"
+                  className="min-h-[150px] bg-[#0a0a0a] border-[#2a2a2a] text-white focus:border-gray-700 resize-none font-sans font-light tracking-wide"
                 />
               </div>
 
               {sendError && (
-                <p className="text-sm text-red-400 bg-red-400/10 p-3 rounded-lg">
+                <p className="text-sm text-red-400 bg-red-400/10 p-3 rounded-lg font-sans font-light tracking-wide">
                   {sendError}
                 </p>
               )}
@@ -169,14 +199,14 @@ export function PersonCard({ person, favicon, companyName, index }: PersonCardPr
               <Button
                 variant="ghost"
                 onClick={() => setIsComposing(false)}
-                className="text-gray-400 hover:text-white hover:bg-[#2a2a2a]"
+                className="text-gray-400 hover:text-white hover:bg-[#2a2a2a] font-sans font-light tracking-wide"
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleSendEmail}
                 disabled={isSending || !emailSubject || !emailBody}
-                className="bg-blue-600 hover:bg-blue-700 text-white min-w-[100px]"
+                className="bg-blue-600 hover:bg-blue-700 text-white min-w-[100px] font-sans font-light tracking-wide"
               >
                 {isSending ? (
                   "Sending..."
