@@ -226,7 +226,6 @@ User query: ${query}`,
     );
   }
 
-  // Helper function to check people in DB
   async checkPeopleInDB(companyName: string) {
     try {
       const results = await this.env.DB.prepare(`

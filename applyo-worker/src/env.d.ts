@@ -4,6 +4,7 @@ import type Prospects from "./agents/prospector";
 import type PeopleFinder from "./agents/peoplefinder";
 import type EmailFinder from "./agents/emailfinder";
 import type Orchestrator from "./agents/orchestrator";
+import type Researcher from "./agents/researcher";
 
 export interface CloudflareBindings {
     DB: D1Database;
@@ -15,6 +16,7 @@ export interface CloudflareBindings {
     PeopleFinder: AgentNamespace<PeopleFinder>;
     EmailFinder: AgentNamespace<EmailFinder>;
     Orchestrator: AgentNamespace<Orchestrator>;
+    Researcher: AgentNamespace<Researcher>;
     EXA_API_KEY: string;
     ZEROBOUNCE_API_KEY: string;
     OPENAI_API_KEY: string;

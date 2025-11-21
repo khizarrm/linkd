@@ -8,6 +8,7 @@ import Prospects from "./agents/prospector";
 import PeopleFinder from "./agents/peoplefinder";
 import EmailFinder from "./agents/emailfinder";
 import Orchestrator from "./agents/orchestrator";
+import FinderV2 from "./agents/finder";
 import { ProtectedEmailSendRoute } from "./endpoints/emailSend";
 import { Agent, AgentNamespace, getAgentByName, routeAgentRequest } from 'agents';
 import { z } from "zod";
@@ -20,6 +21,7 @@ interface Env {
   PeopleFinder: AgentNamespace<PeopleFinder>;
   EmailFinder: AgentNamespace<EmailFinder>;
   Orchestrator: AgentNamespace<Orchestrator>;
+  FINDER: AgentNamespace<FinderV2>;
 }
 
 type Variables = {
@@ -390,6 +392,60 @@ class OrchestratorRoute extends OpenAPIRoute {
     }
   }
 
+class FinderRoute extends OpenAPIRoute {
+    schema = {
+      tags: ["Agents"],
+      summary: "Call Finder Agent",
+      description: "Smart research assistant that uses semantic search to find information about companies and employees. Takes natural language queries like 'give me emails from people at Anthropic' or 'find AI companies in San Francisco'",
+      request: {
+        body: {
+          content: {
+            "application/json": {
+              schema: z.object({
+                query: z.string().min(1).describe("Natural language query about companies or employees (e.g., 'give me emails from people at Anthropic', 'find AI companies', 'CTOs at semiconductor companies')"),
+              }),
+            },
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Agent response with research summary",
+          content: {
+            "application/json": {
+              schema: z.object({
+                query: z.string().describe("The original query"),
+                summary: z.string().describe("Natural language summary of the research results"),
+                state: z.any().optional(),
+                error: z.string().optional(),
+                errorMessage: z.string().optional(),
+              }),
+            },
+          },
+        },
+      },
+    };
+
+    async handle(c: any) {
+      const env = c.env;
+
+      const reqData = await this.getValidatedData<typeof this.schema>();
+      const body = JSON.stringify(reqData.body);
+
+      // manually call the agent
+      const agent = await getAgentByName(env.FINDER, "main");
+      const resp = await agent.fetch(
+        new Request("http://internal", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body,
+        })
+      );
+
+      return resp;
+    }
+  }
+
 // Protected Profile Route
 class ProtectedProfileRoute extends OpenAPIRoute {
     schema = {
@@ -700,6 +756,7 @@ openapi.post("/api/agents/prospects", ProspectorRoute);
 openapi.post("/api/agents/peoplefinder", PeopleFinderRoute);
 openapi.post("/api/agents/emailfinder", EmailFinderRoute);
 openapi.post("/api/agents/orchestrator", OrchestratorRoute);
+openapi.post("/api/agents/finder", FinderRoute);
 openapi.post("/api/protected/email/send", ProtectedEmailSendRoute);
 openapi.post("/api/protected/templates", ProtectedTemplatesCreateRoute);
 openapi.get("/api/protected/templates", ProtectedTemplatesListRoute);
@@ -1131,4 +1188,4 @@ export default {
     }
   };
 
-export { Prospects, PeopleFinder, EmailFinder, Orchestrator }; 
+export { Prospects, PeopleFinder, EmailFinder, Orchestrator, FinderV2 }; 
