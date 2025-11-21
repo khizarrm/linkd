@@ -1,6 +1,6 @@
 'use client';
 
-import { Calendar, Home, Inbox, Search, Settings, User, LogOut, Sparkles } from "lucide-react"
+import { Calendar, Home, Inbox, Search, Settings, User, LogOut, Sparkles, FileText } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { authClient } from "@/lib/auth-client"
 import Image from "next/image"
@@ -47,6 +47,11 @@ const items = [
     title: "Settings",
     url: "#",
     icon: Settings,
+  },
+  {
+    title: "Templates",
+    url: "/templates",
+    icon: FileText,
   },
 ]
 
