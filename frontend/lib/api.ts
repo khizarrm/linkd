@@ -16,13 +16,19 @@ export interface OrchestratorResponse {
 // Helper function for authenticated API calls
 async function apiFetch(url: string, options: RequestInit = {}) {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
-  const session = await authClient.getSession();
+  const sessionResult = await authClient.getSession();
   
   const headers = new Headers(options.headers);
   headers.set('Content-Type', 'application/json');
   
-  if (session?.session?.token) {
-    headers.set('Cookie', `better-auth.session_token=${session.session.token}`);
+  // Handle different return types from getSession
+  try {
+    const session = (sessionResult as any)?.data?.session || (sessionResult as any)?.session;
+    if (session?.token && typeof session.token === 'string') {
+      headers.set('Cookie', `better-auth.session_token=${session.token}`);
+    }
+  } catch {
+    // If session access fails, continue without auth header
   }
 
   const response = await fetch(`${baseUrl}${url}`, {
@@ -81,6 +87,23 @@ export const protectedApi = {
     });
     if (!response.ok) throw new Error('Failed to delete template');
     return response.json();
+  },
+
+  processTemplate: async (data: { 
+    templateId: string; 
+    person: { name: string; role?: string; email?: string }; 
+    company: string 
+  }) => {
+    const response = await apiFetch('/api/protected/templates/process', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to process template' }));
+      throw new Error(error.message || error.error || 'Failed to process template');
+    }
+    const result = await response.json();
+    return { subject: result.subject, body: result.body };
   },
 
   // Email

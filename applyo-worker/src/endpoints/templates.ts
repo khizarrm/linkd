@@ -4,6 +4,8 @@ import { drizzle } from "drizzle-orm/d1";
 import { schema } from "../db";
 import { eq, desc, and } from "drizzle-orm";
 import { templates } from "../db/templates.schema";
+import { openai } from "@ai-sdk/openai";
+import { generateText } from "ai";
 
 export class ProtectedTemplatesListRoute extends OpenAPIRoute {
   schema = {
@@ -249,5 +251,152 @@ export class ProtectedTemplatesDeleteRoute extends OpenAPIRoute {
     }
 
     return { success: true };
+  }
+}
+
+export class ProtectedTemplateProcessRoute extends OpenAPIRoute {
+  schema = {
+    tags: ["Protected 🔒"],
+    summary: "Process Template with AI",
+    request: {
+      body: {
+        content: {
+          "application/json": {
+            schema: z.object({
+              templateId: z.string().describe("Template ID"),
+              person: z.object({
+                name: z.string(),
+                role: z.string().optional(),
+                email: z.string().optional(),
+              }),
+              company: z.string(),
+            }),
+          },
+        },
+      },
+    },
+    responses: {
+      "200": {
+        description: "Template processed",
+        content: {
+          "application/json": {
+            schema: z.object({
+              success: z.boolean(),
+              subject: z.string(),
+              body: z.string(),
+            }),
+          },
+        },
+      },
+      "404": { description: "Template not found" },
+    },
+  };
+
+  async handle(c: any) {
+    const auth = c.get("auth");
+    const session = await auth.api.getSession({ headers: c.req.raw.headers });
+    if (!session?.user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+    const { templateId, person, company } = await this.getValidatedData<typeof this.schema>().then(d => d.body);
+    const db = drizzle(c.env.DB, { schema });
+
+    // Fetch template
+    const template = await db.query.templates.findFirst({
+      where: and(eq(templates.id, templateId), eq(templates.userId, session.user.id)),
+    });
+
+    if (!template) {
+      return Response.json({ error: "Template not found" }, { status: 404 });
+    }
+
+    // Extract standard variables
+    const nameParts = person.name.split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+    const fullName = person.name;
+    const role = person.role || '';
+    const email = person.email || '';
+
+    // Replace standard variables in subject and body
+    let processedSubject = template.subject
+      .replace(/{firstName}/g, firstName)
+      .replace(/{lastName}/g, lastName)
+      .replace(/{fullName}/g, fullName)
+      .replace(/{role}/g, role)
+      .replace(/{company}/g, company)
+      .replace(/{email}/g, email);
+
+    let processedBody = template.body
+      .replace(/{firstName}/g, firstName)
+      .replace(/{lastName}/g, lastName)
+      .replace(/{fullName}/g, fullName)
+      .replace(/{role}/g, role)
+      .replace(/{company}/g, company)
+      .replace(/{email}/g, email);
+
+    // Check if there are any AI instruction fields (any {...} that doesn't match standard variables)
+    const aiInstructionPattern = /\{([^}]+)\}/g;
+    const hasAiInstructions = aiInstructionPattern.test(processedBody) || aiInstructionPattern.test(processedSubject);
+
+    if (hasAiInstructions) {
+      // Use AI to process remaining instruction fields
+      // @ts-expect-error - openai function accepts apiKey option
+      const model = openai("gpt-4o-2024-11-20", {
+        apiKey: c.env.OPENAI_API_KEY,
+      });
+
+      const prompt = `You are a strict email template filler.
+
+Context:
+- Person: ${fullName}
+- Company: ${company}
+${email ? `- Email: ${email}` : ''}
+
+Template Subject: ${processedSubject}
+Template Body: ${processedBody}
+
+Rules:
+1. ONLY replace content inside curly braces {}. LEAVE ALL OTHER TEXT EXACTLY AS IS.
+2. Keep generated content very brief (under 15 words).
+3. Tone: Casual and professional.
+
+Return format (JSON only):
+{
+  "subject": "final subject string",
+  "body": "final body string"
+}`;
+
+      try {
+        const result = await generateText({
+          model,
+          prompt,
+        });
+
+        let cleanText = result.text.trim();
+        if (cleanText.startsWith('```json')) {
+          cleanText = cleanText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+        } else if (cleanText.startsWith('```')) {
+          cleanText = cleanText.replace(/^```\s*/, '').replace(/\s*```$/, '');
+        }
+
+        const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          cleanText = jsonMatch[0];
+        }
+
+        const aiResult = JSON.parse(cleanText);
+        processedSubject = aiResult.subject || processedSubject;
+        processedBody = aiResult.body || processedBody;
+      } catch (error) {
+        console.error("Error processing template with AI:", error);
+        // Fall back to partially processed template
+      }
+    }
+
+    return {
+      success: true,
+      subject: processedSubject,
+      body: processedBody,
+    };
   }
 }

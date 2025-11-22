@@ -12,7 +12,7 @@ import FinderV2 from "./agents/finder";
 import { ProtectedEmailSendRoute } from "./endpoints/emailSend";
 import { Agent, AgentNamespace, getAgentByName, routeAgentRequest } from 'agents';
 import { z } from "zod";
-import { ProtectedTemplatesCreateRoute, ProtectedTemplatesListRoute, ProtectedTemplatesDeleteRoute, ProtectedTemplatesUpdateRoute } from "./endpoints/templates";
+import { ProtectedTemplatesCreateRoute, ProtectedTemplatesListRoute, ProtectedTemplatesDeleteRoute, ProtectedTemplatesUpdateRoute, ProtectedTemplateProcessRoute } from "./endpoints/templates";
 import { VectorizePopulateCompaniesRoute, VectorizePopulateEmployeesRoute, VectorizeSearchRoute, VectorizeStatsRoute, VectorizeUpdateCompanyRoute } from "./endpoints/vectorize";
 
 
@@ -762,6 +762,7 @@ openapi.post("/api/protected/templates", ProtectedTemplatesCreateRoute);
 openapi.get("/api/protected/templates", ProtectedTemplatesListRoute);
 openapi.delete("/api/protected/templates/:id", ProtectedTemplatesDeleteRoute);
 openapi.put("/api/protected/templates/:id", ProtectedTemplatesUpdateRoute);
+openapi.post("/api/protected/templates/process", ProtectedTemplateProcessRoute);
 
 // Vectorize Routes
 openapi.post("/api/vectorize/populate-companies", VectorizePopulateCompaniesRoute);

@@ -11,69 +11,94 @@ export class VectorizeHandler {
         this.env = env;
     }
 
-    // ============ POPULATION METHODS ============
-
-    async populateCompanies() {
+    async populateCompanies(offset: number = 0, limit: number = 50) {
         try {
             const db = drizzle(this.env.DB, { schema });
-            const companies = await db.select().from(companyProfiles).all();
+            const companies = await db.select()
+                .from(companyProfiles)
+                .limit(limit)
+                .offset(offset)
+                .all();
 
             if (!companies || companies.length === 0) {
-                return { success: false, message: 'No companies found in database' };
+                return {
+                    success: false,
+                    message: 'No companies found in this batch',
+                    processed: 0,
+                    hasMore: false,
+                    nextOffset: offset
+                };
             }
 
-            const vectors = [];
             const errors = [];
+            const CONCURRENT_LIMIT = 3;
+            let totalInserted = 0;
+            let lastInsertResult = null;
 
-            for (const company of companies) {
-                try {
-                    // Generate embedding text
-                    const textToEmbed = `${company.companyName} ${company.description || ''} ${company.techStack || ''} ${company.industry || ''}`;
+            for (let i = 0; i < companies.length; i += CONCURRENT_LIMIT) {
+                const batch = companies.slice(i, i + CONCURRENT_LIMIT);
 
-                    // Generate embedding
-                    const embedding = await this.env.AI.run('@cf/baai/bge-base-en-v1.5', {
-                        text: textToEmbed
-                    }) as { data: number[][] }; // simple type assertion
+                const batchPromises = batch.map(async (company) => {
+                    try {
+                        const textToEmbed = `${company.companyName} ${company.description || ''} ${company.techStack || ''} ${company.industry || ''}`;
 
-                    // Prepare vector
-                    vectors.push({
-                        id: `company_${company.id}`,
-                        values: embedding.data[0],
-                        metadata: {
-                            company_id: company.id.toString(),
-                            company_name: company.companyName,
-                            website: company.website || '',
-                            year_founded: company.yearFounded?.toString() || '',
-                            description: company.description || '',
-                            tech_stack: company.techStack || '',
-                            employee_count_min: company.employeeCountMin?.toString() || '',
-                            employee_count_max: company.employeeCountMax?.toString() || '',
-                            revenue: company.revenue || '',
-                            funding: company.funding || '',
-                            headquarters: company.headquarters || '',
-                            industry: company.industry || ''
-                        }
-                    });
-                } catch (error) {
-                    errors.push({ company: company.companyName, error: (error as Error).message });
+                        const embedding = await this.env.AI.run('@cf/baai/bge-base-en-v1.5', {
+                            text: textToEmbed
+                        }) as { data: number[][] };
+
+                        return {
+                            id: `company_${company.id}`,
+                            values: embedding.data[0],
+                            metadata: {
+                                company_id: company.id.toString(),
+                                company_name: company.companyName,
+                                website: company.website || '',
+                                year_founded: company.yearFounded?.toString() || '',
+                                description: company.description || '',
+                                tech_stack: company.techStack || '',
+                                employee_count_min: company.employeeCountMin?.toString() || '',
+                                employee_count_max: company.employeeCountMax?.toString() || '',
+                                revenue: company.revenue || '',
+                                funding: company.funding || '',
+                                headquarters: company.headquarters || '',
+                                industry: company.industry || ''
+                            }
+                        };
+                    } catch (error) {
+                        errors.push({ company: company.companyName, error: (error as Error).message });
+                        return null;
+                    }
+                });
+
+                const batchResults = await Promise.all(batchPromises);
+                const validVectors = batchResults.filter(v => v !== null);
+
+                if (validVectors.length > 0) {
+                    lastInsertResult = await this.env.COMPANY_VECTORS.insert(validVectors);
+                    totalInserted += validVectors.length;
                 }
             }
 
-            if (vectors.length > 0) {
-                // Insert vectors into Vectorize (batch operation)
-                // Vectorize insert limits batch size, usually 1000. Assuming < 1000 for now or the caller handles batches.
-                // The user said "7 companies" so we are fine.
-                const inserted = await this.env.COMPANY_VECTORS.insert(vectors);
+            const hasMore = companies.length === limit;
+            const nextOffset = offset + totalInserted;
+
+            if (totalInserted > 0) {
                 return {
                     success: true,
-                    message: `Populated ${vectors.length} company vectors`,
+                    message: `Processed ${totalInserted} company vectors (offset ${offset})`,
+                    processed: totalInserted,
+                    hasMore,
+                    nextOffset,
                     errors: errors.length > 0 ? errors : undefined,
-                    details: inserted
+                    details: lastInsertResult
                 };
             } else {
                 return {
                     success: false,
                     message: "No vectors generated",
+                    processed: 0,
+                    hasMore: false,
+                    nextOffset: offset,
                     errors
                 };
             }
@@ -83,21 +108,28 @@ export class VectorizeHandler {
         }
     }
 
-    async populateEmployees() {
+    async populateEmployees(offset: number = 0, limit: number = 50) {
         try {
             const db = drizzle(this.env.DB, { schema });
-            
-            // Join employees with company profiles
+
             const result = await db.select({
                 employee: employees,
                 company: companyProfiles
             })
             .from(employees)
             .innerJoin(companyProfiles, eq(employees.companyId, companyProfiles.id))
+            .limit(limit)
+            .offset(offset)
             .all();
 
             if (!result || result.length === 0) {
-                return { success: false, message: 'No employees found in database' };
+                return {
+                    success: false,
+                    message: 'No employees found in this batch',
+                    processed: 0,
+                    hasMore: false,
+                    nextOffset: offset
+                };
             }
 
             const vectors = [];
@@ -106,15 +138,12 @@ export class VectorizeHandler {
             for (const row of result) {
                 const { employee, company } = row;
                 try {
-                    // Generate embedding text - includes person + company context
                     const textToEmbed = `${employee.employeeName} ${employee.employeeTitle || ''} ${company.companyName} ${company.description || ''} ${company.industry || ''}`;
 
-                    // Generate embedding
                     const embedding = await this.env.AI.run('@cf/baai/bge-base-en-v1.5', {
                         text: textToEmbed
                     }) as { data: number[][] };
 
-                    // Store with full metadata
                     vectors.push({
                         id: `employee_${employee.id}`,
                         values: embedding.data[0],
@@ -137,18 +166,27 @@ export class VectorizeHandler {
                 }
             }
 
+            const hasMore = result.length === limit;
+            const nextOffset = offset + vectors.length;
+
             if (vectors.length > 0) {
                 const inserted = await this.env.EMPLOYEE_VECTORS.insert(vectors);
                 return {
                     success: true,
-                    message: `Populated ${vectors.length} employee vectors`,
+                    message: `Processed ${vectors.length} employee vectors (offset ${offset})`,
+                    processed: vectors.length,
+                    hasMore,
+                    nextOffset,
                     errors: errors.length > 0 ? errors : undefined,
                     details: inserted
                 };
             } else {
-                 return {
+                return {
                     success: false,
                     message: "No vectors generated",
+                    processed: 0,
+                    hasMore: false,
+                    nextOffset: offset,
                     errors
                 };
             }
@@ -157,8 +195,6 @@ export class VectorizeHandler {
             return { success: false, error: (error as Error).message };
         }
     }
-
-    // ============ SEARCH METHODS ============
 
     async search(query: string, options: { type?: 'companies' | 'employees' | 'both', limit?: number, filter?: any } = {}) {
         try {
@@ -172,14 +208,12 @@ export class VectorizeHandler {
                 return { success: false, error: 'Query is required' };
             }
 
-            // Generate embedding for the search query
             const queryEmbedding = await this.env.AI.run('@cf/baai/bge-base-en-v1.5', {
                 text: query
             }) as { data: number[][] };
 
             const results: any = {};
 
-            // Search companies if requested
             if (type === 'companies' || type === 'both') {
                 const companyResults = await this.env.COMPANY_VECTORS.query(
                     queryEmbedding.data[0],
@@ -196,7 +230,6 @@ export class VectorizeHandler {
                 }));
             }
 
-            // Search employees if requested
             if (type === 'employees' || type === 'both') {
                 const employeeResults = await this.env.EMPLOYEE_VECTORS.query(
                     queryEmbedding.data[0],
@@ -225,8 +258,6 @@ export class VectorizeHandler {
         }
     }
 
-    // ============ UTILITY METHODS ============
-
     async updateCompany(companyId: number) {
         try {
             const db = drizzle(this.env.DB, { schema });
@@ -236,13 +267,11 @@ export class VectorizeHandler {
                 return { success: false, error: 'Company not found' };
             }
 
-            // Generate new embedding
             const textToEmbed = `${company.companyName} ${company.description || ''} ${company.techStack || ''} ${company.industry || ''}`;
             const embedding = await this.env.AI.run('@cf/baai/bge-base-en-v1.5', {
                 text: textToEmbed
             }) as { data: number[][] };
 
-            // Upsert (insert or update) the vector
             await this.env.COMPANY_VECTORS.upsert([{
                 id: `company_${company.id}`,
                 values: embedding.data[0],
@@ -273,14 +302,13 @@ export class VectorizeHandler {
         try {
             const db = drizzle(this.env.DB, { schema });
             
-            // Get counts from D1
             const companyCount = await db.select({ count: sql<number>`count(*)` }).from(companyProfiles).get();
             const employeeCount = await db.select({ count: sql<number>`count(*)` }).from(employees).get();
 
             return {
                 companies: {
                     total_in_db: companyCount?.count || 0,
-                    indexed: companyCount?.count || 0 // Assuming all are indexed
+                    indexed: companyCount?.count || 0
                 },
                 employees: {
                     total_in_db: employeeCount?.count || 0,

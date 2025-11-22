@@ -7,7 +7,13 @@ export class VectorizePopulateCompaniesRoute extends OpenAPIRoute {
     schema = {
         tags: ["Vectorize"],
         summary: "Populate Company Vectors",
-        description: "Generates and stores vector embeddings for all companies in the database",
+        description: "Generates and stores vector embeddings for companies in batches (default 50 per batch)",
+        request: {
+            query: z.object({
+                offset: z.string().optional().default('0').transform(val => parseInt(val, 10)),
+                limit: z.string().optional().default('50').transform(val => parseInt(val, 10)),
+            }),
+        },
         responses: {
             "200": {
                 description: "Population successful",
@@ -16,6 +22,9 @@ export class VectorizePopulateCompaniesRoute extends OpenAPIRoute {
                         schema: z.object({
                             success: z.boolean(),
                             message: z.string(),
+                            processed: z.number(),
+                            hasMore: z.boolean(),
+                            nextOffset: z.number(),
                             errors: z.array(z.any()).optional(),
                             details: z.any().optional()
                         }),
@@ -27,8 +36,9 @@ export class VectorizePopulateCompaniesRoute extends OpenAPIRoute {
     };
 
     async handle(c: any) {
+        const { offset, limit } = await this.getValidatedData<typeof this.schema>().then(d => d.query);
         const handler = new VectorizeHandler(c.env);
-        const result = await handler.populateCompanies();
+        const result = await handler.populateCompanies(offset, limit);
         return Response.json(result, { status: result.success ? 200 : 500 });
     }
 }
@@ -37,7 +47,13 @@ export class VectorizePopulateEmployeesRoute extends OpenAPIRoute {
     schema = {
         tags: ["Vectorize"],
         summary: "Populate Employee Vectors",
-        description: "Generates and stores vector embeddings for all employees in the database",
+        description: "Generates and stores vector embeddings for employees in batches (default 50 per batch)",
+        request: {
+            query: z.object({
+                offset: z.string().optional().default('0').transform(val => parseInt(val, 10)),
+                limit: z.string().optional().default('50').transform(val => parseInt(val, 10)),
+            }),
+        },
         responses: {
             "200": {
                 description: "Population successful",
@@ -46,6 +62,9 @@ export class VectorizePopulateEmployeesRoute extends OpenAPIRoute {
                         schema: z.object({
                             success: z.boolean(),
                             message: z.string(),
+                            processed: z.number(),
+                            hasMore: z.boolean(),
+                            nextOffset: z.number(),
                             errors: z.array(z.any()).optional(),
                             details: z.any().optional()
                         }),
@@ -57,8 +76,9 @@ export class VectorizePopulateEmployeesRoute extends OpenAPIRoute {
     };
 
     async handle(c: any) {
+        const { offset, limit } = await this.getValidatedData<typeof this.schema>().then(d => d.query);
         const handler = new VectorizeHandler(c.env);
-        const result = await handler.populateEmployees();
+        const result = await handler.populateEmployees(offset, limit);
         return Response.json(result, { status: result.success ? 200 : 500 });
     }
 }
