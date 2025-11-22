@@ -1,11 +1,13 @@
 'use client';
 
-import { Search, User, LogOut, FileText, Building2 } from "lucide-react"
+import { Search, User, LogOut, FileText, Building2, Settings } from "lucide-react"
 import { useRouter, usePathname } from "next/navigation"
 import { authClient } from "@/lib/auth-client"
 import Image from "next/image"
 import { useState } from "react"
 import Link from "next/link"
+import { ProfileSettingsDialog } from "./settings/profile-settings-dialog"
+import { clearProfileCache } from "@/lib/profile-cache"
 
 import {
   Sidebar,
@@ -47,9 +49,12 @@ export function AppSidebar() {
   const { data: session, isPending } = authClient.useSession();
   const [imageError, setImageError] = useState(false);
   const [showSignOut, setShowSignOut] = useState(false);
+  const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
 
   const handleSignOut = async () => {
     try {
+      // Clear profile cache on sign out
+      clearProfileCache();
       await authClient.signOut();
       router.push('/login');
       router.refresh();
@@ -110,6 +115,16 @@ export function AppSidebar() {
           )}
           <SidebarMenuItem>
             <SidebarMenuButton
+              onClick={() => setIsSettingsDialogOpen(true)}
+              tooltip="Settings"
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Settings />
+              <span>Settings</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
               onClick={() => setShowSignOut(!showSignOut)}
@@ -137,6 +152,10 @@ export function AppSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+      <ProfileSettingsDialog
+        open={isSettingsDialogOpen}
+        onOpenChange={setIsSettingsDialogOpen}
+      />
       <SidebarRail />
     </Sidebar>
   )

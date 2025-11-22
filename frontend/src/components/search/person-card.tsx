@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Check, BadgeCheck, X, Send, Mail, Building2, FileText, ChevronDown, Loader2 } from 'lucide-react';
 import type { OrchestratorPerson } from '@/lib/api';
 import { protectedApi } from '@/lib/api';
+import { replaceUrlKeywords } from '@/lib/url-replace';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -93,10 +94,13 @@ export function PersonCard({ person, favicon, companyName, index }: PersonCardPr
     setSendError(null);
     
     try {
+      // Replace URL keywords with HTML links before sending
+      const bodyWithLinks = replaceUrlKeywords(emailBody);
+      
       await protectedApi.sendEmail({
         to: targetEmail,
         subject: emailSubject,
-        body: emailBody
+        body: bodyWithLinks
       });
       setSendSuccess(true);
       setTimeout(() => {
@@ -228,7 +232,7 @@ export function PersonCard({ person, favicon, companyName, index }: PersonCardPr
             onClick={() => setIsComposing(false)}
           />
           
-          <div className="relative w-full max-w-lg bg-[#151515] border border-[#2a2a2a] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="relative w-full max-w-2xl bg-[#151515] border border-[#2a2a2a] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             {/* Header */}
             <div className="flex items-center justify-between p-4 sm:p-6 border-b border-[#2a2a2a]">
               <h3 className="text-lg font-medium text-white font-sans font-light tracking-wide">

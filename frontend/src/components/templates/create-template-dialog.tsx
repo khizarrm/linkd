@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { protectedApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -36,6 +35,8 @@ export function TemplateDialog({ open, onOpenChange, onSuccess, initialData }: T
     subject: '',
     body: ''
   });
+  const bodyEditorRef = useRef<HTMLDivElement>(null);
+  const isUpdatingRef = useRef(false);
 
   const standardVariables = [
     { label: 'First Name', value: '{firstName}' },
@@ -52,21 +53,169 @@ export function TemplateDialog({ open, onOpenChange, onSuccess, initialData }: T
   ];
 
   const insertField = (field: string, target: 'subject' | 'body') => {
-    const textarea = document.getElementById(target === 'body' ? 'body' : 'subject') as HTMLTextAreaElement | HTMLInputElement;
-    if (!textarea) return;
+    if (target === 'body') {
+      const editor = bodyEditorRef.current;
+      if (!editor) return;
 
-    const start = textarea.selectionStart || 0;
-    const end = textarea.selectionEnd || 0;
-    const text = formData[target];
-    const newText = text.substring(0, start) + field + text.substring(end);
+      const selection = window.getSelection();
+      const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+      
+      if (range) {
+        range.deleteContents();
+        const textNode = document.createTextNode(field);
+        range.insertNode(textNode);
+        range.setStartAfter(textNode);
+        range.collapse(true);
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+      } else {
+        const textNode = document.createTextNode(field);
+        editor.appendChild(textNode);
+      }
+
+      // Extract plain text and update state
+      const plainText = extractPlainText(editor);
+      setFormData(prev => ({ ...prev, body: plainText }));
+    } else {
+      const input = document.getElementById('subject') as HTMLInputElement;
+      if (!input) return;
+
+      const start = input.selectionStart || 0;
+      const end = input.selectionEnd || 0;
+      const text = formData.subject;
+      const newText = text.substring(0, start) + field + text.substring(end);
+      
+      setFormData(prev => ({ ...prev, subject: newText }));
+      
+      // Restore cursor position
+      setTimeout(() => {
+        input.focus();
+        input.setSelectionRange(start + field.length, start + field.length);
+      }, 0);
+    }
+  };
+
+  // Extract plain text from contenteditable div
+  const extractPlainText = (element: HTMLElement): string => {
+    return element.innerText || element.textContent || '';
+  };
+
+  // Highlight URL keywords in text
+  const highlightKeywords = (text: string): string => {
+    const keywordPattern = /\b(linkedin|github|twitter|website)\b/gi;
+    return text.replace(keywordPattern, (match) => {
+      return `<span class="url-keyword">${match}</span>`;
+    });
+  };
+
+  // Handle body editor input
+  const handleBodyInput = (e: React.FormEvent<HTMLDivElement>) => {
+    const editor = bodyEditorRef.current;
+    if (!editor || isUpdatingRef.current) return;
+
+    const plainText = extractPlainText(editor);
     
-    setFormData(prev => ({ ...prev, [target]: newText }));
+    // Check if last character is space or punctuation to trigger highlighting
+    const lastChar = plainText[plainText.length - 1];
+    const shouldHighlight = lastChar === ' ' || lastChar === '.' || lastChar === ',' || lastChar === '!' || lastChar === '?' || lastChar === '\n';
     
-    // Restore cursor position
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + field.length, start + field.length);
-    }, 0);
+    setFormData(prev => {
+      // If we should highlight, update body which will trigger highlighting effect
+      if (shouldHighlight && prev.body !== plainText) {
+        return { ...prev, body: plainText };
+      }
+      // Otherwise just update without triggering highlight
+      return { ...prev, body: plainText };
+    });
+  };
+
+  // Handle body editor blur - extract plain text
+  const handleBodyBlur = () => {
+    const editor = bodyEditorRef.current;
+    if (!editor) return;
+
+    const plainText = extractPlainText(editor);
+    setFormData(prev => ({ ...prev, body: plainText }));
+  };
+
+  // Update highlighted content when formData.body changes (debounced for performance)
+  useEffect(() => {
+    const editor = bodyEditorRef.current;
+    if (!editor || isUpdatingRef.current) return;
+
+    const currentPlainText = extractPlainText(editor);
+    if (currentPlainText === formData.body) return;
+
+    // Debounce highlighting to avoid excessive re-renders
+    const timeoutId = setTimeout(() => {
+      if (!bodyEditorRef.current || isUpdatingRef.current) return;
+      
+      isUpdatingRef.current = true;
+      const selection = window.getSelection();
+      const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+      const cursorOffset = range ? getCursorOffset(bodyEditorRef.current, range) : null;
+
+      // Create highlighted HTML
+      const highlighted = highlightKeywords(formData.body);
+      bodyEditorRef.current.innerHTML = highlighted.replace(/\n/g, '<br>');
+
+      // Restore cursor position
+      if (cursorOffset !== null && bodyEditorRef.current) {
+        restoreCursorPosition(bodyEditorRef.current, cursorOffset);
+      }
+
+      isUpdatingRef.current = false;
+    }, 100);
+
+    return () => clearTimeout(timeoutId);
+  }, [formData.body]);
+
+  // Get cursor offset in plain text
+  const getCursorOffset = (element: HTMLElement, range: Range): number => {
+    let offset = 0;
+    const walker = document.createTreeWalker(
+      element,
+      NodeFilter.SHOW_TEXT,
+      null
+    );
+
+    let node;
+    while ((node = walker.nextNode())) {
+      if (node === range.startContainer) {
+        offset += range.startOffset;
+        break;
+      }
+      offset += node.textContent?.length || 0;
+    }
+
+    return offset;
+  };
+
+  // Restore cursor position
+  const restoreCursorPosition = (element: HTMLElement, offset: number) => {
+    const selection = window.getSelection();
+    if (!selection) return;
+
+    const range = document.createRange();
+    const walker = document.createTreeWalker(
+      element,
+      NodeFilter.SHOW_TEXT,
+      null
+    );
+
+    let currentOffset = 0;
+    let node;
+    while ((node = walker.nextNode())) {
+      const nodeLength = node.textContent?.length || 0;
+      if (currentOffset + nodeLength >= offset) {
+        range.setStart(node, offset - currentOffset);
+        range.setEnd(node, offset - currentOffset);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        break;
+      }
+      currentOffset += nodeLength;
+    }
   };
 
   useEffect(() => {
@@ -79,12 +228,31 @@ export function TemplateDialog({ open, onOpenChange, onSuccess, initialData }: T
     } else if (open && !initialData) {
       setFormData({ name: '', subject: '', body: '' });
     }
+    
+    // Update editor content when dialog opens or initialData changes
+    if (open && bodyEditorRef.current) {
+      isUpdatingRef.current = true;
+      const highlighted = highlightKeywords(formData.body);
+      bodyEditorRef.current.innerHTML = highlighted.replace(/\n/g, '<br>');
+      isUpdatingRef.current = false;
+    }
   }, [open, initialData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Extract plain text from body editor before submitting
+    const editor = bodyEditorRef.current;
+    if (editor) {
+      const plainText = extractPlainText(editor);
+      setFormData(prev => ({ ...prev, body: plainText }));
+    }
+
     setIsLoading(true);
     try {
+      // Use a small delay to ensure state is updated
+      await new Promise(resolve => setTimeout(resolve, 0));
+      
       if (initialData) {
         await protectedApi.updateTemplate(initialData.id, formData);
       } else {
@@ -202,13 +370,15 @@ export function TemplateDialog({ open, onOpenChange, onSuccess, initialData }: T
           </div>
           <div className="space-y-2">
             <Label htmlFor="body" className="text-sm font-medium text-gray-400 font-sans font-light tracking-wide">Email Body</Label>
-            <Textarea
+            <div
+              ref={bodyEditorRef}
               id="body"
-              required
-              className="h-[200px] max-h-[200px] bg-[#0a0a0a] border-[#2a2a2a] text-white focus:border-gray-700 resize-none font-sans font-light tracking-wide overflow-y-auto"
-              placeholder="Hi {firstName}, {say one nice thing about company}..."
-              value={formData.body}
-              onChange={e => setFormData(prev => ({ ...prev, body: e.target.value }))}
+              contentEditable
+              onInput={handleBodyInput}
+              onBlur={handleBodyBlur}
+              className="h-[200px] max-h-[200px] bg-[#0a0a0a] border border-[#2a2a2a] text-white focus:border-gray-700 focus:outline-none resize-none font-sans font-light tracking-wide overflow-y-auto p-3 rounded-md [&:empty]:before:content-[attr(data-placeholder)] [&:empty]:before:text-gray-500 [&_.url-keyword]:text-blue-500 [&_.url-keyword]:underline [&_.url-keyword]:cursor-default"
+              data-placeholder="Hi {firstName}, {say one nice thing about company}..."
+              suppressContentEditableWarning
             />
           </div>
 
