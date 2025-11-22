@@ -115,6 +115,14 @@ export const protectedApi = {
     return response.json();
   },
 
+  getCompanyEmployees: async (companyId: number) => {
+    const response = await apiFetch(`/api/protected/companies/${companyId}/employees`, {
+      method: 'GET',
+    });
+    if (!response.ok) throw new Error('Failed to get company employees');
+    return response.json();
+  },
+
   // Email
   sendEmail: async (data: { to: string; subject: string; body: string }) => {
     const response = await apiFetch('/api/protected/email/send', {

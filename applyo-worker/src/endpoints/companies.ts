@@ -2,8 +2,8 @@ import { OpenAPIRoute } from "chanfana";
 import { z } from "zod";
 import { drizzle } from "drizzle-orm/d1";
 import { schema } from "../db";
-import { desc } from "drizzle-orm";
-import { companyProfiles } from "../db/companies.schema";
+import { desc, eq } from "drizzle-orm";
+import { companyProfiles, employees } from "../db/companies.schema";
 
 export class ProtectedCompaniesListRoute extends OpenAPIRoute {
   schema = {
@@ -68,6 +68,82 @@ export class ProtectedCompaniesListRoute extends OpenAPIRoute {
         headquarters: company.headquarters,
         industry: company.industry,
         createdAt: company.createdAt,
+      })),
+    };
+  }
+}
+
+export class ProtectedCompanyEmployeesRoute extends OpenAPIRoute {
+  schema = {
+    tags: ["Protected 🔒"],
+    summary: "Get Employees by Company ID",
+    request: {
+      params: z.object({
+        id: z.string().transform((val) => parseInt(val, 10)),
+      }),
+    },
+    responses: {
+      "200": {
+        description: "Employees retrieved",
+        content: {
+          "application/json": {
+            schema: z.object({
+              success: z.boolean(),
+              employees: z.array(
+                z.object({
+                  id: z.number(),
+                  employeeName: z.string(),
+                  employeeTitle: z.string().nullable(),
+                  email: z.string().nullable(),
+                  companyId: z.number(),
+                  createdAt: z.string().nullable(),
+                })
+              ),
+            }),
+          },
+        },
+      },
+      "404": {
+        description: "Company not found",
+      },
+    },
+  };
+
+  async handle(c: any) {
+    const auth = c.get("auth");
+    const env = c.env;
+    const session = await auth.api.getSession({ headers: c.req.raw.headers });
+    
+    if (!session?.user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+    const { id } = await this.getValidatedData<typeof this.schema>().then(d => d.params);
+
+    const db = drizzle(env.DB, { schema });
+    
+    // Verify company exists
+    const company = await db.query.companyProfiles.findFirst({
+      where: eq(companyProfiles.id, id),
+    });
+
+    if (!company) {
+      return Response.json({ error: "Company not found" }, { status: 404 });
+    }
+
+    // Get employees for this company
+    const companyEmployees = await db.query.employees.findMany({
+      where: eq(employees.companyId, id),
+      orderBy: [desc(employees.createdAt)],
+    });
+
+    return {
+      success: true,
+      employees: companyEmployees.map((employee) => ({
+        id: employee.id,
+        employeeName: employee.employeeName,
+        employeeTitle: employee.employeeTitle,
+        email: employee.email,
+        companyId: employee.companyId,
+        createdAt: employee.createdAt,
       })),
     };
   }

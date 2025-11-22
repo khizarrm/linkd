@@ -16,6 +16,7 @@ interface Company {
 interface CompanyCardProps {
   company: Company;
   index: number;
+  onClick?: () => void;
 }
 
 function extractDomain(url: string | null | undefined): string | null {
@@ -39,7 +40,7 @@ function extractDomain(url: string | null | undefined): string | null {
   }
 }
 
-export function CompanyCard({ company, index }: CompanyCardProps) {
+export function CompanyCard({ company, index, onClick }: CompanyCardProps) {
   const [faviconError, setFaviconError] = useState(false);
   
   const domain = company.website ? extractDomain(company.website) : null;
@@ -50,6 +51,7 @@ export function CompanyCard({ company, index }: CompanyCardProps) {
     <article
       className="bg-[#151515] border border-[#2a2a2a] rounded-2xl sm:rounded-3xl p-5 sm:p-6 md:p-8 hover:border-[#3a3a3a] active:scale-[0.98] transition-all duration-300 flex flex-col h-full group cursor-pointer relative"
       style={{ animationDelay: `${index * 0.05}s` }}
+      onClick={onClick}
     >
       <div className="flex flex-col gap-4 flex-grow">
         {/* Header with Logo and Name */}
