@@ -1,331 +1,222 @@
-/**
- * API Client for Applyo Frontend
- * Handles API requests to the worker backend
- */
+import { authClient } from './auth-client';
+import { getCachedProfile, setCachedProfile, updateCachedProfile, clearProfileCache } from './profile-cache';
 
-/**
- * Base fetch wrapper - calls worker API directly
- */
-async function apiFetch(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<Response> {
-  // Always use full worker URL
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://applyo-worker.applyo.workers.dev';
-  const url = `${baseUrl}${endpoint}`;
-  console.log("fetching: ", url);
-
-  const defaultOptions: RequestInit = {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  };
-
-  const response = await fetch(url, { ...defaultOptions, ...options });
-  
-  if (!response.ok) {
-    console.error("API Error:", response.status, response.statusText, "URL:", url);
-  }
-  
-  return response;
-}
-
-// ============= AUTH API =============
-
-/**
- * Authentication API
- */
-export const auth = {
-  /**
-   * Login anonymously (creates a new anonymous user session)
-   */
-  loginAnonymously: async () => {
-    const response = await apiFetch('/api/auth/sign-in/anonymous', {
-      method: 'POST',
-      body: JSON.stringify({}),
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(error || 'Anonymous login failed');
-    }
-
-    return response.json();
-  },
-
-  /**
-   * Sign up with email and password
-   */
-  signUp: async (email: string, password: string, name?: string) => {
-    const response = await apiFetch('/api/auth/sign-up/email', {
-      method: 'POST',
-      body: JSON.stringify({ email, password, name }),
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(error || 'Sign up failed');
-    }
-
-    return response.json();
-  },
-
-  /**
-   * Sign in with email and password
-   */
-  signIn: async (email: string, password: string) => {
-    const response = await apiFetch('/api/auth/sign-in/email', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(error || 'Sign in failed');
-    }
-
-    return response.json();
-  },
-
-  /**
-   * Sign out (clears session)
-   */
-  signOut: async () => {
-    const response = await apiFetch('/api/auth/sign-out', {
-      method: 'POST',
-      body: JSON.stringify({}),
-    });
-
-    if (!response.ok) {
-      throw new Error('Sign out failed');
-    }
-
-    return response.json();
-  },
-
-  /**
-   * Get current session
-   */
-  getSession: async () => {
-    const response = await apiFetch('/api/auth/get-session');
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const data = await response.json();
-    return data?.session ? data : null;
-  },
-
-  /**
-   * Get geolocation data
-   */
-  getGeolocation: async () => {
-    const response = await apiFetch('/api/auth/cloudflare/geolocation');
-
-    if (!response.ok) {
-      return null;
-    }
-
-    return response.json();
-  },
-};
-
-// ============= PUBLIC API =============
-
-/**
- * Public API endpoints
- */
-export const publicApi = {
-  /**
-   * Get public hello message
-   */
-  hello: async () => {
-    const response = await apiFetch('/api/public/hello');
-    return response.json();
-  },
-
-  /**
-   * Get server info
-   */
-  info: async () => {
-    const response = await apiFetch('/api/public/info');
-    return response.json();
-  },
-};
-
-// ============= PROTECTED API =============
-
-/**
- * Protected API endpoints (require authentication)
- */
-export const protectedApi = {
-  /**
-   * Get user profile
-   */
-  getProfile: async () => {
-    const response = await apiFetch('/api/protected/profile');
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch profile');
-    }
-
-    return response.json();
-  },
-
-  /**
-   * Create a new item
-   */
-  createItem: async (data: {
-    name: string;
-    description?: string;
-    category?: string;
-  }) => {
-    const response = await apiFetch('/api/protected/items', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to create item');
-    }
-
-    return response.json();
-  },
-
-  /**
-   * List all items
-   */
-  listItems: async () => {
-    const response = await apiFetch('/api/protected/items');
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch items');
-    }
-
-    return response.json();
-  },
-
-  /**
-   * Delete an item by ID
-   */
-  deleteItem: async (id: string) => {
-    const response = await apiFetch(`/api/protected/items/${id}`, {
-      method: 'DELETE',
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to delete item');
-    }
-
-    return response.json();
-  },
-};
-
-// ============= AGENTS API =============
-
-/**
- * Agents API endpoints
- */
-export const agentsApi = {
-  /**
-   * Call prospects agent
-   */
-  prospects: async (query: string) => {
-    const response = await apiFetch('/api/agents/prospects', {
-      method: 'POST',
-      body: JSON.stringify({ query }),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to call prospects agent');
-    }
-
-    return response.json();
-  },
-
-  /**
-   * Call email finder agent
-   */
-  emailFinder: async (data: {
-    firstName: string;
-    lastName: string;
-    company: string;
-    domain: string;
-  }) => {
-    const response = await apiFetch('/api/agents/emailfinder', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(errorText || 'Failed to find emails');
-    }
-
-    return response.json();
-  },
-
-  /**
-   * Call orchestrator agent
-   */
-  orchestrator: async (data: { query: string }) => {
-    const response = await apiFetch('/api/agents/orchestrator', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(errorText || 'Failed to run orchestrator');
-    }
-
-    return response.json();
-  },
-};
-
-// ============= TYPES =============
-
-export interface User {
-  id: string;
-  email: string | null;
-  name: string | null;
-  createdAt: string;
-}
-
-export interface Session {
-  id: string;
-  expiresAt: string;
-}
-
-export interface AuthResponse {
-  user: User;
-  session: Session;
-}
-
-export interface GeolocationData {
-  timezone?: string;
-  city?: string;
-  country?: string;
-  region?: string;
-  regionCode?: string;
-  colo?: string;
-  latitude?: string;
-  longitude?: string;
-}
-
+// Types
 export interface OrchestratorPerson {
   name: string;
   role: string;
-  emails: string[];
+  emails?: string[];
 }
 
 export interface OrchestratorResponse {
-  company?: string;
-  people?: OrchestratorPerson[];
-  favicon?: string | null;
+  company: string;
+  website: string;
+  people: OrchestratorPerson[];
   message?: string;
-  state?: unknown;
-  error?: string;
+  favicon?: string;
 }
+
+// Helper function for authenticated API calls
+async function apiFetch(url: string, options: RequestInit = {}) {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+  const sessionResult = await authClient.getSession();
+  
+  const headers = new Headers(options.headers);
+  headers.set('Content-Type', 'application/json');
+  
+  // Handle different return types from getSession
+  try {
+    const session = (sessionResult as any)?.data?.session || (sessionResult as any)?.session;
+    if (session?.token && typeof session.token === 'string') {
+      headers.set('Cookie', `better-auth.session_token=${session.token}`);
+    }
+  } catch {
+    // If session access fails, continue without auth header
+  }
+
+  const response = await fetch(`${baseUrl}${url}`, {
+    ...options,
+    headers,
+    credentials: 'include',
+  });
+
+  return response;
+}
+
+// Agents API
+export const agentsApi = {
+  orchestrator: async (params: { query: string }): Promise<OrchestratorResponse> => {
+    const response = await apiFetch('/api/agents/orchestrator', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+    if (!response.ok) throw new Error('Failed to run orchestrator');
+    return response.json();
+  },
+};
+
+// Public API (no authentication required)
+export const publicApi = {
+  joinWaitlist: async (data: { email: string; name?: string }) => {
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+    const response = await fetch(`${baseUrl}/api/public/waitlist`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to join waitlist' }));
+      throw new Error(error.message || error.error || 'Failed to join waitlist');
+    }
+    return response.json();
+  },
+};
+
+// Protected API (requires authentication)
+export const protectedApi = {
+  // Templates
+  listTemplates: async () => {
+    const response = await apiFetch('/api/protected/templates', {
+      method: 'GET',
+    });
+    if (!response.ok) throw new Error('Failed to list templates');
+    return response.json();
+  },
+
+  createTemplate: async (data: { name: string; subject: string; body: string }) => {
+    const response = await apiFetch('/api/protected/templates', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) throw new Error('Failed to create template');
+    return response.json();
+  },
+
+  updateTemplate: async (id: string, data: { name?: string; subject?: string; body?: string }) => {
+    const response = await apiFetch(`/api/protected/templates/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) throw new Error('Failed to update template');
+    return response.json();
+  },
+
+  deleteTemplate: async (id: string) => {
+    const response = await apiFetch(`/api/protected/templates/${id}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) throw new Error('Failed to delete template');
+    return response.json();
+  },
+
+  processTemplate: async (data: { 
+    templateId: string; 
+    person: { name: string; role?: string; email?: string }; 
+    company: string 
+  }) => {
+    const response = await apiFetch('/api/protected/templates/process', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to process template' }));
+      throw new Error(error.message || error.error || 'Failed to process template');
+    }
+    const result = await response.json();
+    return { subject: result.subject, body: result.body };
+  },
+
+  // Companies
+  listCompanies: async () => {
+    const response = await apiFetch('/api/protected/companies', {
+      method: 'GET',
+    });
+    if (!response.ok) throw new Error('Failed to list companies');
+    return response.json();
+  },
+
+  getCompanyEmployees: async (companyId: number) => {
+    const response = await apiFetch(`/api/protected/companies/${companyId}/employees`, {
+      method: 'GET',
+    });
+    if (!response.ok) throw new Error('Failed to get company employees');
+    return response.json();
+  },
+
+  // Email
+  sendEmail: async (data: { to: string; subject: string; body: string }) => {
+    const response = await apiFetch('/api/protected/email/send', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to send email' }));
+      throw new Error(error.message || error.error || 'Failed to send email');
+    }
+    return response.json();
+  },
+
+  // Profile
+  getProfile: async (forceRefresh = false) => {
+    // Check cache first unless force refresh is requested
+    if (!forceRefresh) {
+      const cached = getCachedProfile();
+      if (cached) {
+        return {
+          success: true,
+          user: cached,
+          session: {
+            id: '',
+            expiresAt: '',
+          },
+        };
+      }
+    }
+
+    // Fetch from API
+    const response = await apiFetch('/api/protected/profile', {
+      method: 'GET',
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to get profile' }));
+      throw new Error(error.message || error.error || 'Failed to get profile');
+    }
+    
+    const data = await response.json();
+    
+    // Cache the profile data
+    if (data.success && data.user) {
+      setCachedProfile(data.user);
+    }
+    
+    return data;
+  },
+
+  updateProfile: async (data: {
+    name?: string;
+    linkedinUrl?: string;
+    githubUrl?: string;
+    websiteUrl?: string;
+    twitterUrl?: string;
+  }) => {
+    const response = await apiFetch('/api/protected/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to update profile' }));
+      throw new Error(error.message || error.error || 'Failed to update profile');
+    }
+    
+    const result = await response.json();
+    
+    // Update cache with new data
+    if (result.success && result.user) {
+      setCachedProfile(result.user);
+    }
+    
+    return result;
+  },
+};

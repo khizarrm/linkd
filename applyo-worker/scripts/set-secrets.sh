@@ -41,3 +41,7 @@ echo "All secrets have been set!"
 echo ""
 echo "To verify, run: wrangler secret list"
 
+
+
+
+

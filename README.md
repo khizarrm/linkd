@@ -1,8 +1,12 @@
-# Applyo
+# Outreach
 
 An intelligent cold email automation platform for internship seekers.
 
-Applyo streamlines the internship search process by automatically finding relevant companies and reaching out to founders and key personnel on behalf of users.
+Outreach streamlines the internship search process by automatically finding relevant companies and reaching out to founders and key personnel on behalf of users.
+
+## Demo
+
+Watch the demo: [Outreach Demo Video](https://youtu.be/3kL3nEbxLi0)
 
 > Status: Work in Progress
 

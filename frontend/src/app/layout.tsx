@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { AuthProvider } from "@/providers/auth-provider";
+import { ConditionalLayout } from "@/components/conditional-layout";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -23,11 +25,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="bg-[#0a0a0a]">
+    <html lang="en" className="dark bg-[#0a0a0a]">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#0a0a0a]`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#0a0a0a] font-sans`}
       >
-        {children}
+        <AuthProvider>
+          <ConditionalLayout>{children}</ConditionalLayout>
+        </AuthProvider>
       </body>
     </html>
   );

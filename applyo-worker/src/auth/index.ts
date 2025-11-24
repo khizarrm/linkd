@@ -7,9 +7,7 @@ import { drizzle } from "drizzle-orm/d1";
 import { schema } from "../db";
 import type { CloudflareBindings } from "../env.d";
 
-// Single auth configuration that handles both CLI and runtime scenarios
 function createAuth(env?: CloudflareBindings, cf?: IncomingRequestCfProperties) {
-    // Use actual DB for runtime, empty object for CLI
     const db = env?.DB ? drizzle(env.DB, { schema, logger: true }) : ({} as any);
 
     return betterAuth({
@@ -19,15 +17,8 @@ function createAuth(env?: CloudflareBindings, cf?: IncomingRequestCfProperties) 
             "http://localhost:3001",
             "https://applyo-worker.applyo.workers.dev",
             "https://applyo-frontend.applyo.workers.dev",
-            "https://cf-ai-applyo.pages.dev"
+            "https://try-outreach.vercel.app"
         ],
-        advanced: {
-            defaultCookieAttributes: {
-                sameSite: "none",
-                secure: true,
-                partitioned: true // New browser standards will mandate this for foreign cookies
-            }
-        },
         ...withCloudflare(
             {
                 autoDetectIpAddress: true,
@@ -66,7 +57,6 @@ function createAuth(env?: CloudflareBindings, cf?: IncomingRequestCfProperties) 
                 },
             }
         ),
-        // Only add database adapter for CLI schema generation
         ...(env
             ? {}
             : {

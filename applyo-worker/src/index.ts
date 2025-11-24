@@ -8,8 +8,15 @@ import Prospects from "./agents/prospector";
 import PeopleFinder from "./agents/peoplefinder";
 import EmailFinder from "./agents/emailfinder";
 import Orchestrator from "./agents/orchestrator";
+import FinderV2 from "./agents/finder";
+import { ProtectedEmailSendRoute } from "./endpoints/emailSend";
 import { Agent, AgentNamespace, getAgentByName, routeAgentRequest } from 'agents';
 import { z } from "zod";
+import { ProtectedTemplatesCreateRoute, ProtectedTemplatesListRoute, ProtectedTemplatesDeleteRoute, ProtectedTemplatesUpdateRoute, ProtectedTemplateProcessRoute } from "./endpoints/templates";
+import { ProtectedCompaniesListRoute, ProtectedCompanyEmployeesRoute } from "./endpoints/companies";
+import { VectorizePopulateCompaniesRoute, VectorizePopulateEmployeesRoute, VectorizeSearchRoute, VectorizeStatsRoute, VectorizeUpdateCompanyRoute } from "./endpoints/vectorize";
+import { PublicWaitlistRoute } from "./endpoints/waitlist";
+import { findExistingCompanyAndEmployees } from "./db/companies";
 
 
 interface Env {
@@ -17,6 +24,7 @@ interface Env {
   PeopleFinder: AgentNamespace<PeopleFinder>;
   EmailFinder: AgentNamespace<EmailFinder>;
   Orchestrator: AgentNamespace<Orchestrator>;
+  FINDER: AgentNamespace<FinderV2>;
 }
 
 type Variables = {
@@ -34,7 +42,7 @@ app.use(
                 "http://localhost:3000",
                 "http://localhost:3001",
                 "https://applyo-frontend.applyo.workers.dev",
-                "https://outreach-umber.vercel.app"
+                "https://try-outreach.vercel.app"
             ];
             return allowed.includes(origin) || /^http:\/\/localhost:\d+$/.test(origin) ? origin : allowed[0];
         },
@@ -371,10 +379,110 @@ class OrchestratorRoute extends OpenAPIRoute {
       const env = c.env;
 
       const reqData = await this.getValidatedData<typeof this.schema>();
+      const query = reqData.body.query;
+      
+      // Check database first before calling orchestrator
+      try {
+        const existing = await findExistingCompanyAndEmployees(env.DB, query);
+        
+        if (existing && existing.employees.length > 0) {
+          // Format response to match orchestrator output
+          const people = existing.employees
+            .filter(emp => emp.email && emp.email.trim() !== "") // Only include employees with emails
+            .map(emp => ({
+              name: emp.employeeName,
+              role: emp.employeeTitle || null,
+              emails: emp.email ? [emp.email] : [],
+            }));
+          
+          if (people.length > 0) {
+            return new Response(
+              JSON.stringify({
+                company: existing.company.companyName,
+                website: existing.company.website || null,
+                description: existing.company.description || null,
+                techStack: existing.company.techStack || null,
+                industry: existing.company.industry || null,
+                yearFounded: existing.company.yearFounded || null,
+                headquarters: existing.company.headquarters || null,
+                revenue: existing.company.revenue || null,
+                funding: existing.company.funding || null,
+                employeeCountMin: existing.company.employeeCountMin || null,
+                employeeCountMax: existing.company.employeeCountMax || null,
+                people,
+                state: {},
+              }),
+              { 
+                headers: { "Content-Type": "application/json" },
+                status: 200,
+              }
+            );
+          }
+        }
+      } catch (dbError) {
+        // If DB check fails, continue to orchestrator
+        console.error("Error checking database:", dbError);
+      }
+
+      // If not found in DB, proceed with orchestrator
       const body = JSON.stringify(reqData.body);
 
       // manually call the agent
       const agent = await getAgentByName(env.Orchestrator, "main");
+      const resp = await agent.fetch(
+        new Request("http://internal", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body,
+        })
+      );
+
+      return resp;
+    }
+  }
+
+class FinderRoute extends OpenAPIRoute {
+    schema = {
+      tags: ["Agents"],
+      summary: "Call Finder Agent",
+      description: "Smart research assistant that uses semantic search to find information about companies and employees. Takes natural language queries like 'give me emails from people at Anthropic' or 'find AI companies in San Francisco'",
+      request: {
+        body: {
+          content: {
+            "application/json": {
+              schema: z.object({
+                query: z.string().min(1).describe("Natural language query about companies or employees (e.g., 'give me emails from people at Anthropic', 'find AI companies', 'CTOs at semiconductor companies')"),
+              }),
+            },
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Agent response with research summary",
+          content: {
+            "application/json": {
+              schema: z.object({
+                query: z.string().describe("The original query"),
+                summary: z.string().describe("Natural language summary of the research results"),
+                state: z.any().optional(),
+                error: z.string().optional(),
+                errorMessage: z.string().optional(),
+              }),
+            },
+          },
+        },
+      },
+    };
+
+    async handle(c: any) {
+      const env = c.env;
+
+      const reqData = await this.getValidatedData<typeof this.schema>();
+      const body = JSON.stringify(reqData.body);
+
+      // manually call the agent
+      const agent = await getAgentByName(env.FINDER, "main");
       const resp = await agent.fetch(
         new Request("http://internal", {
           method: "POST",
@@ -689,6 +797,7 @@ class ProtectedDeleteItemRoute extends OpenAPIRoute {
 // Register routes
 openapi.get("/api/public/hello", PublicHelloRoute);
 openapi.get("/api/public/info", PublicInfoRoute);
+openapi.post("/api/public/waitlist", PublicWaitlistRoute);
 openapi.get("/api/protected/profile", ProtectedProfileRoute);
 openapi.post("/api/protected/items", ProtectedCreateItemRoute);
 openapi.get("/api/protected/items", ProtectedListItemsRoute);
@@ -697,6 +806,22 @@ openapi.post("/api/agents/prospects", ProspectorRoute);
 openapi.post("/api/agents/peoplefinder", PeopleFinderRoute);
 openapi.post("/api/agents/emailfinder", EmailFinderRoute);
 openapi.post("/api/agents/orchestrator", OrchestratorRoute);
+openapi.post("/api/agents/finder", FinderRoute);
+openapi.post("/api/protected/email/send", ProtectedEmailSendRoute);
+openapi.post("/api/protected/templates", ProtectedTemplatesCreateRoute);
+openapi.get("/api/protected/templates", ProtectedTemplatesListRoute);
+openapi.delete("/api/protected/templates/:id", ProtectedTemplatesDeleteRoute);
+openapi.put("/api/protected/templates/:id", ProtectedTemplatesUpdateRoute);
+openapi.post("/api/protected/templates/process", ProtectedTemplateProcessRoute);
+openapi.get("/api/protected/companies", ProtectedCompaniesListRoute);
+openapi.get("/api/protected/companies/:id/employees", ProtectedCompanyEmployeesRoute);
+
+// Vectorize Routes
+openapi.post("/api/vectorize/populate-companies", VectorizePopulateCompaniesRoute);
+openapi.post("/api/vectorize/populate-employees", VectorizePopulateEmployeesRoute);
+openapi.get("/api/vectorize/search", VectorizeSearchRoute);
+openapi.get("/api/vectorize/stats", VectorizeStatsRoute);
+openapi.post("/api/vectorize/update-company/:id", VectorizeUpdateCompanyRoute);
 
 
 // ============= END DEMO API ROUTES =============
@@ -1100,7 +1225,7 @@ app.get("/protected", async c => {
         );
     }
 });
-  
+
 
 // Simple health check
 app.get("/health", c => {
@@ -1109,11 +1234,13 @@ app.get("/health", c => {
 
 export default {
     async fetch(request, env, ctx) {
-      // First let Cloudflare handle any /agents/... requests automatically
-      const agentResponse = await routeAgentRequest(request, env)
-      if (agentResponse) return agentResponse;
+      const url = new URL(request.url);
+      if (!url.pathname.startsWith('/api/')) {
+        const agentResponse = await routeAgentRequest(request, env);
+        if (agentResponse) return agentResponse;
+      }
       return openapi.fetch(request, env, ctx);
     }
   };
 
-export { Prospects, PeopleFinder, EmailFinder, Orchestrator }; 
+export { Prospects, PeopleFinder, EmailFinder, Orchestrator, FinderV2 }; 

@@ -36,6 +36,10 @@ class_name = "EmailFinder"
 name = "Orchestrator"
 class_name = "Orchestrator"
 
+[[durable_objects.bindings]]
+name = "FINDER"
+class_name = "FinderV2"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Prospects", "PeopleFinder", "EmailFinder"]
@@ -44,3 +48,21 @@ new_sqlite_classes = ["Prospects", "PeopleFinder", "EmailFinder"]
 tag = "v2"
 new_sqlite_classes = ["Orchestrator"]
 
+[[migrations]]
+tag = "v3"
+new_sqlite_classes = ["Finder"]
+
+[[migrations]]
+tag = "v4"
+new_sqlite_classes = ["FinderV2"]
+
+[[vectorize]]
+binding = "COMPANY_VECTORS"
+index_name = "company-vectors"
+
+[[vectorize]]
+binding = "EMPLOYEE_VECTORS"
+index_name = "employee-vectors"
+
+[ai]
+binding = "AI"
