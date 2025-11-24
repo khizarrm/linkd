@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Email Finder - AI-Powered Email Discovery",
-  description: "Discover professional email addresses using AI-powered research",
+  title: "outreach - just ask",
+  description: "Automate your outreach with AI-powered contact discovery and engagement",
 };
 
 export default function RootLayout({

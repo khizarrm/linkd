@@ -43,9 +43,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="container relative h-screen flex-col items-center justify-center grid lg:max-w-none lg:grid-cols-2 lg:px-0 overflow-hidden">
-      <AuthQuote />
-      <div className="lg:p-8 flex items-center justify-center bg-[#0a0a0a] min-h-screen">
+    <div className="relative min-h-screen flex flex-col lg:grid lg:grid-cols-2 lg:max-w-none lg:px-0 overflow-hidden">
+      <AuthQuote>
+        <LoginForm />
+      </AuthQuote>
+      <div className="hidden lg:flex lg:p-8 items-center justify-center bg-[#0a0a0a] min-h-screen">
         <div className="w-full px-4">
           <LoginForm />
         </div>

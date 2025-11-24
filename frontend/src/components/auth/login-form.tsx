@@ -53,20 +53,20 @@ export function LoginForm() {
   };
 
   return (
-    <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[400px] animate-fade-in-up">
-      <div className="flex flex-col space-y-2 text-center">
-        <h1 className="text-3xl font-light tracking-tight text-[#e8e8e8]">
+    <div className="mx-auto flex w-full flex-col justify-center space-y-4 lg:space-y-6 sm:w-[400px] animate-fade-in-up">
+      <div className="hidden lg:flex flex-col space-y-2 text-center">
+        <h1 className="text-2xl lg:text-3xl font-light tracking-tight text-[#e8e8e8]">
           Join the waitlist
         </h1>
         <p className="text-sm font-light text-[#6a6a6a]">
-          Enter your email below to join our waitlist
+          Speed up your application process and chances by 50%
         </p>
       </div>
 
-      <div className="grid gap-6">
+      <div className="grid gap-4 lg:gap-6">
         {/* Waitlist Form */}
         <form onSubmit={handleWaitlistSubmit}>
-          <div className="grid gap-4">
+          <div className="grid gap-3 lg:gap-4">
             <div className="grid gap-2">
               <Label htmlFor="name" className="sr-only">
                 Name
@@ -127,25 +127,6 @@ export function LoginForm() {
           </div>
         )}
       </div>
-
-      {/* Terms */}
-      <p className="px-8 text-center text-xs font-light text-[#6a6a6a]">
-        By clicking continue, you agree to our{' '}
-        <a
-          href="/terms"
-          className="underline underline-offset-4 hover:text-[#e8e8e8] transition-colors"
-        >
-          Terms of Service
-        </a>{' '}
-        and{' '}
-        <a
-          href="/privacy"
-          className="underline underline-offset-4 hover:text-[#e8e8e8] transition-colors"
-        >
-          Privacy Policy
-        </a>
-        .
-      </p>
     </div>
   );
 }
