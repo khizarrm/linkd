@@ -58,7 +58,7 @@ export function TemplateList() {
         </article>
 
         {/* Existing Templates */}
-        {templates.map((t, index) => (
+        {templates.map((t: any, index: number) => (
           <article
             key={t.id}
             className="bg-[#151515] border border-[#2a2a2a] rounded-2xl sm:rounded-3xl p-5 sm:p-6 md:p-8 hover:border-[#3a3a3a] active:scale-[0.98] transition-all duration-300 flex flex-col h-full group cursor-pointer relative"

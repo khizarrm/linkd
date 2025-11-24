@@ -12,6 +12,8 @@ export interface OrchestratorResponse {
   company: string;
   website: string;
   people: OrchestratorPerson[];
+  message?: string;
+  favicon?: string;
 }
 
 // Helper function for authenticated API calls

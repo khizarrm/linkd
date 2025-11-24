@@ -26,7 +26,7 @@ export function CompanyList({ searchQuery = '' }: CompanyListProps) {
   const [composingEmployee, setComposingEmployee] = useState<{ employee: Employee; companyName: string } | null>(null);
 
   // Filter companies based on search query
-  const filteredCompanies = companies.filter((company) => {
+  const filteredCompanies = companies.filter((company: any) => {
     if (!searchQuery.trim()) return true;
     
     const query = searchQuery.toLowerCase();
@@ -83,7 +83,7 @@ export function CompanyList({ searchQuery = '' }: CompanyListProps) {
   return (
     <>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {filteredCompanies.map((company, index) => (
+        {filteredCompanies.map((company: any, index: number) => (
           <CompanyCard 
             key={company.id} 
             company={company} 
