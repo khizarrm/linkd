@@ -1,0 +1,29 @@
+{
+  "name": "cloudflare-workers-openapi",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "start": "wrangler dev",
+    "cf-typegen": "wrangler types"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^2.0.71",
+    "@clerk/backend": "^2.27.0",
+    "@opennextjs/cloudflare": "^1.10.1",
+    "agents": "^0.2.13",
+    "ai": "^5.0.98",
+    "chanfana": "^2.6.3",
+    "exa-js": "^1.10.2",
+    "hono": "^4.6.20",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.13.0",
+    "@types/service-worker-mock": "^2.0.4",
+    "drizzle-kit": "^0.31.5",
+    "drizzle-orm": "^0.44.6",
+    "wrangler": "^4.42.2"
+  }
+}

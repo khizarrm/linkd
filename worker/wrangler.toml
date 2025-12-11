@@ -1,0 +1,43 @@
+# For more details on how to configure Wrangler, refer to:
+# https://developers.cloudflare.com/workers/wrangler/configuration/
+
+name = "worker"
+main = "src/index.ts"
+compatibility_date = "2025-10-11"
+compatibility_flags = ["nodejs_compat"]
+
+
+[observability]
+enabled = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "applyo-db"
+database_id = "f1c25a1c-ba2f-46e7-89f4-a6d632690141"
+migrations_dir = "drizzle"
+remote = true
+
+[dev]
+port = 8787
+
+[[durable_objects.bindings]]
+name = "Orchestrator"
+class_name = "Orchestrator"
+
+[[migrations]]
+tag = "v3"
+
+[[migrations]]
+tag = "v4"
+new_sqlite_classes = ["Orchestrator"]
+
+[[vectorize]]
+binding = "COMPANY_VECTORS"
+index_name = "company-vectors"
+
+[[vectorize]]
+binding = "EMPLOYEE_VECTORS"
+index_name = "employee-vectors"
+
+[ai]
+binding = "AI"
