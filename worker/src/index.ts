@@ -12,7 +12,7 @@ import { ProtectedCompaniesListRoute, ProtectedCompanyEmployeesRoute } from "./e
 import { VectorizePopulateCompaniesRoute, VectorizePopulateEmployeesRoute, VectorizeSearchRoute, VectorizeStatsRoute, VectorizeUpdateCompanyRoute } from "./endpoints/vectorize";
 import { PublicWaitlistRoute } from "./endpoints/waitlist";
 import { ProtectedProfileGetRoute, ProtectedProfileUpdateRoute } from "./endpoints/profile";
-import { ClerkWebhookRoute } from "./endpoints/clerk-webhook";
+import { ClerkWebhookRoute } from "./endpoints/clerkWebhook";
 import { findExistingCompanyAndEmployees } from "./db/companies";
 
 
@@ -162,6 +162,7 @@ class OrchestratorRoute extends OpenAPIRoute {
 
 // Register routes
 openapi.post("/api/public/waitlist", PublicWaitlistRoute);
+// @ts-expect-error - chanfana type inference issue with webhook routes
 openapi.post("/api/webhooks/clerk", ClerkWebhookRoute);
 openapi.post("/api/agents/orchestrator", OrchestratorRoute);
 openapi.post("/api/protected/email/send", ProtectedEmailSendRoute);

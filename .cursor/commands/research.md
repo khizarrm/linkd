@@ -7,4 +7,4 @@ I have a task to [DESCRIBE FEATURE/BUG]. Goal: Provide all context needed for a 
     * Patterns: How similar features are implemented (e.g., 'React Query for fetching', 'errors via middleware')
     * Strategy: High-level implementation approach
     * Unknowns: Ambiguities needing resolution Be brutally concise. Use bullet points. Verify by reading code before stating anything.
-4. Ensure you return a markdown response, not an md file. 
+4. Save the output to a file named `RESEARCH.md` (all caps) in the root directory. Do not modify any cursor command files.
