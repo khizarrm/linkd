@@ -1,9 +1,10 @@
 import useSWR, { mutate } from 'swr';
-import { protectedApi } from '@/lib/api';
+import { useProtectedApi } from './use-protected-api';
 
 const COMPANIES_KEY = 'companies';
 
 export function useCompanies() {
+  const protectedApi = useProtectedApi();
   const { data, error, isLoading } = useSWR(COMPANIES_KEY, async () => {
     const response = await protectedApi.listCompanies();
     if (!response.success) throw new Error('Failed to load companies');

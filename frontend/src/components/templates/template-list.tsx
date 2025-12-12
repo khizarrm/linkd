@@ -11,10 +11,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { TemplateDialog } from './create-template-dialog';
-import { protectedApi } from '@/lib/api';
+import { useProtectedApi } from '@/hooks/use-protected-api';
 import { useTemplates } from '@/hooks/use-templates';
 
 export function TemplateList() {
+  const protectedApi = useProtectedApi();
   const { templates, isLoading, mutateTemplates } = useTemplates();
   const [editingTemplate, setEditingTemplate] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);

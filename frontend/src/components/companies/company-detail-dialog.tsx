@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Building2, ExternalLink, Loader2, Mail } from 'lucide-react';
-import { protectedApi } from '@/lib/api';
+import { useProtectedApi } from '@/hooks/use-protected-api';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -58,6 +58,7 @@ function extractDomain(url: string | null | undefined): string | null {
 }
 
 export function CompanyDetailDialog({ open, onOpenChange, company, onCompose }: CompanyDetailDialogProps) {
+  const protectedApi = useProtectedApi();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

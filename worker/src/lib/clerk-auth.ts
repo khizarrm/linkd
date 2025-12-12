@@ -1,4 +1,4 @@
-import { createClerkClient } from "@clerk/backend";
+import { verifyToken } from "@clerk/backend";
 
 /**
  * Verifies a Clerk JWT token from the Authorization header
@@ -20,14 +20,11 @@ export async function verifyClerkToken(
     // Extract token from "Bearer <token>"
     const token = authHeader.substring(7);
 
-    // Initialize Clerk client with secret key
-    const clerk = createClerkClient({ secretKey });
-
     // Verify token using Clerk
-    const session = await clerk.verifySessionToken(token);
+    const verifiedToken = await verifyToken(token, { secretKey });
 
-    // Extract user ID from verified session
-    const clerkUserId = session.userId;
+    // Extract user ID from verified token (sub field contains user ID)
+    const clerkUserId = verifiedToken.sub;
     if (!clerkUserId) {
       return null;
     }

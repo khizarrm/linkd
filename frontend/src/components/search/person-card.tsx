@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Check, BadgeCheck, X, Send, Mail, Building2, FileText, ChevronDown, Loader2 } from 'lucide-react';
 import type { OrchestratorPerson } from '@/lib/api';
-import { protectedApi } from '@/lib/api';
+import { useProtectedApi } from '@/hooks/use-protected-api';
 import { replaceUrlKeywords } from '@/lib/url-replace';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +24,7 @@ interface PersonCardProps {
 }
 
 export function PersonCard({ person, favicon, companyName, index }: PersonCardProps) {
+  const protectedApi = useProtectedApi();
   const [isComposing, setIsComposing] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [emailSubject, setEmailSubject] = useState('');

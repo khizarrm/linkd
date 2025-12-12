@@ -1,4 +1,3 @@
-import { getToken } from '@clerk/nextjs';
 import { getCachedProfile, setCachedProfile, updateCachedProfile, clearProfileCache } from './profile-cache';
 
 // Types
@@ -17,11 +16,8 @@ export interface OrchestratorResponse {
 }
 
 // Helper function for API calls with Clerk authentication
-async function apiFetch(url: string, options: RequestInit = {}) {
+export async function apiFetch(url: string, options: RequestInit = {}, token?: string | null) {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
-  
-  // Get Clerk JWT token
-  const token = await getToken();
   
   const headers = new Headers(options.headers);
   headers.set('Content-Type', 'application/json');
@@ -42,11 +38,11 @@ async function apiFetch(url: string, options: RequestInit = {}) {
 
 // Agents API
 export const agentsApi = {
-  orchestrator: async (params: { query: string }): Promise<OrchestratorResponse> => {
+  orchestrator: async (params: { query: string }, token?: string | null): Promise<OrchestratorResponse> => {
     const response = await apiFetch('/api/agents/orchestrator', {
       method: 'POST',
       body: JSON.stringify(params),
-    });
+    }, token);
     if (!response.ok) throw new Error('Failed to run orchestrator');
     return response.json();
   },

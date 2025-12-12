@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { X, Send, Check, FileText, ChevronDown, Loader2 } from 'lucide-react';
-import { protectedApi } from '@/lib/api';
+import { useProtectedApi } from '@/hooks/use-protected-api';
 import { replaceUrlKeywords } from '@/lib/url-replace';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +30,7 @@ interface EmployeeComposeModalProps {
 }
 
 export function EmployeeComposeModal({ open, onOpenChange, employee, companyName }: EmployeeComposeModalProps) {
+  const protectedApi = useProtectedApi();
   const [isSending, setIsSending] = useState(false);
   const [emailSubject, setEmailSubject] = useState('');
   const [emailBody, setEmailBody] = useState('');
