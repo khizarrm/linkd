@@ -1,6 +1,6 @@
 'use client';
 
-import { Search, User, LogOut, FileText, Settings } from "lucide-react"
+import { Search, User, LogOut, FileText, Settings, PlayCircle } from "lucide-react"
 import { useRouter, usePathname } from "next/navigation"
 import Image from "next/image"
 import { useState } from "react"
@@ -8,6 +8,7 @@ import Link from "next/link"
 import { useUser, useClerk } from "@clerk/nextjs"
 // import { ProfileSettingsDialog } from "./settings/profile-settings-dialog"
 import { clearProfileCache } from "@/lib/profile-cache"
+import { FeedbackDialog } from "./feedback-dialog"
 
 import {
   Sidebar,
@@ -31,6 +32,11 @@ const items = [
     url: "/",
     icon: Search,
   },
+  {
+    title: "Guide",
+    url: "https://youtube.com/watch?v=ZbaHpPGghzk&t=160s",
+    icon: PlayCircle,
+  },
   // {
   //   title: "Templates",
   //   url: "/templates",
@@ -43,6 +49,7 @@ export function AppSidebar() {
   const pathname = usePathname();
   const [imageError, setImageError] = useState(false);
   const [showSignOut, setShowSignOut] = useState(false);
+  const [isFeedbackDialogOpen, setIsFeedbackDialogOpen] = useState(false);
   // const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
 
   const { user, isLoaded } = useUser();
@@ -81,13 +88,21 @@ export function AppSidebar() {
             <SidebarMenu>
               {items.map((item) => {
                 const isActive = pathname === item.url;
+                const isExternal = item.url.startsWith('http');
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild tooltip={item.title} isActive={isActive}>
-                      <Link href={item.url}>
-                        <item.icon />
-                        <span>{item.title}</span>
-                      </Link>
+                      {isExternal ? (
+                        <a href={item.url} target="_blank" rel="noopener noreferrer">
+                          <item.icon />
+                          <span>{item.title}</span>
+                        </a>
+                      ) : (
+                        <Link href={item.url}>
+                          <item.icon />
+                          <span>{item.title}</span>
+                        </Link>
+                      )}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
@@ -98,6 +113,16 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={() => setIsFeedbackDialogOpen(true)}
+              tooltip="Feedback"
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <FileText />
+              <span>Feedback</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           {showSignOut && (
             <SidebarMenuItem>
               <SidebarMenuButton
@@ -153,6 +178,10 @@ export function AppSidebar() {
         open={isSettingsDialogOpen}
         onOpenChange={setIsSettingsDialogOpen}
       /> */}
+      <FeedbackDialog
+        open={isFeedbackDialogOpen}
+        onOpenChange={setIsFeedbackDialogOpen}
+      />
       <SidebarRail />
     </Sidebar>
   )

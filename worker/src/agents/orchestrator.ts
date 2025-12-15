@@ -144,7 +144,7 @@ class Orchestrator extends Agent<CloudflareBindings> {
             if (person.name && person.emails && person.emails.length > 0) {
               const email = person.emails[0]; 
               const role = person.role || null;
-              const employeeId = await upsertEmployee(this.env.DB, companyId, person.name, role, email);
+              const employeeId = await upsertEmployee(this.env.DB, companyName, person.name, role, email);
               employeeIds.push(employeeId);
             }
           }

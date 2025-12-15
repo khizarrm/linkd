@@ -9,6 +9,7 @@ import type { OrchestratorResponse } from '@/lib/api';
 import { SearchHeader } from '@/components/search/search-header';
 import { SearchForm } from '@/components/search/search-form';
 import { SearchResults } from '@/components/search/search-results';
+import { SearchTips } from '@/components/search/search-tips';
 
 const COMPANIES_KEY = 'companies';
 
@@ -60,6 +61,8 @@ export default function Home() {
             error={error} 
             data={result} 
           />
+
+          <SearchTips />
         </div>
       </main>
     </div>

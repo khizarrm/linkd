@@ -12,6 +12,7 @@ import { ProtectedCompaniesListRoute, ProtectedCompanyEmployeesRoute } from "./e
 import { VectorizePopulateCompaniesRoute, VectorizePopulateEmployeesRoute, VectorizeSearchRoute, VectorizeStatsRoute, VectorizeUpdateCompanyRoute } from "./endpoints/vectorize";
 import { PublicWaitlistRoute } from "./endpoints/waitlist";
 import { ProtectedProfileGetRoute, ProtectedProfileUpdateRoute } from "./endpoints/profile";
+import { PublicFeedbackRoute } from "./endpoints/feedback";
 import { ClerkWebhookRoute } from "./endpoints/clerkWebhook";
 import { findExistingCompanyAndEmployees } from "./db/companies";
 
@@ -30,8 +31,7 @@ app.use(
             const allowed = [
                 "http://localhost:3000",
                 "http://localhost:3001",
-                "https://applyo-frontend.applyo.workers.dev",
-                "https://try-outreach.vercel.app"
+                "https://try-linkd.com"
             ];
             return allowed.includes(origin) || /^http:\/\/localhost:\d+$/.test(origin) ? origin : allowed[0];
         },
@@ -162,6 +162,7 @@ class OrchestratorRoute extends OpenAPIRoute {
 
 // Register routes
 openapi.post("/api/public/waitlist", PublicWaitlistRoute);
+openapi.post("/api/public/feedback", PublicFeedbackRoute);
 // @ts-expect-error - chanfana type inference issue with webhook routes
 openapi.post("/api/webhooks/clerk", ClerkWebhookRoute);
 openapi.post("/api/agents/orchestrator", OrchestratorRoute);

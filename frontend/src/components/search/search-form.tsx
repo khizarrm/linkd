@@ -1,15 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { Loader2 } from 'lucide-react';
-
-const PLACEHOLDER_TEXTS = [
-  'gimme tim cooks email from apple',
-  'exa ai, the api search company',
-  'cohere',
-  'fouders from datacurve',
-  'ceo of poolside ai',
-];
 
 interface SearchFormProps {
   onSearch: (query: string) => void;
@@ -18,28 +10,6 @@ interface SearchFormProps {
 
 export function SearchForm({ onSearch, isLoading }: SearchFormProps) {
   const [query, setQuery] = useState('');
-  const [isFocused, setIsFocused] = useState(false);
-  const [placeholderIndex, setPlaceholderIndex] = useState(0);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    if (query.trim() === '' && !isFocused) {
-      intervalRef.current = setInterval(() => {
-        setPlaceholderIndex((prev) => (prev + 1) % PLACEHOLDER_TEXTS.length);
-      }, 3000);
-    } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    }
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, [query, isFocused]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,8 +26,7 @@ export function SearchForm({ onSearch, isLoading }: SearchFormProps) {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
+              placeholder="Type in a company name or their domain here."
               onKeyDown={(e) => {
                 if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
                   e.preventDefault();
@@ -67,25 +36,6 @@ export function SearchForm({ onSearch, isLoading }: SearchFormProps) {
               disabled={isLoading}
               className="w-full bg-transparent text-sm sm:text-lg md:text-xl font-sans font-light tracking-tight focus:outline-none disabled:opacity-50 min-h-[40px] sm:min-h-0 relative z-10"
             />
-            {query.trim() === '' && !isFocused && (
-              <div className="absolute inset-0 pointer-events-none overflow-hidden slot-machine-container">
-                <div
-                  className="slot-machine-reel text-sm sm:text-lg md:text-xl font-sans font-light tracking-tight text-[#3a3a3a] w-full"
-                  style={{
-                    transform: `translateY(-${placeholderIndex * (100 / PLACEHOLDER_TEXTS.length)}%)`
-                  }}
-                >
-                  {PLACEHOLDER_TEXTS.map((text, idx) => (
-                    <div 
-                      key={idx} 
-                      className="slot-machine-item"
-                    >
-                      {text}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
           <button
@@ -99,7 +49,7 @@ export function SearchForm({ onSearch, isLoading }: SearchFormProps) {
                 <span className="sm:inline">Searching</span>
               </>
             ) : (
-              'Send'
+              'Search'
             )}
           </button>
         </div>

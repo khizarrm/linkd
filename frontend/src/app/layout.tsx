@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from '@clerk/nextjs';
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, DM_Serif_Display } from "next/font/google";
 import { ConditionalLayout } from "@/components/conditional-layout";
 import "./globals.css";
 
@@ -11,6 +11,12 @@ const geistSans = Geist({
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+const dmSerif = DM_Serif_Display({
+  weight: "400",
+  variable: "--font-dm-serif",
   subsets: ["latin"],
 });
 
@@ -33,7 +39,7 @@ export default function RootLayout({
     >
       <html lang="en" className="dark bg-[#0a0a0a]">
         <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#0a0a0a] font-sans`}
+          className={`${geistSans.variable} ${geistMono.variable} ${dmSerif.variable} antialiased bg-[#0a0a0a] font-sans`}
         >
           <ConditionalLayout>{children}</ConditionalLayout>
         </body>

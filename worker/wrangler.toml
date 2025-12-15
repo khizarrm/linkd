@@ -26,6 +26,7 @@ class_name = "Orchestrator"
 
 [[migrations]]
 tag = "v3"
+new_sqlite_classes = ["Orchestrator"]
 
 [[vectorize]]
 binding = "COMPANY_VECTORS"

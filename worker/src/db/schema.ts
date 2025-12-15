@@ -4,6 +4,7 @@ import * as templatesSchema from "./templates.schema";
 import * as waitlistSchema from "./waitlist.schema";
 import * as chatsSchema from "./chats.schema";
 import * as messagesSchema from "./messages.schema";
+import * as feedbackSchema from "./feedback.schema";
 
 export const schema = {
     ...authSchema,
@@ -12,4 +13,5 @@ export const schema = {
     ...waitlistSchema,
     ...chatsSchema,
     ...messagesSchema,
+    ...feedbackSchema,
 } as const;

@@ -10,7 +10,7 @@ export function SearchHeader() {
         className="mt-2 sm:mt-3 md:mt-4 text-xs sm:text-sm md:text-base font-sans font-light text-[#6a6a6a] opacity-0 animate-fade-in-up px-4 sm:px-0" 
         style={{ animationDelay: '0.05s' }}
       >
-        link up ting
+        Reach Decision Makers Directly
       </p>
     </div>
   );
