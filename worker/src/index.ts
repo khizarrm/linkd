@@ -31,7 +31,8 @@ app.use(
             const allowed = [
                 "http://localhost:3000",
                 "http://localhost:3001",
-                "https://try-linkd.com"
+                "https://try-linkd.com",
+                "https://www.try-linkd.com"
             ];
 
             // 1. Handle missing origin (e.g., server-side calls or Postman)
