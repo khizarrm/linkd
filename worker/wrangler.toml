@@ -1,7 +1,7 @@
 # For more details on how to configure Wrangler, refer to:
 # https://developers.cloudflare.com/workers/wrangler/configuration/
 
-name = "applyo-worker"
+name = "worker"
 main = "src/index.ts"
 compatibility_date = "2025-10-11"
 compatibility_flags = ["nodejs_compat"]
@@ -25,8 +25,7 @@ name = "Orchestrator"
 class_name = "Orchestrator"
 
 [[migrations]]
-tag = "v2"
-new_sqlite_classes = ["Orchestrator"]
+tag = "v3"
 
 [[vectorize]]
 binding = "COMPANY_VECTORS"

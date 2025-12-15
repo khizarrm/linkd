@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "outreach - just ask",
+  title: "LINKD",
   description: "Automate your outreach with AI-powered contact discovery and engagement",
 };
 
@@ -25,7 +25,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
+    <ClerkProvider
+      signInUrl="/login"
+      signUpUrl="/login"
+      signInFallbackRedirectUrl="/login"
+      signUpFallbackRedirectUrl="/login"
+    >
       <html lang="en" className="dark bg-[#0a0a0a]">
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#0a0a0a] font-sans`}

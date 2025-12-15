@@ -1,11 +1,12 @@
 'use client';
 
-import { Search, User, LogOut, FileText, Building2, Settings } from "lucide-react"
+import { Search, User, LogOut, FileText, Settings } from "lucide-react"
 import { useRouter, usePathname } from "next/navigation"
 import Image from "next/image"
 import { useState } from "react"
 import Link from "next/link"
-import { ProfileSettingsDialog } from "./settings/profile-settings-dialog"
+import { useUser, useClerk } from "@clerk/nextjs"
+// import { ProfileSettingsDialog } from "./settings/profile-settings-dialog"
 import { clearProfileCache } from "@/lib/profile-cache"
 
 import {
@@ -30,16 +31,11 @@ const items = [
     url: "/",
     icon: Search,
   },
-  {
-    title: "Bank",
-    url: "/bank",
-    icon: Building2,
-  },
-  {
-    title: "Templates",
-    url: "/templates",
-    icon: FileText,
-  },
+  // {
+  //   title: "Templates",
+  //   url: "/templates",
+  //   icon: FileText,
+  // },
 ]
 
 export function AppSidebar() {
@@ -47,13 +43,17 @@ export function AppSidebar() {
   const pathname = usePathname();
   const [imageError, setImageError] = useState(false);
   const [showSignOut, setShowSignOut] = useState(false);
-  const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
+  // const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
+
+  const { user, isLoaded } = useUser();
+  const { signOut } = useClerk();
 
   const handleSignOut = async () => {
     try {
       // Clear profile cache on sign out
       clearProfileCache();
-      // TODO: Implement Clerk sign out
+      // Sign out using Clerk
+      await signOut();
       router.push('/login');
       router.refresh();
     } catch (error) {
@@ -61,17 +61,16 @@ export function AppSidebar() {
     }
   };
 
-  // Placeholder user info until Clerk is integrated
-  const userName = 'Guest';
-  const userEmail = 'guest@outreach.app';
-  const userImage = null;
-  const isAnonymous = true;
+  // Get user info from Clerk
+  const userName = user?.fullName || user?.firstName || 'User';
+  const userEmail = user?.emailAddresses?.[0]?.emailAddress || '';
+  const userImage = user?.imageUrl || null;
 
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <div className="flex h-12 items-center gap-2 px-4 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-          <span className="font-medium text-lg tracking-tight group-data-[collapsible=icon]:hidden">outreach</span>
+          <span className="font-medium text-lg tracking-tight group-data-[collapsible=icon]:hidden">LINKD</span>
           <SidebarTrigger className="ml-auto group-data-[collapsible=icon]:ml-0" />
         </div>
       </SidebarHeader>
@@ -111,7 +110,7 @@ export function AppSidebar() {
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
-          <SidebarMenuItem>
+          {/* <SidebarMenuItem>
             <SidebarMenuButton
               onClick={() => setIsSettingsDialogOpen(true)}
               tooltip="Settings"
@@ -120,7 +119,7 @@ export function AppSidebar() {
               <Settings />
               <span>Settings</span>
             </SidebarMenuButton>
-          </SidebarMenuItem>
+          </SidebarMenuItem> */}
           <SidebarMenuItem>
             <SidebarMenuButton
               size="lg"
@@ -144,16 +143,16 @@ export function AppSidebar() {
               )}
               <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
                 <span className="truncate font-semibold">{userName}</span>
-                <span className="truncate text-xs font-normal text-muted-foreground">{isAnonymous ? 'Guest User' : userEmail}</span>
+                <span className="truncate text-xs font-normal text-muted-foreground">{userEmail || 'Loading...'}</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
-      <ProfileSettingsDialog
+      {/* <ProfileSettingsDialog
         open={isSettingsDialogOpen}
         onOpenChange={setIsSettingsDialogOpen}
-      />
+      /> */}
       <SidebarRail />
     </Sidebar>
   )

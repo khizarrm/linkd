@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { protectedApi } from '@/lib/api';
+import { useProtectedApi } from '@/hooks/use-protected-api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,6 +28,7 @@ interface TemplateDialogProps {
 }
 
 export function TemplateDialog({ open, onOpenChange, onSuccess, initialData }: TemplateDialogProps) {
+  const protectedApi = useProtectedApi();
   const [isLoading, setIsLoading] = useState(false);
   const [showFields, setShowFields] = useState(false);
   const [formData, setFormData] = useState({

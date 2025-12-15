@@ -1,9 +1,10 @@
 import useSWR, { mutate } from 'swr';
-import { protectedApi } from '@/lib/api';
+import { useProtectedApi } from './use-protected-api';
 
 const TEMPLATES_KEY = 'templates';
 
 export function useTemplates() {
+  const protectedApi = useProtectedApi();
   const { data, error, isLoading } = useSWR(TEMPLATES_KEY, async () => {
     const response = await protectedApi.listTemplates();
     if (!response.success) throw new Error('Failed to load templates');

@@ -1,7 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Read(//Users/khizarmalik/repos/applyo/**)"
+      "Read(//Users/khizarmalik/repos/outreach/**)"
     ],
     "deny": [],
     "ask": []

@@ -140,7 +140,7 @@ export class VectorizeHandler {
                 company: companyProfiles
             })
             .from(employees)
-            .innerJoin(companyProfiles, eq(employees.companyId, companyProfiles.id))
+            .innerJoin(companyProfiles, eq(employees.companyName, companyProfiles.companyName))
             .limit(limit)
             .offset(offset)
             .all();
@@ -344,7 +344,7 @@ export class VectorizeHandler {
                 company: companyProfiles
             })
             .from(employees)
-            .innerJoin(companyProfiles, eq(employees.companyId, companyProfiles.id))
+            .innerJoin(companyProfiles, eq(employees.companyName, companyProfiles.companyName))
             .where(eq(employees.id, employeeId))
             .limit(1)
             .get();

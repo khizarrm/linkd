@@ -113,7 +113,7 @@ export async function upsertCompany(
 
 export async function upsertEmployee(
   db: D1Database,
-  companyId: number,
+  companyName: string,
   employeeName: string,
   employeeTitle: string | null,
   email: string | null
@@ -124,7 +124,12 @@ export async function upsertEmployee(
     throw new Error("Employee name is required");
   }
 
+  if (!companyName || companyName.trim() === "") {
+    throw new Error("Company name is required");
+  }
+
   const normalizedName = employeeName.trim();
+  const normalizedCompanyName = companyName.trim();
 
   const existing = await drizzleDb
     .select()
@@ -132,7 +137,7 @@ export async function upsertEmployee(
     .where(
       and(
         sql`LOWER(${employees.employeeName}) = LOWER(${normalizedName})`,
-        eq(employees.companyId, companyId)
+        eq(employees.companyName, normalizedCompanyName)
       )
     )
     .limit(1)
@@ -162,7 +167,7 @@ export async function upsertEmployee(
       employeeName: normalizedName,
       employeeTitle: employeeTitle?.trim() || null,
       email: email?.trim() || null,
-      companyId: companyId,
+      companyName: normalizedCompanyName,
     }).returning({ id: employees.id });
 
     return result[0].id;
@@ -212,7 +217,7 @@ export async function findExistingCompanyAndEmployees(
           const companyEmployees = await drizzleDb
             .select()
             .from(employees)
-            .where(eq(employees.companyId, comp.id))
+            .where(eq(employees.companyName, comp.companyName))
             .all();
           
           return {
@@ -269,7 +274,7 @@ export async function findExistingCompanyAndEmployees(
   const companyEmployees = await drizzleDb
     .select()
     .from(employees)
-    .where(eq(employees.companyId, company.id))
+    .where(eq(employees.companyName, company.companyName))
     .all();
   
   return {

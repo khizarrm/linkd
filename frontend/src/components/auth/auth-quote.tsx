@@ -26,7 +26,7 @@ export function AuthQuote({ children }: AuthQuoteProps) {
         {/* Brand - Header */}
         <div className="flex flex-col items-center justify-center pt-2 md:pt-8">
           <h1 className="text-2xl md:text-4xl xl:text-5xl font-light tracking-tight text-center mb-1">
-            outreach
+            LINKD
           </h1>
           <p className="text-sm md:text-lg xl:text-xl font-light text-[#a8a8a8] text-center">
             don't ask, don't get.

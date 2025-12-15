@@ -6,6 +6,7 @@ import { eq, desc, and } from "drizzle-orm";
 import { templates } from "../db/templates.schema";
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
+import { verifyClerkToken } from "../lib/clerk-auth";
 
 export class ProtectedTemplatesListRoute extends OpenAPIRoute {
   schema = {
@@ -32,13 +33,26 @@ export class ProtectedTemplatesListRoute extends OpenAPIRoute {
           },
         },
       },
+      "401": {
+        description: "Unauthorized",
+      },
     },
   };
 
   async handle(c: any) {
     const env = c.env;
+    const request = c.req.raw;
+
+    // Verify Clerk token
+    const authResult = await verifyClerkToken(request, env.CLERK_SECRET_KEY);
+    if (!authResult) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { clerkUserId } = authResult;
     const db = drizzle(env.DB, { schema });
     const userTemplates = await db.query.templates.findMany({
+      where: eq(templates.clerkUserId, clerkUserId),
       orderBy: [desc(templates.createdAt)],
     });
 
@@ -88,16 +102,29 @@ export class ProtectedTemplatesCreateRoute extends OpenAPIRoute {
           },
         },
       },
+      "401": {
+        description: "Unauthorized",
+      },
     },
   };
 
   async handle(c: any) {
+    const env = c.env;
+    const request = c.req.raw;
+
+    // Verify Clerk token
+    const authResult = await verifyClerkToken(request, env.CLERK_SECRET_KEY);
+    if (!authResult) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { clerkUserId } = authResult;
     const { name, subject, body } = await this.getValidatedData<typeof this.schema>().then(d => d.body);
-    const db = drizzle(c.env.DB, { schema });
+    const db = drizzle(env.DB, { schema });
     
     const newTemplate = {
       id: crypto.randomUUID(),
-      userId: "anonymous",
+      clerkUserId,
       name,
       subject,
       body,
@@ -156,14 +183,43 @@ export class ProtectedTemplatesUpdateRoute extends OpenAPIRoute {
           },
         },
       },
+      "401": {
+        description: "Unauthorized",
+      },
+      "403": {
+        description: "Forbidden",
+      },
       "404": { description: "Template not found" },
     },
   };
 
   async handle(c: any) {
+    const env = c.env;
+    const request = c.req.raw;
+
+    // Verify Clerk token
+    const authResult = await verifyClerkToken(request, env.CLERK_SECRET_KEY);
+    if (!authResult) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { clerkUserId } = authResult;
     const { id } = await this.getValidatedData<typeof this.schema>().then(d => d.params);
     const { name, subject, body } = await this.getValidatedData<typeof this.schema>().then(d => d.body);
-    const db = drizzle(c.env.DB, { schema });
+    const db = drizzle(env.DB, { schema });
+    
+    // Verify template ownership
+    const existingTemplate = await db.query.templates.findFirst({
+      where: eq(templates.id, id),
+    });
+
+    if (!existingTemplate) {
+      return Response.json({ error: "Template not found" }, { status: 404 });
+    }
+
+    if (existingTemplate.clerkUserId !== clerkUserId) {
+      return Response.json({ error: "Forbidden" }, { status: 403 });
+    }
     
     const result = await db.update(templates)
       .set({ 
@@ -174,10 +230,6 @@ export class ProtectedTemplatesUpdateRoute extends OpenAPIRoute {
       })
       .where(eq(templates.id, id))
       .returning();
-
-    if (!result.length) {
-      return Response.json({ error: "Template not found" }, { status: 404 });
-    }
 
     const updated = result[0];
     return {
@@ -211,6 +263,12 @@ export class ProtectedTemplatesDeleteRoute extends OpenAPIRoute {
           },
         },
       },
+      "401": {
+        description: "Unauthorized",
+      },
+      "403": {
+        description: "Forbidden",
+      },
       "404": {
         description: "Template not found",
       },
@@ -218,16 +276,35 @@ export class ProtectedTemplatesDeleteRoute extends OpenAPIRoute {
   };
 
   async handle(c: any) {
+    const env = c.env;
+    const request = c.req.raw;
+
+    // Verify Clerk token
+    const authResult = await verifyClerkToken(request, env.CLERK_SECRET_KEY);
+    if (!authResult) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { clerkUserId } = authResult;
     const { id } = await this.getValidatedData<typeof this.schema>().then(d => d.params);
-    const db = drizzle(c.env.DB, { schema });
+    const db = drizzle(env.DB, { schema });
+    
+    // Verify template ownership
+    const existingTemplate = await db.query.templates.findFirst({
+      where: eq(templates.id, id),
+    });
+
+    if (!existingTemplate) {
+      return Response.json({ error: "Template not found" }, { status: 404 });
+    }
+
+    if (existingTemplate.clerkUserId !== clerkUserId) {
+      return Response.json({ error: "Forbidden" }, { status: 403 });
+    }
     
     const result = await db.delete(templates).where(
       eq(templates.id, id)
     ).returning();
-
-    if (!result.length) {
-      return Response.json({ error: "Template not found" }, { status: 404 });
-    }
 
     return { success: true };
   }
@@ -267,13 +344,29 @@ export class ProtectedTemplateProcessRoute extends OpenAPIRoute {
           },
         },
       },
+      "401": {
+        description: "Unauthorized",
+      },
+      "403": {
+        description: "Forbidden",
+      },
       "404": { description: "Template not found" },
     },
   };
 
   async handle(c: any) {
+    const env = c.env;
+    const request = c.req.raw;
+
+    // Verify Clerk token
+    const authResult = await verifyClerkToken(request, env.CLERK_SECRET_KEY);
+    if (!authResult) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { clerkUserId } = authResult;
     const { templateId, person, company } = await this.getValidatedData<typeof this.schema>().then(d => d.body);
-    const db = drizzle(c.env.DB, { schema });
+    const db = drizzle(env.DB, { schema });
 
     // Fetch template
     const template = await db.query.templates.findFirst({
@@ -282,6 +375,11 @@ export class ProtectedTemplateProcessRoute extends OpenAPIRoute {
 
     if (!template) {
       return Response.json({ error: "Template not found" }, { status: 404 });
+    }
+
+    // Verify template ownership
+    if (template.clerkUserId !== clerkUserId) {
+      return Response.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Extract standard variables

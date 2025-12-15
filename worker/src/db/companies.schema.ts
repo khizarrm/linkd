@@ -1,9 +1,18 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
-export const companyProfiles = sqliteTable("company_profiles", {
+export const companies = sqliteTable("companies", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   companyName: text("company_name").notNull(),
+  website: text("website"),
+  employeeName: text("employee_name"),
+  employeeTitle: text("employee_title"),
+  email: text("email"),
+});
+
+export const companyProfiles = sqliteTable("company_profiles", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  companyName: text("company_name").notNull().unique(),
   website: text("website"),
   yearFounded: integer("year_founded"),
   description: text("description"),
@@ -22,6 +31,6 @@ export const employees = sqliteTable("employees", {
   employeeName: text("employee_name").notNull(),
   employeeTitle: text("employee_title"),
   email: text("email"),
-  companyId: integer("company_id").references(() => companyProfiles.id),
+  companyName: text("company_name").references(() => companyProfiles.companyName),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });

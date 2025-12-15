@@ -90,7 +90,7 @@ export class ProtectedCompanyEmployeesRoute extends OpenAPIRoute {
                   employeeName: z.string(),
                   employeeTitle: z.string().nullable(),
                   email: z.string().nullable(),
-                  companyId: z.number(),
+                  companyName: z.string().nullable(),
                   createdAt: z.string().nullable(),
                 })
               ),
@@ -121,7 +121,7 @@ export class ProtectedCompanyEmployeesRoute extends OpenAPIRoute {
 
     // Get employees for this company
     const companyEmployees = await db.query.employees.findMany({
-      where: eq(employees.companyId, id),
+      where: eq(employees.companyName, company.companyName),
       orderBy: [desc(employees.createdAt)],
     });
 
@@ -132,7 +132,7 @@ export class ProtectedCompanyEmployeesRoute extends OpenAPIRoute {
         employeeName: employee.employeeName,
         employeeTitle: employee.employeeTitle,
         email: employee.email,
-        companyId: employee.companyId,
+        companyName: employee.companyName,
         createdAt: employee.createdAt,
       })),
     };

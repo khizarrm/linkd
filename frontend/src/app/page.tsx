@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { useState, useEffect } from 'react';
 import { mutate } from 'swr';
-import { agentsApi, type OrchestratorResponse } from '@/lib/api';
+import { useProtectedApi } from '@/hooks/use-protected-api';
+import type { OrchestratorResponse } from '@/lib/api';
 import { SearchHeader } from '@/components/search/search-header';
 import { SearchForm } from '@/components/search/search-form';
 import { SearchResults } from '@/components/search/search-results';
@@ -14,6 +15,7 @@ const COMPANIES_KEY = 'companies';
 export default function Home() {
   const { isSignedIn, isLoaded } = useAuth();
   const router = useRouter();
+  const protectedApi = useProtectedApi();
   const [result, setResult] = useState<OrchestratorResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +32,7 @@ export default function Home() {
     setLoading(true);
 
     try {
-      const data = await agentsApi.orchestrator({ query: query.trim() });
+      const data = await protectedApi.orchestrator({ query: query.trim() });
       setResult(data);
       // Invalidate companies cache so bank page shows new companies immediately
       mutate(COMPANIES_KEY);

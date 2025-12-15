@@ -32,7 +32,7 @@ Users interact through a chat interface where they provide their resume and work
 
 2. Set up the backend:
    ```bash
-   cd applyo-worker
+   cd worker
    npm install
    npm run dev
    ```
