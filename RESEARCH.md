@@ -1,197 +1,96 @@
-# Frontend UI Research
+# CORS Issue Research
+
+## Problem
+CORS error when frontend at `https://try-linkd.com` calls backend at `https://applyo-worker.applyo.workers.dev/api/agents/orchestrator`. Server returns `Access-Control-Allow-Origin: http://localhost:3000` instead of the actual origin.
 
 ## Files
 
-### Search Page (Main Page)
-- `frontend/src/app/page.tsx` - Main search page component
-- `frontend/src/components/search/search-header.tsx` - Page header with title/tagline
-- `frontend/src/components/search/search-form.tsx` - Search input with animated placeholder
-- `frontend/src/components/search/search-results.tsx` - Results container/state handler
-- `frontend/src/components/search/person-card.tsx` - Individual person result card
-- `frontend/src/components/search/empty-state.tsx` - No results state
-- `frontend/src/components/search/loading-skeleton.tsx` - Loading state skeleton
+### Backend (Worker)
+- `worker/src/index.ts` (lines 26-44): Global CORS middleware configuration
+  - Uses Hono's `cors()` middleware
+  - Origin function checks allowed list and returns origin or fallback
+  - Applied to all routes via `app.use("*", cors(...))`
+- `worker/src/agents/orchestrator.ts`: Orchestrator agent implementation
+- `worker/src/endpoints/*.ts`: Other endpoints (all use same CORS middleware)
 
-### Layout & Structure
-- `frontend/src/app/layout.tsx` - Root layout with Clerk auth
-- `frontend/src/components/conditional-layout.tsx` - Sidebar wrapper (hidden on login)
-- `frontend/src/components/app-sidebar.tsx` - Navigation sidebar
-- `frontend/src/app/globals.css` - Global styles, animations, dark theme
+### Frontend
+- `frontend/lib/api.ts`: API client with `apiFetch()` helper
+  - Uses `NEXT_PUBLIC_API_URL` env var
+  - Sets `credentials: 'include'` on requests
+- `frontend/src/hooks/use-protected-api.ts`: Hook that calls orchestrator endpoint
+- `frontend/next.config.ts`: Next.js rewrites API calls to worker URL
 
-## UI Design System
+## Data Structures
 
-### Color Palette
-- Background: `#0a0a0a` (near-black)
-- Text primary: `#e8e8e8` (off-white)
-- Text secondary: `#6a6a6a` (gray)
-- Cards: `#151515` (dark gray)
-- Borders: `#2a2a2a` → `#3a3a3a` (hover)
-- Button: White background, black text
-
-### Typography
-- Font: Geist Sans (via Next.js)
-- Weight: Light (`font-light`) throughout
-- Tracking: Tight (`tracking-tight`)
-- Responsive sizes: `text-xs sm:text-sm md:text-base` pattern
-
-### Animations
-- `animate-fade-in-up` - Staggered fade-in from bottom
-- `animate-shimmer` - Loading skeleton shimmer
-- Slot machine placeholder rotation (3s interval)
-
-## Search Page UI
-
-### Layout Structure
+### CORS Configuration
+```typescript
+cors({
+    origin: (origin) => {
+        const allowed = [
+            "http://localhost:3000",
+            "http://localhost:3001",
+            "https://try-linkd.com"
+        ];
+        return allowed.includes(origin) || /^http:\/\/localhost:\d+$/.test(origin) ? origin : allowed[0];
+    },
+    allowHeaders: ["Content-Type", "Authorization"],
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    exposeHeaders: ["Content-Length"],
+    maxAge: 600,
+    credentials: true,
+})
 ```
-- Full-screen centered container (max-w-4xl)
-- Vertical stack: Header → Form → Results
-- Negative top margin (-mt-16) for centering
-- Responsive padding: px-4 sm:px-6
-```
-
-### Search Header
-**Text:**
-- Title: `"linkd"` (h1, text-3xl → text-7xl responsive)
-- Tagline: `"link up ting"` (text-xs → text-base, gray)
-
-**Styling:**
-- Centered text
-- Light font weight
-- Fade-in animation (0.05s delay for tagline)
-
-### Search Form
-**Placeholder Texts (rotating every 3s):**
-1. `"gimme tim cooks email from apple"`
-2. `"exa ai, the api search company"`
-3. `"cohere"`
-4. `"fouders from datacurve"` (typo: "fouders")
-5. `"ceo of poolside ai"`
-
-**Input:**
-- Dark card background (`#151515`)
-- Border: `#2a2a2a` → `#4a4a4a` on focus
-- Rounded: `rounded-2xl sm:rounded-full`
-- Responsive text: `text-sm sm:text-lg md:text-xl`
-- Slot machine animation when empty/unfocused
-
-**Button:**
-- Text: `"Send"` (or `"Searching"` with spinner when loading)
-- White bg, black text
-- Uppercase, tracking-wider
-- Disabled when empty/loading
-
-**Keyboard:**
-- Cmd/Ctrl + Enter submits
-
-### Search Results
-
-**Loading State:**
-- 3 skeleton cards in grid
-- Shimmer animation
-- Responsive grid: 1 col → 2 cols (sm) → 3 cols (lg)
-
-**Empty State:**
-- Emoji: 🔍
-- Title: `"No emails found"`
-- Body: `"We couldn't find any verified email addresses for your search."`
-- Help text: `"Try adding more context (like their website, what they do, or specific details), or choose a smaller or mid-size company — those usually work best."`
-
-**Error State:**
-- Red text: `text-red-400/80`
-- Shows error message from API
-
-**Results Grid:**
-- Responsive: 1 → 2 → 3 columns
-- Gap: `gap-3 sm:gap-4`
-- Max width: `max-w-5xl`
-
-### Person Card
-
-**Structure:**
-- Dark card: `bg-[#151515]` with border
-- Rounded: `rounded-2xl sm:rounded-3xl`
-- Padding: `p-5 sm:p-6 md:p-8`
-- Hover: border lightens, slight scale on active
-
-**Content:**
-- **Name:** Large (text-xl → text-3xl), light weight, break-word
-- **Verified Badge:** Blue badge with checkmark if email exists
-- **Role:** Gray text below name
-- **Company:** 
-  - Favicon or Building2 icon
-  - Company name/domain (clickable link)
-  - Underlined, hover effect
-- **Email Section:**
-  - Dark background box (`#0a0a0a`)
-  - Email address (break-all)
-  - Copy button (Copy icon → Check icon on success)
-  - "No verified emails found" italic text if none
-
-**Animations:**
-- Staggered fade-in: `animationDelay: ${index * 0.1}s`
-
-## Sidebar
-
-**Header:**
-- Text: `"LINKD"` (uppercase, tracking-tight)
-- Collapsible trigger button
-
-**Navigation:**
-- Section label: `"Application"`
-- Menu item: `"Search"` (icon: Search, links to `/`)
-
-**Footer:**
-- User profile button (avatar + name/email)
-- Sign out button (appears on click, animated slide-in)
-- Settings commented out
-
-## Text/Copy Inventory
-
-### Search Page
-- Title: `"linkd"`
-- Tagline: `"link up ting"`
-- Button: `"Send"` / `"Searching"`
-- Placeholders: 5 rotating examples (see above)
-- Empty: `"No emails found"` + help text
-- Error: Dynamic from API
-- No results: `"No results found"`
-
-### Person Cards
-- Badge: `"Verified"`
-- Email copy: `"No verified emails found"`
-- Company fallback: `"Company Website"`
-
-### Sidebar
-- Brand: `"LINKD"`
-- Nav: `"Search"`
-- Actions: `"Sign out"`, `"Settings"` (commented)
 
 ## Patterns
 
-### Responsive Design
-- Mobile-first breakpoints: `sm:`, `md:`, `lg:`
-- Text scales: `text-xs sm:text-sm md:text-base`
-- Spacing scales: `mt-5 sm:mt-6 md:mt-8`
-- Grid: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`
+### CORS Setup
+- Single global CORS middleware applied to all routes
+- Origin function validates against hardcoded allowed list
+- Fallback returns `allowed[0]` when origin doesn't match
 
-### State Management
-- Local state for form/UI (`useState`)
-- SWR for data fetching (`mutate` for cache invalidation)
-- Clerk for auth (`useAuth`, `useUser`)
+### API Calls
+- Frontend uses `apiFetch()` helper with base URL from env var
+- All requests include `credentials: 'include'`
+- Next.js rewrites `/api/*` paths to worker URL
 
-### Error Handling
-- Try/catch in search handler
-- Error state displayed in results component
-- Fallback UI for missing data
+## Root Cause
 
-### Accessibility
-- Semantic HTML (article, h1, h2)
-- Keyboard navigation (Cmd+Enter)
-- Focus states on interactive elements
-- Alt text for images
+**Bug in origin function (line 36 of `worker/src/index.ts`):**
+
+When `origin` parameter is `null` or `undefined`:
+1. `allowed.includes(origin)` returns `false`
+2. Regex test fails (or throws if origin is null)
+3. Function returns `allowed[0]` (`http://localhost:3000`) as fallback
+
+This happens when:
+- Preflight OPTIONS request has no Origin header (shouldn't happen but can)
+- Hono CORS middleware passes `null`/`undefined` in edge cases
+- Origin header is missing or malformed
+
+**Expected behavior:**
+- If origin is `https://try-linkd.com`, should return `https://try-linkd.com`
+- If origin is `null`/`undefined`, should handle gracefully (return `null` or first allowed)
+
+## Strategy
+
+1. **Fix origin function** to handle `null`/`undefined`:
+   - Check if origin exists before validation
+   - Return `null` or first allowed origin when origin is missing
+   - Ensure `https://try-linkd.com` is properly matched
+
+2. **Verify CORS behavior**:
+   - Ensure preflight OPTIONS requests are handled
+   - Confirm Hono CORS middleware works with origin function
+   - Test with actual production origin
+
+3. **Environment considerations**:
+   - Check if `NEXT_PUBLIC_API_URL` is set correctly in production
+   - Verify worker deployment has latest code
+   - Confirm no caching issues
 
 ## Unknowns
 
-- Why search page doesn't use sidebar layout (ConditionalLayout shows sidebar on all pages except login, but search page has its own full-screen layout)
-- Typo in placeholder: `"fouders"` vs `"founders"` - intentional or bug?
-- Brand name inconsistency: `"linkd"` (lowercase) vs `"LINKD"` (uppercase in sidebar)
-- Tagline `"link up ting"` - meaning/purpose unclear
+1. **Why origin is null/undefined**: Need to verify if Hono passes null for certain request types
+2. **Deployment state**: Is the deployed worker running the latest code with `https://try-linkd.com` in allowed list?
+3. **Environment variables**: What is `NEXT_PUBLIC_API_URL` set to in production?
+4. **Caching**: Could Cloudflare Workers be caching old CORS headers?

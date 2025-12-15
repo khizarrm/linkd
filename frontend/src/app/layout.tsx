@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { ClerkProvider } from '@clerk/nextjs';
 import { Geist, Geist_Mono, DM_Serif_Display } from "next/font/google";
 import { ConditionalLayout } from "@/components/conditional-layout";
+import { PostHogPageview } from "@/components/posthog-provider";
+import { Suspense } from "react";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -41,6 +43,9 @@ export default function RootLayout({
         <body
           className={`${geistSans.variable} ${geistMono.variable} ${dmSerif.variable} antialiased bg-[#0a0a0a] font-sans`}
         >
+          <Suspense fallback={null}>
+            <PostHogPageview />
+          </Suspense>
           <ConditionalLayout>{children}</ConditionalLayout>
         </body>
       </html>

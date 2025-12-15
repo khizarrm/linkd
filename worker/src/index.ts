@@ -33,7 +33,27 @@ app.use(
                 "http://localhost:3001",
                 "https://try-linkd.com"
             ];
-            return allowed.includes(origin) || /^http:\/\/localhost:\d+$/.test(origin) ? origin : allowed[0];
+
+            // 1. Handle missing origin (e.g., server-side calls or Postman)
+            if (!origin) {
+                return allowed[0]; // Safe to default to localhost for non-browser tools
+            }
+
+            // 2. Check if origin is explicitly allowed
+            if (allowed.includes(origin)) {
+                return origin;
+            }
+
+            // 3. Check for dynamic localhost ports (preview environments)
+            if (/^http:\/\/localhost:\d+$/.test(origin)) {
+                return origin;
+            }
+
+            // 4. Block unauthorized origins
+            // Returning null blocks the request (secure)
+            // Log for debugging in Cloudflare Worker logs
+            console.log("Blocked CORS origin:", origin);
+            return null;
         },
         allowHeaders: ["Content-Type", "Authorization"],
         allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],

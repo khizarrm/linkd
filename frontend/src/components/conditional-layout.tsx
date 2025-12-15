@@ -1,7 +1,9 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { useAuth } from '@clerk/nextjs';
+import { useAuth, useUser } from '@clerk/nextjs';
+import { useEffect } from 'react';
+import { posthog } from '@/../instrumentation-client';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/app-sidebar';
 
@@ -12,7 +14,20 @@ import { AppSidebar } from '@/components/app-sidebar';
 export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { isSignedIn } = useAuth();
+  const { user } = useUser();
   const isLoginPage = pathname === '/login';
+
+  // Identify user in PostHog when signed in
+  useEffect(() => {
+    if (isSignedIn && user) {
+      posthog.identify(user.id, {
+        email: user.primaryEmailAddress?.emailAddress,
+        name: user.fullName,
+        firstName: user.firstName,
+        lastName: user.lastName,
+      });
+    }
+  }, [isSignedIn, user]);
 
   if (isLoginPage) {
     return (
