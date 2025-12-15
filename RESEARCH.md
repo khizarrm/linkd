@@ -1,96 +1,171 @@
-# CORS Issue Research
-
-## Problem
-CORS error when frontend at `https://try-linkd.com` calls backend at `https://applyo-worker.applyo.workers.dev/api/agents/orchestrator`. Server returns `Access-Control-Allow-Origin: http://localhost:3000` instead of the actual origin.
+# Backend Orchestrator Agent - Prompt Research
 
 ## Files
 
-### Backend (Worker)
-- `worker/src/index.ts` (lines 26-44): Global CORS middleware configuration
-  - Uses Hono's `cors()` middleware
-  - Origin function checks allowed list and returns origin or fallback
-  - Applied to all routes via `app.use("*", cors(...))`
-- `worker/src/agents/orchestrator.ts`: Orchestrator agent implementation
-- `worker/src/endpoints/*.ts`: Other endpoints (all use same CORS middleware)
+### Core Agent Implementation
+- `worker/src/agents/orchestrator.ts`: Main orchestrator agent class
+  - Extends `Agent<CloudflareBindings>` from `agents` package
+  - Implements `onStart()` and `onRequest()` lifecycle methods
+  - Contains primary prompt template (lines 41-83)
 
-### Frontend
-- `frontend/lib/api.ts`: API client with `apiFetch()` helper
-  - Uses `NEXT_PUBLIC_API_URL` env var
-  - Sets `credentials: 'include'` on requests
-- `frontend/src/hooks/use-protected-api.ts`: Hook that calls orchestrator endpoint
-- `frontend/next.config.ts`: Next.js rewrites API calls to worker URL
+### Routing & Entry Points
+- `worker/src/index.ts` (lines 79-182): `OrchestratorRoute` class
+  - OpenAPI route handler at `/api/agents/orchestrator`
+  - Checks database cache before invoking agent
+  - Calls agent via `getAgentByName(env.Orchestrator, "main")`
+
+### Tools Used by Agent
+- `worker/src/tools/searchWeb.ts`: Web search tool (Exa API)
+- `worker/src/tools/peopleFinder.ts`: People search tool (Exa + LLM extraction)
+- `worker/src/tools/emailFinder.ts`: Email discovery tool (Exa + LLM + verification)
+
+### Configuration
+- `worker/wrangler.toml` (lines 23-29): Durable Object binding for Orchestrator
+- `worker/src/env.d.ts`: Type definitions for CloudflareBindings
 
 ## Data Structures
 
-### CORS Configuration
+### Agent Request/Response
 ```typescript
-cors({
-    origin: (origin) => {
-        const allowed = [
-            "http://localhost:3000",
-            "http://localhost:3001",
-            "https://try-linkd.com"
-        ];
-        return allowed.includes(origin) || /^http:\/\/localhost:\d+$/.test(origin) ? origin : allowed[0];
-    },
-    allowHeaders: ["Content-Type", "Authorization"],
-    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    exposeHeaders: ["Content-Length"],
-    maxAge: 600,
-    credentials: true,
-})
+// Request
+{ query: string }
+
+// Response
+{
+  company: string;
+  website: string | null;
+  description: string | null;
+  techStack: string | null;
+  industry: string | null;
+  yearFounded: number | null;
+  headquarters: string | null;
+  revenue: string | null;
+  funding: string | null;
+  employeeCountMin: number | null;
+  employeeCountMax: number | null;
+  people: Array<{
+    name: string;
+    role: string;
+    emails: string[];
+  }>;
+  favicon: string | null;
+  state: any;
+}
 ```
+
+### AI SDK Configuration
+- Model: `openai("gpt-4o-2024-11-20")`
+- Tool choice: `"auto"` (agent decides when to use tools)
+- Stop condition: `stepCountIs(15)` (max 15 tool-calling steps)
 
 ## Patterns
 
-### CORS Setup
-- Single global CORS middleware applied to all routes
-- Origin function validates against hardcoded allowed list
-- Fallback returns `allowed[0]` when origin doesn't match
+### Agent Architecture
+- **Durable Object pattern**: Agent runs as Cloudflare Durable Object (stateful, single-instance)
+- **Base class pattern**: Extends `Agent<T>` with lifecycle hooks
+- **Tool orchestration**: Agent uses 3 tools in sequence (searchWeb → peopleFinder → emailFinder)
 
-### API Calls
-- Frontend uses `apiFetch()` helper with base URL from env var
-- All requests include `credentials: 'include'`
-- Next.js rewrites `/api/*` paths to worker URL
+### Prompt Structure
+- **Role definition**: "You are an external lead enrichment agent."
+- **Tool descriptions**: Lists available tools and their purposes
+- **Process steps**: 5-step workflow (Analyze → Company Data → People Data → Email Data → Output)
+- **Output schema**: Inline JSON example showing expected structure
+- **Rules**: Behavioral constraints (aggressive search, null handling, email verification)
 
-## Root Cause
+### Response Processing
+- **JSON extraction**: Strips markdown code blocks (` ```json `, ` ``` `)
+- **Regex fallback**: Extracts JSON object if parsing fails
+- **Post-processing**: Filters people without emails, saves to DB, adds favicon
 
-**Bug in origin function (line 36 of `worker/src/index.ts`):**
+### Tool Implementation Pattern
+- All tools use `tool()` from `ai` SDK
+- Zod schemas for input validation
+- Environment access via `options.env`
+- Error handling returns empty results gracefully
 
-When `origin` parameter is `null` or `undefined`:
-1. `allowed.includes(origin)` returns `false`
-2. Regex test fails (or throws if origin is null)
-3. Function returns `allowed[0]` (`http://localhost:3000`) as fallback
+## Main Prompt (Lines 41-83)
 
-This happens when:
-- Preflight OPTIONS request has no Origin header (shouldn't happen but can)
-- Hono CORS middleware passes `null`/`undefined` in edge cases
-- Origin header is missing or malformed
+```
+You are an external lead enrichment agent.
 
-**Expected behavior:**
-- If origin is `https://try-linkd.com`, should return `https://try-linkd.com`
-- If origin is `null`/`undefined`, should handle gracefully (return `null` or first allowed)
+# Tools Available:
+1. searchWeb: Finds company metadata (Revenue, HQ, Domain).
+2. peopleFinder: Finds specific names/roles of leaders.
+3. emailFinder: Finds emails given Name + Domain.
+
+# Process:
+1. Analyze Request: Identify Company Name.
+2. Company Data: Call 'searchWeb' to find domain, revenue, HQ, etc.
+3. People Data: Call 'peopleFinder' with the company name.
+4. Email Data: Call 'emailFinder' for the people returned in step 3.
+5. Final Output: Return the comprehensive JSON.
+
+# Output Schema:
+{
+  "company": "Company Name",
+  "website": "https://company.com",
+  "description": "Brief description from web",
+  "techStack": "e.g. React, AWS (if found)",
+  "industry": "Industry name",
+  "yearFounded": 2020,
+  "headquarters": "City, State, Country",
+  "revenue": "e.g. $10M ARR (if found)",
+  "funding": "e.g. Series A (if found)",
+  "employeeCountMin": 10,
+  "employeeCountMax": 50,
+  "people": [
+    {
+      "name": "Full Name",
+      "role": "Job Title",
+      "emails": ["email1@domain.com"]
+    }
+  ]
+}
+
+# Rules:
+- Use 'searchWeb' aggressively to fill metadata fields (Revenue, Funding, HQ).
+- If exact numbers (revenue/funding) are not public, leave those specific fields null.
+- Only include people with at least one verified email.
+- Return raw JSON only.
+
+User query: ${query}
+```
+
+### Prompt Characteristics
+- **Template literal**: User query injected at end
+- **Structured sections**: Tools, Process, Output Schema, Rules
+- **Explicit workflow**: Step-by-step instructions
+- **Schema as example**: JSON shown inline (not enforced by Zod)
+- **Behavioral rules**: Aggressive search, null handling, email verification requirement
 
 ## Strategy
 
-1. **Fix origin function** to handle `null`/`undefined`:
-   - Check if origin exists before validation
-   - Return `null` or first allowed origin when origin is missing
-   - Ensure `https://try-linkd.com` is properly matched
+### Prompt Design Decisions
+1. **Explicit process steps**: Forces sequential tool usage (searchWeb → peopleFinder → emailFinder)
+2. **Inline schema**: Shows expected output format without strict validation
+3. **Rule-based constraints**: "aggressively", "only include", "raw JSON only"
+4. **Tool descriptions**: Brief one-liners per tool
 
-2. **Verify CORS behavior**:
-   - Ensure preflight OPTIONS requests are handled
-   - Confirm Hono CORS middleware works with origin function
-   - Test with actual production origin
+### Execution Flow
+1. Route receives query → checks DB cache
+2. If not cached → invokes agent via Durable Object
+3. Agent calls `generateText()` with prompt + tools
+4. LLM orchestrates tool calls (up to 15 steps)
+5. Response parsed, filtered, saved to DB
+6. Returns JSON with favicon added
 
-3. **Environment considerations**:
-   - Check if `NEXT_PUBLIC_API_URL` is set correctly in production
-   - Verify worker deployment has latest code
-   - Confirm no caching issues
+### Error Handling
+- Query validation: Returns 400 if query missing
+- JSON parsing: Multiple fallbacks (strip markdown, regex extract)
+- DB errors: Logged but don't fail request
+- Empty results: Returns `{ message: "no emails found" }` if no people with emails
 
 ## Unknowns
 
-1. **Why origin is null/undefined**: Need to verify if Hono passes null for certain request types
-2. **Deployment state**: Is the deployed worker running the latest code with `https://try-linkd.com` in allowed list?
-3. **Environment variables**: What is `NEXT_PUBLIC_API_URL` set to in production?
-4. **Caching**: Could Cloudflare Workers be caching old CORS headers?
+1. **Agent base class**: What does `Agent<T>` from `agents` package provide? (onStart, onRequest, state management)
+2. **Durable Object state**: What is `this.state` used for? (appears in response but not set in code)
+3. **Tool execution context**: How does `options.env` get populated? (tools receive env via options parameter)
+4. **Step limit rationale**: Why 15 steps? (prevents infinite loops but may cut off complex queries)
+5. **Prompt effectiveness**: Does explicit 5-step process match actual LLM behavior? (may deviate from instructions)
+6. **Schema enforcement**: Output schema is example only - no Zod validation on LLM output
+7. **Tool choice strategy**: `"auto"` lets LLM decide - could be `"required"` or `"none"` for different behaviors

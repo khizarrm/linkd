@@ -9,6 +9,7 @@
     "cf-typegen": "wrangler types"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^2.0.56",
     "@ai-sdk/openai": "^2.0.71",
     "@clerk/backend": "^2.27.0",
     "@opennextjs/cloudflare": "^1.10.1",

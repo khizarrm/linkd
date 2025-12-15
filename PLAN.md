@@ -1,35 +1,22 @@
-# Implementation Plan: Linkd Frontend Updates
+# Domain Validation Guard for Orchestrator Agent
 
-## Sidebar Changes
+## Goal
+Add domain validation guard to orchestrator agent that validates URLs/domains before processing enrichment requests.
 
-- [x] Step 1: Add "Guide" item to sidebar items array in `app-sidebar.tsx` - Add object with title "Guide", url `https://www.youtube.com/watch?v=ZbaHpPGghzk`, and appropriate icon (e.g., PlayCircle or Video from lucide-react) - Verification: Check items array contains new Guide entry
-- [x] Step 2: Import icon for Guide nav item in `app-sidebar.tsx` - Add PlayCircle or Video icon import from lucide-react - Verification: Icon import exists at top of file
-- [x] Step 3: Create feedback dialog component `feedback-dialog.tsx` in `components/` directory - Create new file with Dialog component, textarea input, and submit button - Verification: File exists with basic dialog structure
-- [x] Step 4: Add feedback dialog state management in `app-sidebar.tsx` - Add useState hook for dialog open/close state - Verification: State variable declared and initialized
-- [x] Step 5: Add "Feedback" button in sidebar footer in `app-sidebar.tsx` - Add SidebarMenuItem with SidebarMenuButton that opens feedback dialog - Verification: Feedback button visible in sidebar footer
-- [x] Step 6: Import and render FeedbackDialog component in `app-sidebar.tsx` - Import FeedbackDialog and add it below SidebarFooter with open/onOpenChange props - Verification: Dialog component rendered in sidebar
+## Implementation Steps
 
-## Search Input Changes
+- [x] Step 1: Create `validateDomain` function in `worker/src/lib/utils.ts` - Convert the provided tool code into a standalone async function that takes a domain string and returns validation result object - Verification: Function exists and exports correctly
 
-- [x] Step 7: Remove rotating placeholder logic from `search-form.tsx` - Remove PLACEHOLDER_TEXTS array, placeholderIndex state, intervalRef, and useEffect for rotation - Verification: No placeholder rotation code remains
-- [x] Step 8: Replace placeholder with static text in `search-form.tsx` - Add placeholder prop to input element with value "Type in a company name here." - Verification: Input has static placeholder attribute
-- [x] Step 9: Remove slot machine animation div from `search-form.tsx` - Remove the conditional div that renders rotating placeholder text - Verification: No slot-machine-container div in JSX
+- [x] Step 2: Create `extractDomainFromQuery` helper function in `worker/src/lib/utils.ts` - Function that attempts to extract a domain/URL from the query string (handles cases like "stripe.com", "https://stripe.com", "find emails at stripe.com") - Verification: Function can extract domains from various query formats
 
-## Tagline Change
+- [x] Step 3: Import validation functions in `worker/src/agents/orchestrator.ts` - Add imports for `validateDomain` and `extractDomainFromQuery` from `../lib/utils` - Verification: Imports are present and TypeScript compiles without errors
 
-- [x] Step 10: Update tagline text in `search-header.tsx` - Change "link up ting" to "reach decision makers directly" in the paragraph element - Verification: Tagline displays new text
+- [x] Step 4: Add domain extraction logic in `onRequest` method - After parsing query (line 18), call `extractDomainFromQuery(query)` to get potential domain - Verification: Domain extraction runs and logs extracted domain (if found)
 
-## Tips Section
+- [x] Step 5: Add validation guard in `onRequest` method - If domain is extracted, call `validateDomain(domain)` - If validation returns `valid: false`, return early with 400 error response - Verification: Invalid domains return 400 error before agent processing starts
 
-- [x] Step 11: Create tips section component `search-tips.tsx` in `components/search/` directory - Create component with three tip items in list format matching design system - Verification: Component file exists with three tips rendered
-- [x] Step 12: Import SearchTips component in `page.tsx` - Add import statement for SearchTips component - Verification: Import statement exists
-- [x] Step 13: Render SearchTips component below SearchResults in `page.tsx` - Add SearchTips component after SearchResults with appropriate spacing - Verification: Tips section appears below search results on page
+- [ ] Step 6: Test validation with valid domain - Send request with valid domain (e.g., "stripe.com") - Verification: Request proceeds normally through orchestrator
 
-## Verification Checklist
+- [ ] Step 7: Test validation with invalid domain - Send request with invalid/unreachable domain - Verification: Request returns 400 error with validation failure message
 
-- [ ] Step 14: Verify Guide nav item appears in sidebar - Check sidebar shows "Guide" below "Search" with correct icon - Verification: Guide item visible and clickable in sidebar
-- [ ] Step 15: Verify feedback modal opens and closes - Click Feedback button, verify modal opens with textarea, submit works, modal closes - Verification: Modal interaction works correctly
-- [ ] Step 16: Verify static placeholder displays - Check search input shows "Type in a company name here." when empty - Verification: Static placeholder text visible
-- [ ] Step 17: Verify tagline updated - Check search page header shows "reach decision makers directly" - Verification: New tagline displays correctly
-- [ ] Step 18: Verify tips section displays - Check tips appear below search results with all three tips visible - Verification: Tips section renders with correct content
-- [ ] Step 19: Test responsive design - Check all changes work on mobile, tablet, and desktop breakpoints - Verification: Layout responsive at all breakpoints
+- [ ] Step 8: Test validation with company name only - Send request with just company name (e.g., "stripe") - Verification: Request proceeds normally (no domain to validate)

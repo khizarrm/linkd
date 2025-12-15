@@ -1,10 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { BadgeCheck, Building2, Copy, Check } from 'lucide-react';
+import { BadgeCheck, Building2, Copy, Check, Mail } from 'lucide-react';
 import type { OrchestratorPerson } from '@/lib/api';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 
 interface PersonCardProps {
   person: OrchestratorPerson;
@@ -20,10 +19,10 @@ export function PersonCard({ person, favicon, companyName, index }: PersonCardPr
   const hasEmail = person.emails && person.emails.length > 0;
   const emails = person.emails || [];
   const firstEmail = emails[0] ?? null;
-  
+
   const domain = firstEmail ? firstEmail.split('@')[1] : null;
   const companyUrl = domain ? `https://${domain}` : null;
-  
+
   // Generate favicon URL from domain if not provided as prop
   const faviconUrl = favicon || (domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=128` : null);
 
@@ -38,57 +37,35 @@ export function PersonCard({ person, favicon, companyName, index }: PersonCardPr
   };
 
   return (
-    <>
     <article
-        className="opacity-0 animate-fade-in-up bg-[#151515] border border-[#2a2a2a] rounded-2xl sm:rounded-3xl p-5 sm:p-6 md:p-8 hover:border-[#3a3a3a] active:scale-[0.98] transition-all duration-300 flex flex-col h-full"
+      className="opacity-0 animate-fade-in-up bg-[#151515] border border-[#2a2a2a] rounded-2xl p-5 sm:p-6 hover:border-[#3a3a3a] transition-all duration-300"
       style={{ animationDelay: `${index * 0.1}s` }}
     >
-        <div className="flex flex-col gap-4">
-          {/* Header: Name and Badge */}
-          <div className="flex items-start gap-3 min-w-0 w-full">
-            <h2 
-              className="text-xl sm:text-2xl md:text-3xl font-light tracking-tight flex-1 min-w-0"
-              style={{ 
-                wordBreak: 'break-word',
-                overflowWrap: 'anywhere',
-                hyphens: 'auto'
-              }}
-            >
-              {person.name}
-            </h2>
-            {hasEmail && (
-              <Badge variant="secondary" className="bg-blue-500 text-white dark:bg-blue-600 h-6 px-2 font-sans font-light tracking-wide shrink-0 whitespace-nowrap flex-shrink-0 mt-0.5">
-                <BadgeCheck className="w-3.5 h-3.5 mr-1.5" />
-                Verified
-              </Badge>
-            )}
-          </div>
-            
-          {/* Info Section */}
-          <div className="space-y-3 flex-grow">
-            {person.role && (
-              <p 
-                className="text-xs sm:text-sm md:text-base font-sans font-light text-[#6a6a6a] leading-relaxed min-w-0"
-                style={{ 
-                  wordBreak: 'break-word',
-                  overflowWrap: 'anywhere'
-                }}
-              >
-                {person.role}
-              </p>
-            )}
-
-            {/* Company Info Row */}
-            <div className="flex items-center gap-2 text-[#6a6a6a] min-w-0">
+      {hasEmail && firstEmail ? (
+        <div className="space-y-4">
+          {/* Top row: Name, role, company */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <h2 className="text-lg sm:text-xl font-light text-[#f5f5f0] truncate">
+                  {person.name}
+                </h2>
+                <BadgeCheck className="w-4 h-4 text-[#d4af37] shrink-0" />
+              </div>
+              {person.role && (
+                <p className="text-sm font-light text-[#9a9a90] truncate mb-2">
+                  {person.role}
+                </p>
+              )}
               {companyUrl ? (
-                <a 
+                <a
                   href={companyUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 hover:text-[#e8e8e8] transition-colors group min-w-0 flex-1"
+                  className="flex items-center gap-2 text-[#6a6a6a] hover:text-[#e8e8e8] transition-colors w-fit"
                 >
                   {faviconUrl && !faviconError ? (
-                    <div className="w-5 h-5 rounded bg-white/5 p-0.5 flex items-center justify-center border border-white/10 group-hover:border-white/20 transition-colors shrink-0 flex-shrink-0">
+                    <div className="w-4 h-4 rounded bg-white/5 p-0.5 flex items-center justify-center">
                       <img
                         src={faviconUrl}
                         alt={`${companyName} logo`}
@@ -97,68 +74,52 @@ export function PersonCard({ person, favicon, companyName, index }: PersonCardPr
                       />
                     </div>
                   ) : (
-                    <Building2 className="w-4 h-4 shrink-0 flex-shrink-0" />
+                    <Building2 className="w-4 h-4" />
                   )}
-                  <span 
-                    className="text-xs sm:text-sm font-sans font-light tracking-wide underline decoration-white/20 hover:decoration-white/50 transition-all min-w-0"
-                    style={{ 
-                      wordBreak: 'break-word',
-                      overflowWrap: 'anywhere'
-                    }}
-                  >
-                    {companyName || domain || 'Company Website'}
-                  </span>
+                  <span className="text-xs font-light truncate">{companyName || domain}</span>
                 </a>
-              ) : (
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <Building2 className="w-4 h-4 shrink-0 flex-shrink-0" />
-                  <span 
-                    className="text-xs sm:text-sm font-sans font-light tracking-wide min-w-0"
-                    style={{ 
-                      wordBreak: 'break-word',
-                      overflowWrap: 'anywhere'
-                    }}
-                  >
-                    {companyName}
-                  </span>
+              ) : companyName && (
+                <div className="flex items-center gap-2 text-[#6a6a6a]">
+                  <Building2 className="w-4 h-4" />
+                  <span className="text-xs font-light truncate">{companyName}</span>
                 </div>
               )}
             </div>
           </div>
-        </div>
 
-        {/* Email Status & Action */}
-        {hasEmail ? (
-          <div className="mt-auto pt-6 space-y-2">
-            {emails.map((email, emailIndex) => (
-              <div 
-                key={emailIndex}
-                className="flex items-center gap-2 justify-between bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg px-3 py-2 hover:border-[#3a3a3a] transition-colors"
-              >
-                <span className="text-xs sm:text-sm font-sans font-light text-[#e8e8e8] flex-1 min-w-0 break-all">
-                  {email}
-                </span>
-                <Button
-                  onClick={() => handleCopyEmail(email)}
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 px-2 shrink-0 text-gray-400 hover:text-white hover:bg-[#2a2a2a]"
-                >
-                  {copiedEmail === email ? (
-                    <Check className="w-3.5 h-3.5" />
-                  ) : (
-                    <Copy className="w-3.5 h-3.5" />
-                  )}
-                </Button>
-              </div>
-            ))}
+          {/* Bottom row: Email with copy button */}
+          <div className="flex items-center gap-3 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg px-4 py-3">
+            <Mail className="w-4 h-4 text-[#6a6a6a] shrink-0" />
+            <code className="flex-1 text-sm font-mono text-[#e8e8e8] truncate">
+              {firstEmail}
+            </code>
+            <Button
+              onClick={() => handleCopyEmail(firstEmail)}
+              size="sm"
+              className="shrink-0 bg-[#d4af37] hover:bg-[#c49d2a] text-[#0a0a0a] h-8 px-4 rounded-md font-light text-xs"
+            >
+              {copiedEmail === firstEmail ? (
+                <>
+                  <Check className="w-3 h-3 mr-1.5" />
+                  Copied
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3 h-3 mr-1.5" />
+                  Copy
+                </>
+              )}
+            </Button>
           </div>
-        ) : (
-          <p className="text-xs sm:text-sm font-sans font-light text-[#4a4a4a] italic mt-auto pt-6">
-            No verified emails found
+        </div>
+      ) : (
+        <div className="text-center py-6">
+          <div className="text-3xl mb-2 opacity-20">✕</div>
+          <p className="text-sm font-light text-[#6a6a6a]">
+            No verified email found
           </p>
-        )}
-      </article>
-    </>
+        </div>
+      )}
+    </article>
   );
 }

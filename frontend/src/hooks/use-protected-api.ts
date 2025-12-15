@@ -170,7 +170,10 @@ export function useProtectedApi() {
         method: 'POST',
         body: JSON.stringify(params),
       }, token);
-      if (!response.ok) throw new Error('Failed to run orchestrator');
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'An unexpected error occurred' }));
+        throw new Error(error.error || 'Failed to run orchestrator');
+      }
       return response.json();
     },
   };

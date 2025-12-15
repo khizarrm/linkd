@@ -13,8 +13,11 @@ interface SearchResultsProps {
 export function SearchResults({ loading, error, data }: SearchResultsProps) {
   if (error) {
     return (
-      <div className="mt-6 sm:mt-8 md:mt-10 opacity-0 animate-fade-in-up text-center px-4">
-        <p className="text-sm sm:text-base font-sans font-light text-red-400/80">{error}</p>
+      <div className="mt-6 sm:mt-8 opacity-0 animate-fade-in-up px-4">
+        <div className="max-w-2xl mx-auto bg-[#151515] border border-[#2a2a2a] rounded-2xl p-5 sm:p-6 text-center">
+          <div className="text-2xl sm:text-3xl mb-2 opacity-30">✕</div>
+          <p className="text-sm font-light text-[#e8e8e8]/80 leading-relaxed">{error}</p>
+        </div>
       </div>
     );
   }
@@ -27,37 +30,39 @@ export function SearchResults({ loading, error, data }: SearchResultsProps) {
     return null;
   }
 
-  if (data.message === "no emails found") {
+  if (data.message === "No verified emails found") {
     return (
-      <div className="mt-6 sm:mt-10 md:mt-12">
-        <EmptyState />
+      <div className="mt-6 sm:mt-8">
+        <EmptyState people={data.people} company={data.company} />
       </div>
     );
   }
 
   if (data.people && data.people.length > 0) {
+    // Show only the first person (single result)
+    const person = data.people[0];
     return (
-      <div className="mt-6 sm:mt-10 md:mt-12">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 max-w-5xl mx-auto">
-          {data.people.map((person, index) => (
-            <PersonCard
-              key={`${person.name}-${index}`}
-              person={person}
-              favicon={data.favicon}
-              companyName={data.company}
-              index={index}
-            />
-          ))}
+      <div className="mt-6 sm:mt-8">
+        <div className="max-w-3xl mx-auto">
+          <PersonCard
+            person={person}
+            favicon={data.favicon}
+            companyName={data.company}
+            index={0}
+          />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="mt-6 sm:mt-10 md:mt-12 opacity-0 animate-fade-in-up text-center px-4">
-      <p className="text-base sm:text-lg md:text-xl font-light text-[#6a6a6a]">
-        No results found
-      </p>
+    <div className="mt-6 sm:mt-8 opacity-0 animate-fade-in-up text-center px-4">
+      <div className="max-w-2xl mx-auto bg-[#151515] border border-[#2a2a2a] rounded-2xl p-5 sm:p-6">
+        <div className="text-2xl sm:text-3xl mb-2 opacity-30">∅</div>
+        <p className="text-sm font-light text-[#6a6a6a]">
+          No results found
+        </p>
+      </div>
     </div>
   );
 }
