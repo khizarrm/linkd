@@ -10,6 +10,13 @@ interface SearchFormProps {
 
 export function SearchForm({ onSearch, isLoading }: SearchFormProps) {
   const [query, setQuery] = useState('');
+  const [error, setError] = useState('');
+
+  const isValidUrl = (text: string): boolean => {
+    if (!text.trim()) return true; // empty is ok
+    const urlPattern = /^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+/;
+    return urlPattern.test(text.trim());
+  };
 
   const cleanUrl = (url: string): string => {
     let cleaned = url.trim();
@@ -29,11 +36,26 @@ export function SearchForm({ onSearch, isLoading }: SearchFormProps) {
     const pastedText = e.clipboardData.getData('text');
     const cleaned = cleanUrl(pastedText);
     setQuery(cleaned);
+    if (!isValidUrl(cleaned)) {
+      setError('Please enter a valid website URL (e.g., example.com)');
+    } else {
+      setError('');
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setQuery(value);
+    if (value.trim() && !isValidUrl(value)) {
+      setError('Please enter a valid website URL (e.g., example.com)');
+    } else {
+      setError('');
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!query.trim()) return;
+    if (!query.trim() || !isValidUrl(query)) return;
     onSearch(query);
   };
 
@@ -45,9 +67,9 @@ export function SearchForm({ onSearch, isLoading }: SearchFormProps) {
             <input
               type="text"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={handleChange}
               onPaste={handlePaste}
-              placeholder="Enter the website of a company/brand"
+              placeholder="Enter website URL (e.g., example.com)"
               onKeyDown={(e) => {
                 if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
                   e.preventDefault();
@@ -61,7 +83,7 @@ export function SearchForm({ onSearch, isLoading }: SearchFormProps) {
 
           <button
             type="submit"
-            disabled={isLoading || !query.trim()}
+            disabled={isLoading || !query.trim() || !!error}
             className="flex items-center justify-center gap-2 px-6 py-2.5 sm:py-2 bg-[#d4af37] text-[#0a0a0a] rounded-full text-xs sm:text-sm font-light tracking-wider uppercase hover:bg-[#c49d2a] active:scale-95 transition-all duration-300 disabled:opacity-30 disabled:hover:bg-[#d4af37] disabled:active:scale-100 min-h-[40px] sm:min-h-0"
           >
             {isLoading ? (
@@ -75,6 +97,11 @@ export function SearchForm({ onSearch, isLoading }: SearchFormProps) {
           </button>
         </div>
       </form>
+      {error && (
+        <p className="mt-2 text-sm text-red-400 text-center">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
