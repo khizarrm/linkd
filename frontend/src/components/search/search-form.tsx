@@ -11,6 +11,26 @@ interface SearchFormProps {
 export function SearchForm({ onSearch, isLoading }: SearchFormProps) {
   const [query, setQuery] = useState('');
 
+  const cleanUrl = (url: string): string => {
+    let cleaned = url.trim();
+    // Remove protocol
+    cleaned = cleaned.replace(/^https?:\/\//, '');
+    // Remove www.
+    cleaned = cleaned.replace(/^www\./, '');
+    // Extract just the domain (remove everything after first /)
+    cleaned = cleaned.split('/')[0];
+    // Remove query params if any (in case no path but has ?)
+    cleaned = cleaned.split('?')[0];
+    return cleaned;
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pastedText = e.clipboardData.getData('text');
+    const cleaned = cleanUrl(pastedText);
+    setQuery(cleaned);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
@@ -26,6 +46,7 @@ export function SearchForm({ onSearch, isLoading }: SearchFormProps) {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onPaste={handlePaste}
               placeholder="Enter the website of a company/brand"
               onKeyDown={(e) => {
                 if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {

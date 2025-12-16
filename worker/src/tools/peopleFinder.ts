@@ -10,7 +10,7 @@ const PersonSchema = z.object({
 });
 
 const PeopleResultSchema = z.object({
-  people: z.array(PersonSchema).min(1).max(5)
+  people: z.array(PersonSchema).min(0).max(5)
 });
 
 export const peopleFinder = tool({
@@ -126,6 +126,11 @@ export const peopleFinder = tool({
   
         const result = { people: object.people };
         console.log(`[peopleFinder] Successfully extracted ${result.people.length} people:`, JSON.stringify(result, null, 2));
+        
+        if (result.people.length === 0) {
+          throw new Error(`No leadership found for ${company}. The search results did not contain any executive or leadership information.`);
+        }
+        
         return result;
       } catch (error) {
         console.error("[peopleFinder] LLM extraction failed:", error);
