@@ -3,7 +3,7 @@ import { schema } from "./schema";
 import { companyProfiles, employees } from "./companies.schema";
 import { eq, and, or, sql } from "drizzle-orm";
 import type { D1Database } from "@cloudflare/workers-types";
-import { extractDomain } from "../lib/utils";
+import { extractDomain, normalizeWebsite } from "../lib/utils";
 
 export async function upsertCompany(
   db: D1Database,
@@ -30,8 +30,11 @@ export async function upsertCompany(
   const normalizedName = companyName.trim();
   const conditions = [sql`LOWER(${companyProfiles.companyName}) = LOWER(${normalizedName})`];
 
-  if (website && website.trim() !== "") {
-    conditions.push(eq(companyProfiles.website, website.trim()));
+  // Normalize website: strip www. and ensure https:// format
+  const normalizedWebsite = website ? normalizeWebsite(website) : null;
+
+  if (normalizedWebsite) {
+    conditions.push(eq(companyProfiles.website, normalizedWebsite));
   }
 
   const existing = await drizzleDb
@@ -54,8 +57,8 @@ export async function upsertCompany(
     employeeCountMax?: number | null;
   } = {};
 
-  if (website && website.trim() !== "") {
-    updateData.website = website.trim();
+  if (normalizedWebsite) {
+    updateData.website = normalizedWebsite;
   }
 
   if (additionalData) {
@@ -96,7 +99,7 @@ export async function upsertCompany(
 
   const result = await drizzleDb.insert(companyProfiles).values({
     companyName: normalizedName,
-    website: website?.trim() || null,
+    website: normalizedWebsite,
     description: additionalData?.description?.trim() || null,
     techStack: additionalData?.techStack?.trim() || null,
     industry: additionalData?.industry?.trim() || null,

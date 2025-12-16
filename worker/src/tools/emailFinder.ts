@@ -49,6 +49,20 @@ async function scrapeEmailPattern(domain: string): Promise<string | null> {
   }
 }
 
+function stripSubdomain(domain: string): string {
+  const commonSubdomains = ['www.', 'mail.', 'blog.', 'app.'];
+  let cleaned = domain.toLowerCase().trim();
+  
+  for (const subdomain of commonSubdomains) {
+    if (cleaned.startsWith(subdomain)) {
+      cleaned = cleaned.substring(subdomain.length);
+      break; 
+    }
+  }
+  
+  return cleaned;
+}
+
 function getEmailDomain(websiteDomain: string, scrapedEmail?: string): string[] {
   // If we scraped an email, use that domain
   if (scrapedEmail) {
@@ -56,12 +70,15 @@ function getEmailDomain(websiteDomain: string, scrapedEmail?: string): string[] 
     if (emailDomain) return [emailDomain];
   }
   
+  // Strip common subdomains (www., mail., blog., app.) before email generation
+  const cleanedDomain = stripSubdomain(websiteDomain);
+  
   // Otherwise try both .ca and .com
-  const domains = [websiteDomain];
-  if (websiteDomain.endsWith('.ca')) {
-    domains.push(websiteDomain.replace('.ca', '.com'));
-  } else if (websiteDomain.endsWith('.com')) {
-    domains.push(websiteDomain.replace('.com', '.ca'));
+  const domains = [cleanedDomain];
+  if (cleanedDomain.endsWith('.ca')) {
+    domains.push(cleanedDomain.replace('.ca', '.com'));
+  } else if (cleanedDomain.endsWith('.com')) {
+    domains.push(cleanedDomain.replace('.com', '.ca'));
   }
   return domains;
 }

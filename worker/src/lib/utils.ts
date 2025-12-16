@@ -127,6 +127,28 @@ export async function validateDomain(domain: string): Promise<{ valid: boolean; 
 }
 
 /**
+ * Normalizes a website URL by stripping www. and ensuring https:// protocol.
+ * Returns format: https://example.com (without www.)
+ */
+export function normalizeWebsite(url: string | null | undefined): string | null {
+    if (!url || url.trim() === "") {
+        return null;
+    }
+    
+    const domain = extractDomain(url);
+    if (!domain) {
+        return null;
+    }
+    
+    // Strip www. subdomain
+    const cleanDomain = domain.toLowerCase().startsWith('www.') 
+        ? domain.substring(4) 
+        : domain;
+    
+    return `https://${cleanDomain}`;
+}
+
+/**
  * Extracts a domain/URL from a query string.
  * Handles various formats like "stripe.com", "https://stripe.com", "find emails at stripe.com"
  */

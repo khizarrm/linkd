@@ -26,7 +26,7 @@ export function SearchForm({ onSearch, isLoading }: SearchFormProps) {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Enter a company name or website"
+              placeholder="Enter the website of a company/brand"
               onKeyDown={(e) => {
                 if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
                   e.preventDefault();

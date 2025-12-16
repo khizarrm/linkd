@@ -3,7 +3,7 @@ import { openai } from "@ai-sdk/openai";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { searchWeb, peopleFinder, emailFinder } from "../tools";
-import { extractDomain, validateDomain, extractDomainFromQuery } from "../lib/utils";
+import { extractDomain, validateDomain, extractDomainFromQuery, normalizeWebsite } from "../lib/utils";
 import type { CloudflareBindings } from "../env.d";
 import { upsertCompany, upsertEmployee } from "../db/companies";
 
@@ -45,6 +45,11 @@ class Orchestrator extends Agent<CloudflareBindings> {
     if (!validation.valid) {
       return this.errorResponse(validation.error || "Domain is invalid", 400);
     }
+
+    // Strip www. from domain for consistent storage
+    const cleanDomain = domain.toLowerCase().startsWith('www.') 
+      ? domain.substring(4) 
+      : domain;
 
     try {
       // 2. Get company metadata via search + LLM extraction
@@ -90,7 +95,7 @@ class Orchestrator extends Agent<CloudflareBindings> {
       // 6. Build final result
       const result = {
         company: metadata.name,
-        website: `https://${domain}`,
+        website: `https://${cleanDomain}`,
         description: metadata.description,
         techStack: metadata.techStack,
         industry: metadata.industry,
@@ -101,10 +106,10 @@ class Orchestrator extends Agent<CloudflareBindings> {
         employeeCountMin: metadata.employeeCountMin,
         employeeCountMax: metadata.employeeCountMax,
         people: peopleWithEmails,
-        favicon: `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
+        favicon: `https://www.google.com/s2/favicons?domain=${cleanDomain}&sz=128`,
       };
 
-      await this.saveToDatabase(result, domain);
+      await this.saveToDatabase(result, cleanDomain);
 
       return Response.json(result);
     } catch (err) {

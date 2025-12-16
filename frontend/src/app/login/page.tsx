@@ -48,7 +48,7 @@ export default function LoginPage() {
             </h2>
 
             <p className="text-lg text-[#9a9a90] leading-relaxed font-light animate-slide-in-left stagger-2">
-              Enter a company name or website URL. Get emails of the top three decision makers instantly.
+              Enter a company name or website URL. Get the email of the top decision maker instantly.
             </p>
           </div>
 
