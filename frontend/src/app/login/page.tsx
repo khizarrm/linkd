@@ -4,11 +4,11 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { SignIn } from '@clerk/nextjs';
-import { ArrowRight } from 'lucide-react';
+import { Check, Zap, Lock, TrendingUp } from 'lucide-react';
 
 /**
- * Login Page - Refined Editorial Minimalism
- * Clean, asymmetric layout with distinctive typography
+ * Login Page - Creator/Sponsorship Pivot
+ * Broadened to target all creators (vloggers, streamers, influencers)
  */
 export default function LoginPage() {
   const { isSignedIn, isLoaded } = useAuth();
@@ -24,53 +24,83 @@ export default function LoginPage() {
     return null;
   }
 
+  // Real data serves as proof of concept for any niche
+  const verifiedResults = [
+    { brand: "Three Ships", status: "Founder Email Verified" },
+    { brand: "Cheekbone Beauty", status: "CEO Contact Found" },
+    { brand: "Wildcraft Care", status: "Leadership Unlocked" },
+  ];
+
   return (
-    <div className="min-h-screen flex bg-[#0a0a0a] relative overflow-hidden">
+    <div className="min-h-screen flex bg-[#0a0a0a] relative overflow-hidden font-sans">
       {/* Grain texture overlay */}
       <div className="grain-overlay" />
 
       {/* Left side - Brand & messaging */}
-      <div className="hidden lg:flex lg:w-1/2 xl:w-3/5 flex-col justify-between p-12 xl:p-16 relative z-10">
-        {/* Logo/Brand */}
-        <div className="animate-slide-in-left">
+      <div className="hidden lg:flex lg:w-1/2 xl:w-3/5 flex-col justify-center p-12 xl:p-16 relative z-10">
+        
+        {/* Logo */}
+        <div className="absolute top-12 left-12 xl:left-16 animate-slide-in-left">
           <h1 className="font-serif text-5xl xl:text-6xl text-[#f5f5f0] tracking-tight leading-none">
             linkd
           </h1>
         </div>
 
-        {/* Main value proposition */}
-        <div className="max-w-xl space-y-8">
-          <div className="space-y-4">
-            <h2 className="font-serif text-4xl xl:text-5xl text-[#f5f5f0] leading-tight animate-slide-in-left stagger-1">
-              Find decision makers.
+        {/* Main Content Container */}
+        <div className="max-w-xl space-y-10 mt-12">
+          
+          {/* Headline & Subhead */}
+          <div className="space-y-6">
+            <h2 className="font-serif text-4xl xl:text-6xl text-[#f5f5f0] leading-tight animate-slide-in-left stagger-1">
+              Stop DMing Brands.
               <br />
-              Skip the guesswork.
+              <span className="text-[#d4af37]">Email the Founder.</span>
             </h2>
 
-            <p className="text-lg text-[#9a9a90] leading-relaxed font-light animate-slide-in-left stagger-2">
-              Enter a company name or website URL. Get the email of the top decision maker instantly.
+            <p className="text-lg text-[#9a9a90] leading-relaxed font-light animate-slide-in-left stagger-2 max-w-md">
+              The secret weapon for professional creators. Paste any brand URL and get the direct personal email of the decision maker instantly.
             </p>
           </div>
 
-          {/* Feature list */}
+          {/* Social Proof Cards */}
           <div className="space-y-3 animate-slide-in-left stagger-3">
-            {[
-              'Instant decision maker identification',
-              'Verified email addresses',
-              'Direct outreach, no intermediaries'
-            ].map((feature, index) => (
-              <div key={index} className="flex items-center gap-3 group">
-                <div className="w-1 h-1 rounded-full bg-[#d4af37] group-hover:w-8 transition-all duration-300" />
-                <span className="text-[#b8b8a8] font-light text-base">{feature}</span>
-              </div>
-            ))}
+            <p className="text-[#6a6a60] text-xs font-medium tracking-widest uppercase mb-4">
+              Recently Unlocked Brands
+            </p>
+            <div className="grid gap-3">
+              {verifiedResults.map((item, index) => (
+                <div 
+                  key={index} 
+                  className="flex items-center justify-between p-4 rounded-lg bg-[#111111] border border-[#2a2a2a]/60 backdrop-blur-md hover:border-[#d4af37]/30 transition-colors duration-300"
+                >
+                  <span className="text-[#f5f5f0] font-serif tracking-wide">{item.brand}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[#d4af37]"><Check size={14} strokeWidth={3} /></span>
+                    <span className="text-[#9a9a90] text-xs font-medium tracking-wide">{item.status}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* Bottom tagline */}
-        <div className="flex items-center gap-3 text-[#6a6a60] animate-slide-in-left stagger-4">
-          <span className="font-light text-sm tracking-wide">OUTREACH SIMPLIFIED</span>
-          <ArrowRight className="w-4 h-4" />
+          {/* Value Props / Features */}
+          <div className="pt-4 flex flex-col gap-4 animate-slide-in-left stagger-4">
+            <div className="flex items-start gap-4">
+              <Zap className="text-[#d4af37] mt-1" size={20} />
+              <div>
+                <h3 className="text-[#f5f5f0] text-sm font-medium">Skip the Support Inbox</h3>
+                <p className="text-[#6a6a60] text-sm font-light">Don't get stuck in generic inboxes. Reach the person who signs the checks.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-4">
+              <TrendingUp className="text-[#d4af37] mt-1" size={20} />
+              <div>
+                <h3 className="text-[#f5f5f0] text-sm font-medium">Secure Better Deals</h3>
+                <p className="text-[#6a6a60] text-sm font-light">Founders value creators. Agencies and support teams just see numbers.</p>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -83,15 +113,13 @@ export default function LoginPage() {
               linkd
             </h1>
             <p className="text-[#9a9a90] font-light">
-              Find decision makers instantly
+              Stop DMing. Start closing.
             </p>
           </div>
 
-          {/* Clerk sign-in with refined styling */}
+          {/* Clerk sign-in */}
           <div className="relative animate-slide-in-right">
-            {/* Subtle glow effect behind the card */}
             <div className="absolute -inset-4 bg-gradient-to-br from-[#d4af37]/5 via-transparent to-[#d4af37]/5 rounded-3xl blur-2xl opacity-50" />
-
             <div className="relative">
               <SignIn
                 routing="hash"
@@ -141,20 +169,12 @@ export default function LoginPage() {
               />
             </div>
           </div>
-
-          {/* Mobile features */}
-          <div className="lg:hidden mt-8 space-y-3 animate-fade-in stagger-2">
-            {[
-              'Instant decision maker identification',
-              'Verified email addresses',
-              'Direct outreach'
-            ].map((feature, index) => (
-              <div key={index} className="flex items-center gap-3">
-                <div className="w-1 h-1 rounded-full bg-[#d4af37]" />
-                <span className="text-[#9a9a90] font-light text-sm">{feature}</span>
-              </div>
-            ))}
+          
+          {/* Mobile Footer Text */}
+          <div className="lg:hidden mt-8 text-center animate-fade-in stagger-2">
+            <p className="text-[#6a6a60] text-xs font-light">Used by creators to close deals with top brands.</p>
           </div>
+
         </div>
       </div>
 
