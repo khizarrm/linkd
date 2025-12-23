@@ -1,45 +1,38 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
 
 export default function GuidePage() {
   const router = useRouter();
-  const [hasHistory, setHasHistory] = useState(false);
-
-  useEffect(() => {
-    // Check if we came from navigation (has referrer from same origin)
-    if (typeof window !== 'undefined') {
-      const referrer = document.referrer;
-      const currentOrigin = window.location.origin;
-      const hasReferrer = referrer && referrer.startsWith(currentOrigin) && referrer !== window.location.href;
-      setHasHistory(hasReferrer);
-    }
-  }, []);
-
-  const handleClose = () => {
-    if (hasHistory) {
-      router.back();
-    } else {
-      router.push('/login');
-    }
-  };
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4" style={{ fontFamily: 'var(--font-fira-mono)' }}>
-      <div className="w-full max-w-4xl max-h-[90vh] bg-black border border-white/10 rounded-lg p-8 overflow-y-auto scrollbar-hide">
-        <div className="flex items-center justify-between mb-8">
-          <h2 className="text-3xl font-medium text-white">
-            how to write a good cold email
-          </h2>
+    <div className="min-h-screen bg-black" style={{ fontFamily: 'var(--font-fira-mono)' }}>
+      {/* Header */}
+      <header className="sticky top-0 z-50 bg-black/80 backdrop-blur-sm border-b border-white/10">
+        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <button
-            onClick={handleClose}
-            className="text-white/60 hover:text-white transition-colors"
+            onClick={() => router.push('/login')}
+            className="text-2xl font-bold text-white hover:text-white/80 transition-colors"
           >
-            <X className="w-6 h-6" />
+            linkd
+          </button>
+          <button
+            onClick={() => router.push('/login')}
+            className="px-4 py-2 border border-white text-white hover:bg-white/10 transition-all duration-200 lowercase rounded"
+          >
+            sign in
           </button>
         </div>
+      </header>
+
+      {/* Main Content */}
+      <article className="max-w-3xl mx-auto px-6 py-16">
+        <h1 className="text-4xl md:text-5xl font-bold text-white mb-6">
+          how to write a good cold email
+        </h1>
+        <p className="text-white/50 mb-12 text-sm">
+          by khizar malik · a guide to effective outreach
+        </p>
 
         <div className="space-y-8 text-white/80 leading-relaxed">
           <p className="text-sm md:text-base">
@@ -188,6 +181,24 @@ export default function GuidePage() {
               </p>
             </div>
           </div>
+        </div>
+      </article>
+
+      {/* Footer CTA */}
+      <div className="border-t border-white/10 bg-black">
+        <div className="max-w-3xl mx-auto px-6 py-16 text-center">
+          <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
+            ready to start reaching out?
+          </h2>
+          <p className="text-white/60 mb-8 text-sm md:text-base">
+            linkd finds decision-maker emails so you can focus on writing great messages
+          </p>
+          <button
+            onClick={() => router.push('/login')}
+            className="px-8 py-3 bg-white text-black hover:bg-white/90 transition-all duration-200 lowercase rounded font-medium"
+          >
+            try linkd for free
+          </button>
         </div>
       </div>
     </div>

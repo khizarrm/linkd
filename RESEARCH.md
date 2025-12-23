@@ -1,84 +1,102 @@
-# Domain Extractor Research - www Subdomain Issue
+# PostHog Events Research
 
 ## Files
 
-### Core Domain Extraction
-- `worker/src/lib/utils.ts` (lines 56-180): Domain extraction and validation functions
-  - `extractDomain()`: Extracts hostname from URL using URL constructor
-  - `extractDomainFromQuery()`: Extracts domain from query string using regex patterns
-  - `validateDomain()`: Validates domain by attempting HTTP/HTTPS fetch
+### Core PostHog Setup
+- `frontend/instrumentation-client.ts` - PostHog initialization singleton
+- `frontend/src/components/posthog-provider.tsx` - Pageview tracking component
+- `frontend/src/app/layout.tsx` - Renders PostHogPageview component globally
 
-### Orchestrator Agent
-- `worker/src/agents/orchestrator.ts` (lines 36-47): Uses domain extraction
-  - Line 37: Calls `extractDomainFromQuery(query)` to get domain
-  - Line 44: Validates domain with `validateDomain(domain)`
-  - Line 67: Passes domain directly to `emailFinder.execute()`
+### Event Tracking
+- `frontend/src/app/page.tsx` - Search-related events (`company_searched`, `search_completed`)
+- `frontend/src/components/conditional-layout.tsx` - User identification on sign-in
 
-### Email Finder Tool
-- `worker/src/tools/emailFinder.ts` (lines 52-67, 106-166): Email generation logic
-  - `getEmailDomain()`: Receives domain and uses it directly for email generation
-  - `generateEmailPatterns()`: Generates emails using domain as-is
-  - `scrapeEmailPattern()`: Scrapes website using domain (www is fine here)
+## Data Structures
 
-## Data Flow
+### PostHog Configuration
+```typescript
+posthog.init({
+  api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+  person_profiles: 'identified_only',
+  capture_pageview: false, // manual capture
+  capture_pageleave: true,
+})
+```
 
-1. **Query Input**: User provides "www.whatever.com"
-2. **Extraction** (`extractDomainFromQuery`):
-   - Regex pattern `/([a-z0-9]+(-[a-z0-9]+)*\.)+[a-z]{2,}/gi` matches "www.whatever.com"
-   - Returns "www.whatever.com" (lowercased)
-3. **Validation** (`validateDomain`):
-   - Accepts "www.whatever.com" (valid for web access)
-   - Returns `{ valid: true }`
-4. **Email Generation** (`emailFinder.execute`):
-   - Receives `domain = "www.whatever.com"`
-   - `getEmailDomain("www.whatever.com")` returns `["www.whatever.com"]`
-   - `generateEmailPatterns()` creates emails like `first.last@www.whatever.com` ❌
+### Event Properties
 
-## Problem
+**`$pageview`**
+- `$current_url`: Full URL with query params
 
-**Root Cause**: `getEmailDomain()` in `emailFinder.ts` uses the domain as-is without stripping "www." prefix.
+**`company_searched`**
+- `search_query`: Trimmed search string
 
-**Impact**: 
-- Emails generated as `first.last@www.whatever.com` (invalid)
-- Should be `first.last@whatever.com` (valid)
+**`search_completed`**
+- `search_query`: Original search query
+- `company_name`: Company name from results or query
+- `results_found`: Boolean
+- `email_count`: Total emails found
+- `person_count`: Number of people found
+- `error`: Error message (on failure)
 
-**Why www is extracted**:
-- `extractDomainFromQuery` correctly extracts "www.whatever.com" (valid for web scraping)
-- `extractDomain()` using URL constructor preserves full hostname including subdomains
-- No logic exists to strip "www." before email generation
+**User Identification**
+- `email`: Primary email address
+- `name`: Full name
+- `firstName`: First name
+- `lastName`: Last name
 
 ## Patterns
 
-### Domain Extraction Strategy
-- **URL with protocol**: Uses `extractDomain()` → URL constructor → `hostname` property
-- **Plain domain in query**: Uses regex pattern matching → returns matched string
-- **No www stripping**: Neither extraction function removes "www." prefix
+### Initialization
+- PostHog initialized once in `instrumentation-client.ts`
+- Client-side only (`typeof window !== 'undefined'` check)
+- Exported singleton: `export { posthog }`
+- Imported via: `import { posthog } from '@/../instrumentation-client'`
 
-### Email Domain Handling
-- **Current**: Uses website domain directly for email generation
-- **Expected**: Should strip "www." and other common subdomains before email generation
-- **Web scraping**: Can use full domain with www (line 9 in emailFinder.ts)
+### Pageview Tracking
+- Manual capture (auto-capture disabled)
+- `PostHogPageview` component in root layout
+- Tracks pathname + searchParams changes
+- Uses `$pageview` event name (PostHog convention)
+
+### User Identification
+- Triggered in `ConditionalLayout` when user signs in
+- Uses Clerk user data
+- Calls `posthog.identify(userId, properties)`
+- Runs on `useEffect` when `isSignedIn && user` changes
+
+### Event Capture
+- Direct `posthog.capture()` calls
+- Event name as first arg, properties object as second
+- No wrapper functions or abstractions
+- Events fire synchronously (no queuing visible)
+
+### Event Locations
+- Search flow: `page.tsx` (3 events total)
+- Page navigation: `posthog-provider.tsx` (automatic)
+- User auth: `conditional-layout.tsx` (identification only)
 
 ## Strategy
 
-### Option 1: Strip www in `getEmailDomain()` (Recommended)
-- Modify `getEmailDomain()` in `emailFinder.ts` to strip "www." prefix
-- Keep full domain for web scraping (already works)
-- Minimal change, localized fix
+### Current Implementation
+1. **Setup**: Single initialization point, client-side only
+2. **Pageviews**: Automatic via component in layout
+3. **User Identity**: Set on sign-in via ConditionalLayout
+4. **Custom Events**: Inline `posthog.capture()` calls at action points
 
-### Option 2: Strip www in `extractDomainFromQuery()`
-- Strip "www." during extraction
-- Affects all uses of extracted domain (web scraping, validation)
-- May break web scraping if www is required
-
-### Option 3: Strip www in orchestrator before emailFinder
-- Normalize domain in orchestrator before passing to emailFinder
-- Keep original domain for web scraping
-- Requires passing both normalized and original domains
+### Event Flow
+- Page loads → `$pageview` fires
+- User signs in → `posthog.identify()` called
+- User searches → `company_searched` fires
+- Search completes → `search_completed` fires (success or failure)
 
 ## Unknowns
 
-1. **Are there other subdomains to strip?** (e.g., "mail.", "blog.", "app.")
-2. **Should www stripping be configurable?** (some companies use www for emails)
-3. **Does web scraping need www?** (currently uses full domain, may work without)
-4. **Are there edge cases?** (e.g., "www2.whatever.com", "www-whatever.com")
+1. **Other pages**: No events found in `/bank`, `/inbox`, `/templates`, `/guide` - are these tracked?
+2. **User actions**: No tracking for clicks, form submissions, or other interactions
+3. **Error tracking**: Only search errors tracked - are other errors tracked?
+4. **Feature flags**: PostHog supports feature flags - are they used?
+5. **Session tracking**: How are sessions defined/managed?
+6. **Event naming**: Is there a convention beyond `snake_case`?
+7. **Properties validation**: Are event properties validated/typed?
+8. **Testing**: How are PostHog events tested in development?
