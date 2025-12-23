@@ -200,3 +200,94 @@ export function extractDomainFromQuery(query: string): string | null {
 
     return null;
 }
+
+/**
+ * Extract brand name from domain
+ * e.g., "kosas.com" -> "Kosas", "summer-fridays.com" -> "Summer Fridays"
+ */
+export function extractBrandName(domain: string): string {
+  // Remove TLD
+  let name = domain
+    .replace(/^www\./, "")
+    .replace(/\.(com|ca|co\.uk|io|co|net|org|beauty)$/, "");
+  
+  // Handle hyphens and underscores - convert to spaces
+  name = name.replace(/[-_]/g, " ");
+  
+  // Capitalize each word
+  name = name
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+  
+  return name;
+}
+
+/**
+ * Normalize a person's name - remove titles, clean up formatting
+ * e.g., "Ms. Jane Doe, MBA" -> "Jane Doe"
+ */
+export function normalizePersonName(raw: string): string {
+  let name = raw.trim();
+  
+  // Remove common prefixes
+  const prefixes = ["mr.", "mrs.", "ms.", "dr.", "prof."];
+  for (const prefix of prefixes) {
+    if (name.toLowerCase().startsWith(prefix)) {
+      name = name.slice(prefix.length).trim();
+    }
+  }
+  
+  // Remove common suffixes (degrees, titles)
+  const suffixPatterns = [
+    /,?\s*(mba|phd|md|cpa|esq|jr\.?|sr\.?|ii|iii|iv)\.?$/i,
+    /,?\s*\(.*\)$/, // Remove anything in parentheses at end
+  ];
+  for (const pattern of suffixPatterns) {
+    name = name.replace(pattern, "");
+  }
+  
+  // Remove extra whitespace
+  name = name.replace(/\s+/g, " ").trim();
+  
+  return name;
+}
+
+/**
+ * Check if an email looks like a PR/generic inbox vs personal email
+ */
+export function isPrEmail(email: string): boolean {
+  const localPart = email.toLowerCase().split("@")[0];
+  
+  const prPrefixes = [
+    "pr",
+    "press",
+    "collab",
+    "collabs",
+    "collaboration",
+    "collaborations",
+    "partnership",
+    "partnerships",
+    "media",
+    "creator",
+    "creators",
+    "influencer",
+    "influencers",
+    "marketing",
+    "hello",
+    "hi",
+    "info",
+    "contact",
+    "support",
+    "team",
+    "admin",
+  ];
+  
+  for (const prefix of prPrefixes) {
+    if (localPart === prefix || localPart.startsWith(`${prefix}.`) || localPart.startsWith(`${prefix}_`)) {
+      return true;
+    }
+  }
+  
+  return false;
+}

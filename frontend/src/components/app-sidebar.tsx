@@ -1,6 +1,6 @@
 'use client';
 
-import { Search, User, LogOut, FileText, Settings } from "lucide-react"
+import { Search, User, LogOut, FileText, Settings, Info } from "lucide-react"
 import { useRouter, usePathname } from "next/navigation"
 import Image from "next/image"
 import { useState } from "react"
@@ -9,6 +9,7 @@ import { useUser, useClerk } from "@clerk/nextjs"
 // import { ProfileSettingsDialog } from "./settings/profile-settings-dialog"
 import { clearProfileCache } from "@/lib/profile-cache"
 import { FeedbackDialog } from "./feedback-dialog"
+import { InfoDialog } from "./info-dialog"
 
 import {
   Sidebar,
@@ -45,6 +46,7 @@ export function AppSidebar() {
   const [imageError, setImageError] = useState(false);
   const [showSignOut, setShowSignOut] = useState(false);
   const [isFeedbackDialogOpen, setIsFeedbackDialogOpen] = useState(false);
+  const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
   // const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
 
   const { user, isLoaded } = useUser();
@@ -56,8 +58,8 @@ export function AppSidebar() {
       clearProfileCache();
       // Sign out using Clerk
       await signOut();
-      router.push('/login');
-      router.refresh();
+      // Manually redirect after signout completes
+      window.location.href = '/login';
     } catch (error) {
       console.error('Sign out failed:', error);
     }
@@ -73,7 +75,14 @@ export function AppSidebar() {
       <SidebarHeader>
         <div className="flex h-12 items-center gap-2 px-4 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
           <span className="font-medium text-lg tracking-tight group-data-[collapsible=icon]:hidden">LINKD</span>
-          <SidebarTrigger className="ml-auto group-data-[collapsible=icon]:ml-0" />
+          <button
+            onClick={() => setIsInfoDialogOpen(true)}
+            className="ml-auto p-1 hover:bg-sidebar-accent rounded-md transition-colors group-data-[collapsible=icon]:hidden"
+            aria-label="About linkd"
+          >
+            <Info className="size-4" />
+          </button>
+          <SidebarTrigger className="group-data-[collapsible=icon]:ml-0" />
         </div>
       </SidebarHeader>
       <SidebarContent>
@@ -176,6 +185,10 @@ export function AppSidebar() {
       <FeedbackDialog
         open={isFeedbackDialogOpen}
         onOpenChange={setIsFeedbackDialogOpen}
+      />
+      <InfoDialog
+        open={isInfoDialogOpen}
+        onOpenChange={setIsInfoDialogOpen}
       />
       <SidebarRail />
     </Sidebar>

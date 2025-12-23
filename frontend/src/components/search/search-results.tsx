@@ -48,15 +48,11 @@ export function SearchResults({ loading, error, data }: SearchResultsProps) {
     }
   }, [loading, error, data, displayState]);
 
-  // Minimum height to prevent layout shift
-  const containerClass = "mt-6 sm:mt-8 min-h-[200px]";
-
   if (displayState === 'error' && error) {
     return (
-      <div className={`${containerClass} ${isExiting ? 'animate-fade-out-down' : 'animate-slide-up-fade'} px-4`}>
-        <div className="max-w-2xl mx-auto bg-[#151515] border border-[#2a2a2a] rounded-2xl p-5 sm:p-6 text-center">
-          <div className="text-2xl sm:text-3xl mb-2 opacity-30">✕</div>
-          <p className="text-sm font-light text-[#e8e8e8]/80 leading-relaxed">{error}</p>
+      <div className="w-full max-w-2xl mx-auto mt-4">
+        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded text-red-400 text-sm animate-bounce-in" style={{ fontFamily: 'var(--font-fira-mono)' }}>
+          {error}
         </div>
       </div>
     );
@@ -72,7 +68,7 @@ export function SearchResults({ loading, error, data }: SearchResultsProps) {
 
   if (displayState === 'empty') {
     return (
-      <div className={`${containerClass} ${isExiting ? 'animate-fade-out-down' : 'animate-slide-up-fade'}`}>
+      <div className="w-full max-w-2xl mx-auto">
         <EmptyState people={data.people} company={data.company} />
       </div>
     );
@@ -81,25 +77,20 @@ export function SearchResults({ loading, error, data }: SearchResultsProps) {
   if (displayState === 'results' && data.people && data.people.length > 0) {
     const person = data.people[0];
     return (
-      <div className={`${containerClass} ${isExiting ? 'animate-fade-out-down' : 'animate-slide-up-fade'}`}>
-        <div className="max-w-3xl mx-auto">
-          <PersonCard
-            person={person}
-            favicon={data.favicon}
-            companyName={data.company}
-            index={0}
-          />
-        </div>
-      </div>
+      <PersonCard
+        person={person}
+        favicon={data.favicon}
+        companyName={data.company}
+        index={0}
+      />
     );
   }
 
   return (
-    <div className={`${containerClass} ${isExiting ? 'animate-fade-out-down' : 'animate-slide-up-fade'} text-center px-4`}>
-      <div className="max-w-2xl mx-auto bg-[#151515] border border-[#2a2a2a] rounded-2xl p-5 sm:p-6">
-        <div className="text-2xl sm:text-3xl mb-2 opacity-30">∅</div>
-        <p className="text-sm font-light text-[#6a6a6a]">
-          No results found
+    <div className="w-full max-w-2xl mx-auto mt-4">
+      <div className="p-6 bg-[#0a0a0a] border border-white/10 rounded-lg">
+        <p className="text-center text-white/70" style={{ fontFamily: 'var(--font-fira-mono)' }}>
+          no results found
         </p>
       </div>
     </div>

@@ -70,60 +70,43 @@ export function SearchForm({ onSearch, isLoading }: SearchFormProps) {
   };
 
   return (
-    <div className="mt-5 sm:mt-6 md:mt-8 mx-auto max-w-3xl opacity-0 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-      <form onSubmit={handleSubmit} className="relative">
-        <div className="relative flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-gradient-to-br from-[#151515] to-[#0f0f0f] border border-[#2a2a2a] rounded-2xl sm:rounded-full px-4 sm:px-6 py-3 sm:py-4 focus-within:border-[#3a3a3a] transition-all duration-500">
-          <div className="relative flex-1">
-            <input
-              type="text"
-              inputMode="url"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck="false"
-              value={query}
-              onChange={handleChange}
-              onPaste={handlePaste}
-              placeholder="Enter website URL (e.g., example.com)"
-              onKeyDown={(e) => {
-                // Submit on Enter (standard + mobile "Done" button)
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleSubmit(e);
-                }
-                // Keep Cmd+Enter for power users
-                if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-                  e.preventDefault();
-                  handleSubmit(e);
-                }
-              }}
-              disabled={isLoading}
-              className="w-full bg-transparent text-sm sm:text-lg md:text-xl font-light tracking-tight focus:outline-none disabled:opacity-50 min-h-[40px] sm:min-h-0 relative z-10 text-[#f5f5f0] placeholder:text-[#5a5a5a]"
-              style={{ fontSize: 'max(16px, 1rem)' }}
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={isLoading || !query.trim() || !!error}
-            className="flex items-center justify-center gap-2 px-6 py-2.5 sm:py-2 bg-[#d4af37] text-[#0a0a0a] rounded-full text-xs sm:text-sm font-light tracking-wider uppercase hover:bg-[#c49d2a] active:scale-95 transition-all duration-300 disabled:opacity-30 disabled:hover:bg-[#d4af37] disabled:active:scale-100 min-h-[44px] sm:min-h-0"
-            style={{ touchAction: 'manipulation' }}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 sm:h-3 sm:w-3 animate-spin" />
-                <span className="sm:inline">Searching</span>
-              </>
-            ) : (
-              'Search'
-            )}
-          </button>
-        </div>
-      </form>
+    <form 
+      onSubmit={handleSubmit}
+      className="relative flex items-center"
+    >
+      <input
+        type="text"
+        inputMode="url"
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck="false"
+        value={query}
+        onChange={handleChange}
+        onPaste={handlePaste}
+        placeholder="type a company website here"
+        disabled={isLoading}
+        className="w-full bg-transparent border border-white/20 px-4 py-3 pr-12 rounded text-white placeholder:text-white/40 focus:outline-none focus:border-white/40 transition-all duration-[200ms] caret-white disabled:opacity-50 disabled:cursor-not-allowed"
+        style={{ fontFamily: 'var(--font-fira-mono)', willChange: 'border-color', transform: 'translateZ(0)' }}
+      />
+      <button
+        type="submit"
+        disabled={isLoading || !query.trim() || !!error}
+        className="absolute right-2 p-2 text-white/60 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-200"
+        style={{ fontFamily: 'var(--font-fira-mono)' }}
+      >
+        {isLoading ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+          </svg>
+        )}
+      </button>
       {error && (
-        <p className="mt-2 text-sm text-red-400 text-center">
+        <p className="absolute -bottom-6 left-0 text-sm text-red-400" style={{ fontFamily: 'var(--font-fira-mono)' }}>
           {error}
         </p>
       )}
-    </div>
+    </form>
   );
 }

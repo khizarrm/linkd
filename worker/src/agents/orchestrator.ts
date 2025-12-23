@@ -29,7 +29,7 @@ const PersonSchema = z.object({
 });
 
 const PeopleExtractionSchema = z.object({
-  people: z.array(PersonSchema).max(5),
+  people: z.array(PersonSchema).max(10),
   needsMoreSearch: z.boolean().describe("True if results seem wrong or insufficient"),
   reasoning: z.string().describe("Why these results are or aren't good"),
 });

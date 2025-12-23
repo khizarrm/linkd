@@ -6,27 +6,24 @@ interface LoadingSkeletonProps {
 
 export function LoadingSkeleton({ isExiting = false }: LoadingSkeletonProps) {
   return (
-    <div className={`mt-6 sm:mt-10 md:mt-12 ${isExiting ? 'animate-fade-out-down' : ''}`}>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 max-w-5xl mx-auto">
-        {[0, 1, 2].map((i) => (
-          <div
-            key={i}
-            className="loading-skeleton-card opacity-0 animate-fade-in-up bg-[#151515] border border-[#2a2a2a] rounded-2xl sm:rounded-3xl p-5 sm:p-6 md:p-8 flex flex-col"
-            style={{
-              animationDelay: `${i * 0.1}s`,
-              contain: 'layout style paint'
-            }}
-          >
-            {/* Name skeleton */}
-            <div className="h-7 sm:h-8 md:h-9 w-3/4 bg-[#1a1a1a] rounded-lg mb-2 sm:mb-3 animate-shimmer" />
-            {/* Role skeleton */}
-            <div className="h-4 sm:h-5 md:h-6 w-1/2 bg-[#1a1a1a] rounded-lg mb-4 sm:mb-5 md:mb-6 animate-shimmer" />
-            {/* Email skeleton */}
-            <div className="space-y-2 sm:space-y-3">
-              <div className="h-11 sm:h-12 md:h-14 bg-[#0a0a0a] border border-[#2a2a2a] rounded-xl p-3 sm:p-4 animate-shimmer" />
+    <div className={`mt-8 w-full max-w-2xl mx-auto ${isExiting ? 'animate-fade-out-down' : 'animate-bounce-in'}`}>
+      <div className="p-6 bg-[#0a0a0a] border border-white/10 rounded-lg">
+        <div className="space-y-4">
+          {/* Name and role skeleton */}
+          <div className="flex items-start gap-3">
+            <div className="w-6 h-6 bg-white/5 rounded animate-pulse" />
+            <div className="flex-1">
+              <div className="h-6 w-3/4 bg-white/5 rounded mb-2 animate-pulse" />
+              <div className="h-4 w-1/2 bg-white/5 rounded animate-pulse" />
             </div>
           </div>
-        ))}
+          {/* Email skeleton */}
+          <div className="flex items-center gap-3 p-3 bg-[#141414] border border-white/5 rounded">
+            <div className="w-4 h-4 bg-white/5 rounded animate-pulse" />
+            <div className="flex-1 h-4 bg-white/5 rounded animate-pulse" />
+            <div className="w-20 h-8 bg-white/5 rounded animate-pulse" />
+          </div>
+        </div>
       </div>
     </div>
   );

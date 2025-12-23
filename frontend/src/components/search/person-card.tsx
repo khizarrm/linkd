@@ -1,9 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { BadgeCheck, Building2, Copy, Check, Mail } from 'lucide-react';
+import { Copy, Check, Mail } from 'lucide-react';
 import type { OrchestratorPerson } from '@/lib/api';
-import { Button } from '@/components/ui/button';
 import { triggerHaptic } from '@/lib/haptics';
 
 interface PersonCardProps {
@@ -45,93 +44,58 @@ export function PersonCard({ person, favicon, companyName, index }: PersonCardPr
   };
 
   return (
-    <article
-      className="person-card opacity-0 animate-fade-in-up bg-[#151515] border border-[#2a2a2a] rounded-2xl p-5 sm:p-6 hover:border-[#3a3a3a] transition-all duration-300"
-      style={{
-        animationDelay: `${index * 0.1}s`,
-        contain: 'layout style paint'
-      }}
-    >
+    <div className="w-full max-w-2xl mx-auto p-6 bg-[#0a0a0a] border border-white/10 rounded-lg animate-bounce-in">
       {hasEmail && firstEmail ? (
         <div className="space-y-4">
-          {/* Top row: Name, role, company */}
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <h2 className="text-lg sm:text-xl font-light text-[#f5f5f0] truncate">
-                  {person.name}
-                </h2>
-                <BadgeCheck className="w-4 h-4 text-[#d4af37] shrink-0" />
-              </div>
+          <div className="flex items-start gap-3">
+            {faviconUrl && !faviconError && (
+              <img
+                src={faviconUrl}
+                alt={`${companyName} favicon`}
+                className="w-6 h-6 rounded shrink-0 mt-1"
+                onError={() => setFaviconError(true)}
+              />
+            )}
+            <div className="flex-1">
+              <h3 className="text-xl font-medium mb-1" style={{ fontFamily: 'var(--font-fira-mono)' }}>
+                {person.name}
+              </h3>
               {person.role && (
-                <p className="text-sm font-light text-[#9a9a90] truncate mb-2">
+                <p className="text-sm text-white/70" style={{ fontFamily: 'var(--font-fira-mono)' }}>
                   {person.role}
                 </p>
               )}
-              {companyUrl ? (
-                <a
-                  href={companyUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-[#6a6a6a] hover:text-[#e8e8e8] transition-colors w-fit"
-                >
-                  {faviconUrl && !faviconError ? (
-                    <div className="w-4 h-4 rounded bg-white/5 p-0.5 flex items-center justify-center">
-                      <img
-                        src={faviconUrl}
-                        alt={`${companyName} logo`}
-                        className="w-full h-full object-contain"
-                        onError={() => setFaviconError(true)}
-                      />
-                    </div>
-                  ) : (
-                    <Building2 className="w-4 h-4" />
-                  )}
-                  <span className="text-xs font-light truncate">{companyName || domain}</span>
-                </a>
-              ) : companyName && (
-                <div className="flex items-center gap-2 text-[#6a6a6a]">
-                  <Building2 className="w-4 h-4" />
-                  <span className="text-xs font-light truncate">{companyName}</span>
-                </div>
-              )}
             </div>
           </div>
-
-          {/* Bottom row: Email with copy button */}
-          <div className="flex items-center gap-3 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg px-4 py-3">
-            <Mail className="w-4 h-4 text-[#6a6a6a] shrink-0" />
-            <code className="flex-1 text-sm font-mono text-[#e8e8e8] truncate">
+          <div className="flex items-center gap-3 p-3 bg-[#141414] border border-white/5 rounded">
+            <Mail className="w-4 h-4 text-white/50 shrink-0" />
+            <code className="flex-1 text-sm text-white/90 truncate" style={{ fontFamily: 'var(--font-fira-mono)' }}>
               {firstEmail}
             </code>
-            <Button
+            <button
               onClick={() => handleCopyEmail(firstEmail)}
-              size="sm"
-              className="shrink-0 bg-[#d4af37] hover:bg-[#c49d2a] text-[#0a0a0a] min-h-[44px] min-w-[44px] px-4 rounded-md font-light text-xs"
-              style={{ touchAction: 'manipulation' }}
+              className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded text-sm transition-all duration-[150ms] hover:scale-[1.02] will-change-transform"
+              style={{ fontFamily: 'var(--font-fira-mono)', transform: 'translateZ(0)' }}
             >
               {copiedEmail === firstEmail ? (
-                <>
-                  <Check className="w-3 h-3 mr-1.5" />
+                <span className="flex items-center gap-2">
+                  <Check className="w-3 h-3" />
                   Copied
-                </>
+                </span>
               ) : (
-                <>
-                  <Copy className="w-3 h-3 mr-1.5" />
+                <span className="flex items-center gap-2">
+                  <Copy className="w-3 h-3" />
                   Copy
-                </>
+                </span>
               )}
-            </Button>
+            </button>
           </div>
         </div>
       ) : (
-        <div className="text-center py-6">
-          <div className="text-3xl mb-2 opacity-20">✕</div>
-          <p className="text-sm font-light text-[#6a6a6a]">
-            No verified email found
-          </p>
-        </div>
+        <p className="text-center text-white/70" style={{ fontFamily: 'var(--font-fira-mono)' }}>
+          No verified email found
+        </p>
       )}
-    </article>
+    </div>
   );
 }
