@@ -6,6 +6,16 @@ import { X } from 'lucide-react';
 export default function GuidePage() {
   const router = useRouter();
 
+  const handleClose = () => {
+    // Check if there's a referrer (came from another page)
+    if (typeof window !== 'undefined' && document.referrer && document.referrer !== window.location.href) {
+      router.back();
+    } else {
+      // If no referrer (direct link), redirect to login
+      router.push('/login');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-4" style={{ fontFamily: 'var(--font-fira-mono)' }}>
       <div className="w-full max-w-4xl max-h-[90vh] bg-black border border-white/10 rounded-lg p-8 overflow-y-auto scrollbar-hide">
@@ -14,7 +24,7 @@ export default function GuidePage() {
             how to write a good cold email
           </h2>
           <button
-            onClick={() => router.back()}
+            onClick={handleClose}
             className="text-white/60 hover:text-white transition-colors"
           >
             <X className="w-6 h-6" />
