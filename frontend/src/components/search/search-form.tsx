@@ -3,9 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, Send } from 'lucide-react';
 import { triggerHaptic } from '@/lib/haptics';
+import { posthog } from '@/../instrumentation-client';
+import type { OrchestratorResponse } from '@/lib/api';
 
 interface SearchFormProps {
-  onSearch: (query: string) => void;
+  onSearch: (query: string) => Promise<OrchestratorResponse | Error>;
   isLoading: boolean;
   icon?: 'arrow' | 'send';
   placeholder?: string;
@@ -73,7 +75,7 @@ export function SearchForm({ onSearch, isLoading, icon = 'arrow', placeholder = 
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim() || !isValidUrl(query)) return;
 
@@ -85,7 +87,48 @@ export function SearchForm({ onSearch, isLoading, icon = 'arrow', placeholder = 
       document.activeElement.blur();
     }
 
-    onSearch(query);
+    const trimmedQuery = query.trim();
+    
+    // Log company_searched event
+    posthog.capture('company_searched', {
+      search_query: trimmedQuery,
+    });
+
+    try {
+      const result = await onSearch(trimmedQuery);
+      
+      // Log search_completed event
+      if (result instanceof Error) {
+        posthog.capture('search_completed', {
+          search_query: trimmedQuery,
+          results_found: false,
+          email_count: 0,
+          person_count: 0,
+          error: result.message,
+        });
+      } else {
+        const resultsFound = result.people && result.people.length > 0 && result.message !== "no emails found";
+        const emailCount = resultsFound
+          ? result.people.reduce((total, person) => total + (person.emails?.length || 0), 0)
+          : 0;
+        
+        posthog.capture('search_completed', {
+          search_query: trimmedQuery,
+          company_name: result.company || trimmedQuery,
+          results_found: resultsFound,
+          email_count: emailCount,
+          person_count: result.people?.length || 0,
+        });
+      }
+    } catch (err) {
+      posthog.capture('search_completed', {
+        search_query: trimmedQuery,
+        results_found: false,
+        email_count: 0,
+        person_count: 0,
+        error: err instanceof Error ? err.message : 'Unknown error',
+      });
+    }
   };
 
   return (

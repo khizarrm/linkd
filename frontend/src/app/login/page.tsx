@@ -244,10 +244,11 @@ export default function LoginPage() {
     return cleaned;
   };
 
-  const handleDemoSearch = async (query: string) => {
+  const handleDemoSearch = async (query: string): Promise<OrchestratorResponse | Error> => {
     if (triesRemaining <= 0) {
-      setDemoError('You\'ve used all 3 free tries. Sign in to continue searching.');
-      return;
+      const errorMessage = 'You\'ve used all 3 free tries. Sign in to continue searching.';
+      setDemoError(errorMessage);
+      return new Error(errorMessage);
     }
 
     setDemoError(null);
@@ -265,7 +266,9 @@ export default function LoginPage() {
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({ error: 'An unexpected error occurred' }));
-        throw new Error(error.error || 'Failed to run orchestrator');
+        const errorMessage = error.error || 'Failed to run orchestrator';
+        setDemoError(errorMessage);
+        return new Error(errorMessage);
       }
 
       const data: OrchestratorResponse = await response.json();
@@ -274,8 +277,12 @@ export default function LoginPage() {
       const newTriesRemaining = triesRemaining - 1;
       setTriesRemaining(newTriesRemaining);
       localStorage.setItem(DEMO_TRIES_KEY, newTriesRemaining.toString());
+      
+      return data;
     } catch (err) {
-      setDemoError(err instanceof Error ? err.message : 'Failed to run orchestrator');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to run orchestrator';
+      setDemoError(errorMessage);
+      return new Error(errorMessage);
     } finally {
       setDemoLoading(false);
     }
@@ -285,9 +292,9 @@ export default function LoginPage() {
     setShowSignIn(true);
   };
 
-  const handleSearchSubmit = (query: string) => {
+  const handleSearchSubmit = async (query: string) => {
     if (triesRemaining > 0) {
-      handleDemoSearch(query);
+      await handleDemoSearch(query);
     } else {
       handleSignIn();
     }
