@@ -6,6 +6,19 @@ if (typeof window !== 'undefined') {
     person_profiles: 'identified_only', // or 'always' to track all users
     capture_pageview: false, // we'll manually capture pageviews
     capture_pageleave: true,
+    session_recording: {
+      maskAllInputs: true,
+      maskInputOptions: {
+        password: true,
+      },
+      maskInputFn: (text, element) => {
+        // Don't mask inputs with inputMode="url" (our search bar)
+        if (element?.attributes['inputmode']?.value === 'url') {
+          return text;
+        }
+        return '*'.repeat(text.length);
+      },
+    },
   })
 }
 
