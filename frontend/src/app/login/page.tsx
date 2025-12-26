@@ -292,11 +292,12 @@ export default function LoginPage() {
     setShowSignIn(true);
   };
 
-  const handleSearchSubmit = async (query: string) => {
+  const handleSearchSubmit = async (query: string): Promise<OrchestratorResponse | Error> => {
     if (triesRemaining > 0) {
-      await handleDemoSearch(query);
+      return await handleDemoSearch(query);
     } else {
       handleSignIn();
+      return new Error('No tries remaining');
     }
   };
 

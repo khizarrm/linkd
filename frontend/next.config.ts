@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Disable React StrictMode to prevent double-rendering in development
+  reactStrictMode: false,
   // Standard Next.js config for Vercel deployment
   images: {
     unoptimized: true,
