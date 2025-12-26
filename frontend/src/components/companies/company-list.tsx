@@ -5,15 +5,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCompanies } from '@/hooks/use-companies';
 import { CompanyCard } from './company-card';
 import { CompanyDetailDialog } from './company-detail-dialog';
-import { EmployeeComposeModal } from './employee-compose-modal';
-
-interface Employee {
-  id: number;
-  employeeName: string;
-  employeeTitle: string | null;
-  email: string | null;
-  companyId: number;
-}
 
 interface CompanyListProps {
   searchQuery?: string;
@@ -23,19 +14,26 @@ export function CompanyList({ searchQuery = '' }: CompanyListProps) {
   const { companies, isLoading } = useCompanies();
   const [selectedCompany, setSelectedCompany] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [composingEmployee, setComposingEmployee] = useState<{ employee: Employee; companyName: string } | null>(null);
 
-  // Filter companies based on search query
+  // Filter companies based on search query and email availability
   const filteredCompanies = companies.filter((company: any) => {
+    // Filter out companies with no emails
+    // TODO: Backend should provide hasEmailableEmployees flag to optimize this
+    // For now, we filter based on emailableEmployeesCount if available
+    if (company.emailableEmployeesCount !== undefined && company.emailableEmployeesCount === 0) {
+      return false;
+    }
+
+    // Apply search query filter
     if (!searchQuery.trim()) return true;
-    
+
     const query = searchQuery.toLowerCase();
     const companyName = company.companyName?.toLowerCase() || '';
     const industry = company.industry?.toLowerCase() || '';
     const description = company.description?.toLowerCase() || '';
     const website = company.website?.toLowerCase() || '';
     const headquarters = company.headquarters?.toLowerCase() || '';
-    
+
     return (
       companyName.includes(query) ||
       industry.includes(query) ||
@@ -58,8 +56,8 @@ export function CompanyList({ searchQuery = '' }: CompanyListProps) {
   if (companies.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
-        <p className="text-[#6a6a6a] font-sans font-light text-sm">
-          No companies found
+        <p className="text-white/60 text-sm lowercase" style={{ fontFamily: 'var(--font-fira-mono)' }}>
+          no companies found
         </p>
       </div>
     );
@@ -68,8 +66,8 @@ export function CompanyList({ searchQuery = '' }: CompanyListProps) {
   if (filteredCompanies.length === 0 && searchQuery.trim()) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
-        <p className="text-[#6a6a6a] font-sans font-light text-sm">
-          No companies match your search
+        <p className="text-white/60 text-sm lowercase" style={{ fontFamily: 'var(--font-fira-mono)' }}>
+          no companies match your search
         </p>
       </div>
     );
@@ -84,9 +82,9 @@ export function CompanyList({ searchQuery = '' }: CompanyListProps) {
     <>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {filteredCompanies.map((company: any, index: number) => (
-          <CompanyCard 
-            key={company.id} 
-            company={company} 
+          <CompanyCard
+            key={company.id}
+            company={company}
             index={index}
             onClick={() => handleCompanyClick(company)}
           />
@@ -97,23 +95,7 @@ export function CompanyList({ searchQuery = '' }: CompanyListProps) {
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
         company={selectedCompany}
-        onCompose={(employee) => {
-          setComposingEmployee({ employee, companyName: selectedCompany?.companyName || '' });
-          setIsDialogOpen(false); // Close company dialog
-        }}
       />
-
-      {/* Employee Compose Modal - rendered at parent level so it persists */}
-      {composingEmployee && (
-        <EmployeeComposeModal
-          open={!!composingEmployee}
-          onOpenChange={(open) => {
-            if (!open) setComposingEmployee(null);
-          }}
-          employee={composingEmployee.employee}
-          companyName={composingEmployee.companyName}
-        />
-      )}
     </>
   );
 }

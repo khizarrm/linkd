@@ -42,22 +42,25 @@ function extractDomain(url: string | null | undefined): string | null {
 
 export function CompanyCard({ company, index, onClick }: CompanyCardProps) {
   const [faviconError, setFaviconError] = useState(false);
-  
+
   const domain = company.website ? extractDomain(company.website) : null;
   const faviconUrl = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=128` : null;
-  const displayUrl = company.website || 'No website';
-  
+  const displayUrl = company.website || 'no website';
+
   return (
     <article
-      className="bg-[#151515] border border-[#2a2a2a] rounded-2xl sm:rounded-3xl p-5 sm:p-6 md:p-8 hover:border-[#3a3a3a] active:scale-[0.98] transition-all duration-300 flex flex-col h-full group cursor-pointer relative"
-      style={{ animationDelay: `${index * 0.05}s` }}
+      className="bg-black border border-white/10 rounded-lg p-6 hover:border-white/20 transition-all duration-200 flex flex-col h-full group cursor-pointer"
+      style={{
+        animationDelay: `${index * 0.05}s`,
+        fontFamily: 'var(--font-fira-mono)'
+      }}
       onClick={onClick}
     >
       <div className="flex flex-col gap-4 flex-grow">
         {/* Header with Logo and Name */}
-        <div className="flex items-start gap-4">
+        <div className="flex items-start gap-3">
           {/* Logo */}
-          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-white/5 p-2 flex items-center justify-center border border-white/10 group-hover:border-white/20 transition-colors shrink-0 flex-shrink-0">
+          <div className="w-10 h-10 rounded bg-white/5 p-2 flex items-center justify-center border border-white/10 group-hover:border-white/20 transition-colors shrink-0">
             {faviconUrl && !faviconError ? (
               <img
                 src={faviconUrl}
@@ -66,17 +69,17 @@ export function CompanyCard({ company, index, onClick }: CompanyCardProps) {
                 onError={() => setFaviconError(true)}
               />
             ) : (
-              <Building2 className="w-6 h-6 sm:w-7 sm:h-7 text-[#6a6a6a] group-hover:text-[#e8e8e8] transition-colors" />
+              <Building2 className="w-5 h-5 text-white/40 group-hover:text-white/60 transition-colors" />
             )}
           </div>
-          
-          {/* Company Name */}
-          <div className="space-y-2 min-w-0 flex-1">
-            <h3 className="text-xl sm:text-2xl font-light tracking-tight break-words text-[#e8e8e8]">
+
+          {/* Company Name and Industry */}
+          <div className="space-y-1 min-w-0 flex-1">
+            <h3 className="text-lg font-medium text-white lowercase break-words">
               {company.companyName}
             </h3>
             {company.industry && (
-              <p className="text-xs sm:text-sm font-sans font-light text-[#6a6a6a]">
+              <p className="text-sm text-white/60 lowercase">
                 {company.industry}
               </p>
             )}
@@ -90,29 +93,25 @@ export function CompanyCard({ company, index, onClick }: CompanyCardProps) {
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
-            className="flex items-center gap-2 text-xs sm:text-sm font-sans font-light text-[#6a6a6a] hover:text-[#e8e8e8] transition-colors group/link"
+            className="flex items-center gap-2 text-sm text-white/60 hover:text-white transition-colors group/link lowercase"
           >
-            <span 
-              className="underline decoration-white/20 hover:decoration-white/50 transition-all min-w-0 truncate"
-              style={{ 
-                wordBreak: 'break-word',
-                overflowWrap: 'anywhere'
-              }}
+            <span
+              className="underline decoration-white/20 hover:decoration-white/40 transition-all min-w-0 truncate"
             >
               {displayUrl}
             </span>
             <ExternalLink className="w-3.5 h-3.5 opacity-0 group-hover/link:opacity-100 transition-opacity shrink-0" />
           </a>
         ) : (
-          <p className="text-xs sm:text-sm font-sans font-light text-[#6a6a6a]">
-            No website available
+          <p className="text-sm text-white/60 lowercase">
+            no website available
           </p>
         )}
 
         {/* Description */}
         {company.description && (
           <div className="flex-grow">
-            <p className="text-sm font-sans font-light text-[#6a6a6a] leading-relaxed line-clamp-3">
+            <p className="text-sm text-white/60 leading-relaxed line-clamp-3 lowercase">
               {company.description}
             </p>
           </div>
@@ -120,12 +119,12 @@ export function CompanyCard({ company, index, onClick }: CompanyCardProps) {
 
         {/* Additional Info */}
         {(company.headquarters || company.employeeCountMin || company.employeeCountMax) && (
-          <div className="flex flex-wrap gap-2 text-xs text-[#6a6a6a]">
+          <div className="flex flex-wrap gap-3 text-sm text-white/60 lowercase">
             {company.headquarters && (
-              <span className="font-light">{company.headquarters}</span>
+              <span>{company.headquarters}</span>
             )}
             {(company.employeeCountMin || company.employeeCountMax) && (
-              <span className="font-light">
+              <span>
                 {company.employeeCountMin && company.employeeCountMax
                   ? `${company.employeeCountMin}-${company.employeeCountMax} employees`
                   : company.employeeCountMin

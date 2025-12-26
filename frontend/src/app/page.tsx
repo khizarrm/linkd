@@ -9,6 +9,7 @@ import { useProtectedApi } from '@/hooks/use-protected-api';
 import type { OrchestratorResponse } from '@/lib/api';
 import { SearchForm } from '@/components/search/search-form';
 import { SearchResults } from '@/components/search/search-results';
+import { BankModal } from '@/components/bank/bank-modal';
 
 const COMPANIES_KEY = 'companies';
 
@@ -82,6 +83,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showFAQ, setShowFAQ] = useState(false);
+  const [showBank, setShowBank] = useState(false);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -121,6 +123,7 @@ export default function Home() {
   return (
     <>
       <FAQModal isOpen={showFAQ} onClose={() => setShowFAQ(false)} />
+      <BankModal open={showBank} onOpenChange={setShowBank} />
       <div className="bg-black relative min-h-screen" style={{ fontFamily: 'var(--font-fira-mono)' }}>
         {/* Top Left Buttons */}
         <div className="fixed top-6 left-6 z-10 flex items-center gap-3">
@@ -130,6 +133,13 @@ export default function Home() {
             style={{ fontFamily: 'var(--font-fira-mono)' }}
           >
             faq
+          </button>
+          <button
+            onClick={() => setShowBank(true)}
+            className="px-4 py-2 bg-white text-black hover:bg-white/90 transition-all duration-200 lowercase rounded"
+            style={{ fontFamily: 'var(--font-fira-mono)' }}
+          >
+            bank
           </button>
           <button
             onClick={() => router.push('/guide')}
