@@ -13,7 +13,7 @@ if (typeof window !== 'undefined') {
       },
       maskInputFn: (text, element) => {
         // Don't mask inputs with inputMode="url" (our search bar)
-        if (element?.attributes['inputmode']?.value === 'url') {
+        if (element?.getAttribute('inputmode') === 'url') {
           return text;
         }
         return '*'.repeat(text.length);
