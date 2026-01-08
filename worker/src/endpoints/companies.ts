@@ -31,7 +31,7 @@ export class ProtectedCompaniesListRoute extends OpenAPIRoute {
                   headquarters: z.string().nullable(),
                   industry: z.string().nullable(),
                   createdAt: z.string().nullable(),
-                })
+                }),
               ),
             }),
           },
@@ -41,29 +41,36 @@ export class ProtectedCompaniesListRoute extends OpenAPIRoute {
   };
 
   async handle(c: any) {
+    console.log("Handling company request");
     const env = c.env;
     const db = drizzle(env.DB, { schema });
-    const allCompanies = await db.query.companyProfiles.findMany({
-      orderBy: [desc(companyProfiles.createdAt)],
-    });
+
+    const companiesWithEmployees = await db
+      .selectDistinct({
+        id: companyProfiles.id,
+        companyName: companyProfiles.companyName,
+        website: companyProfiles.website,
+        yearFounded: companyProfiles.yearFounded,
+        description: companyProfiles.description,
+        techStack: companyProfiles.techStack,
+        employeeCountMin: companyProfiles.employeeCountMin,
+        employeeCountMax: companyProfiles.employeeCountMax,
+        revenue: companyProfiles.revenue,
+        funding: companyProfiles.funding,
+        headquarters: companyProfiles.headquarters,
+        industry: companyProfiles.industry,
+        createdAt: companyProfiles.createdAt,
+      })
+      .from(companyProfiles)
+      .innerJoin(
+        employees,
+        eq(companyProfiles.companyName, employees.companyName),
+      )
+      .orderBy(desc(companyProfiles.createdAt));
 
     return {
       success: true,
-      companies: allCompanies.map((company) => ({
-        id: company.id,
-        companyName: company.companyName,
-        website: company.website,
-        yearFounded: company.yearFounded,
-        description: company.description,
-        techStack: company.techStack,
-        employeeCountMin: company.employeeCountMin,
-        employeeCountMax: company.employeeCountMax,
-        revenue: company.revenue,
-        funding: company.funding,
-        headquarters: company.headquarters,
-        industry: company.industry,
-        createdAt: company.createdAt,
-      })),
+      companies: companiesWithEmployees,
     };
   }
 }
@@ -92,7 +99,7 @@ export class ProtectedCompanyEmployeesRoute extends OpenAPIRoute {
                   email: z.string().nullable(),
                   companyName: z.string().nullable(),
                   createdAt: z.string().nullable(),
-                })
+                }),
               ),
             }),
           },
@@ -105,12 +112,14 @@ export class ProtectedCompanyEmployeesRoute extends OpenAPIRoute {
   };
 
   async handle(c: any) {
+    console.log("Handling company employees request");
     const env = c.env;
-    const { id } = await this.getValidatedData<typeof this.schema>().then(d => d.params);
+    const { id } = await this.getValidatedData<typeof this.schema>().then(
+      (d) => d.params,
+    );
 
     const db = drizzle(env.DB, { schema });
-    
-    // Verify company exists
+
     const company = await db.query.companyProfiles.findFirst({
       where: eq(companyProfiles.id, id),
     });
@@ -119,7 +128,6 @@ export class ProtectedCompanyEmployeesRoute extends OpenAPIRoute {
       return Response.json({ error: "Company not found" }, { status: 404 });
     }
 
-    // Get employees for this company
     const companyEmployees = await db.query.employees.findMany({
       where: eq(employees.companyName, company.companyName),
       orderBy: [desc(employees.createdAt)],
@@ -138,4 +146,3 @@ export class ProtectedCompanyEmployeesRoute extends OpenAPIRoute {
     };
   }
 }
-

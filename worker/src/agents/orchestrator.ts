@@ -25,12 +25,18 @@ const CompanyMetadataSchema = z.object({
 const PersonSchema = z.object({
   name: z.string().describe("Full name"),
   role: z.string().describe("Job title"),
-  confidence: z.enum(["high", "medium", "low"]).describe("How confident we are this person works at this specific company"),
+  confidence: z
+    .enum(["high", "medium", "low"])
+    .describe(
+      "How confident we are this person works at this specific company",
+    ),
 });
 
 const PeopleExtractionSchema = z.object({
   people: z.array(PersonSchema),
-  needsMoreSearch: z.boolean().describe("True if results seem wrong or insufficient"),
+  needsMoreSearch: z
+    .boolean()
+    .describe("True if results seem wrong or insufficient"),
   reasoning: z.string().describe("Why these results are or aren't good"),
 });
 
@@ -54,8 +60,6 @@ class Orchestrator extends Agent<CloudflareBindings> {
       return this.errorResponse("No valid domain found in query", 400);
     }
 
-    console.log(`[Orchestrator] Processing domain: ${domain}`);
-
     const validation = await validateDomain(domain);
     if (!validation.valid) {
       return this.errorResponse(validation.error || "Domain is invalid", 400);
@@ -72,22 +76,22 @@ class Orchestrator extends Agent<CloudflareBindings> {
       const result = await this.runAgentLoop(cleanDomain);
 
       if (!result.people.length) {
-        return this.errorResponse(
-          "No leadership found for this company",
-          404
-        );
+        return this.errorResponse("No leadership found for this company", 404);
       }
 
       // Find emails for validated people
       const emailResult = (await emailFinder.execute(
-        { people: result.people.map((p) => ({ name: p.name, role: p.role })), domain: cleanDomain },
-        { env: this.env } as any
+        {
+          people: result.people.map((p) => ({ name: p.name, role: p.role })),
+          domain: cleanDomain,
+        },
+        { env: this.env } as any,
       )) as {
         people: Array<{ name: string; role: string; emails: string[] }>;
       };
 
       const peopleWithEmails = emailResult.people.filter(
-        (p) => p.emails && p.emails.length > 0
+        (p) => p.emails && p.emails.length > 0,
       );
 
       const finalResult = {
@@ -124,7 +128,8 @@ class Orchestrator extends Agent<CloudflareBindings> {
 
     // Create search tool for the agent
     const search = tool({
-      description: "Search the web. Always include the domain in quotes for company-specific searches.",
+      description:
+        "Search the web. Always include the domain in quotes for company-specific searches.",
       inputSchema: z.object({
         query: z.string().describe("Search query"),
         numResults: z.number().optional().default(5),
@@ -164,8 +169,8 @@ Your goal is to understand:
 3. What sources would have their leadership info? (LinkedIn, Crunchbase, their website, news articles?)
 
 IMPORTANT: Always search with "${domain}" in quotes to avoid confusion with similarly-named companies.`,
-      prompt: `Research the company at ${domain}. 
-      
+      prompt: `Research the company at ${domain}.
+
 Search for:
 1. "${domain}" company - to understand what they do
 2. "${domain}" founders OR leadership - to find where leadership info exists
@@ -173,26 +178,43 @@ Search for:
 Summarize what you learned and where leadership info might be found.`,
     });
 
-    console.log(`[Orchestrator] Research complete: ${researchResult.text.substring(0, 200)}...`);
+    console.log(
+      `[Orchestrator] Research complete: ${researchResult.text.substring(0, 200)}...`,
+    );
     console.log(`[Orchestrator] Steps count: ${researchResult.steps.length}`);
     if (researchResult.steps.length > 0) {
       const firstStep = researchResult.steps[0] as any;
       console.log(`[Orchestrator] First step keys:`, Object.keys(firstStep));
       if (firstStep.toolCalls) {
-        console.log(`[Orchestrator] Tool calls count: ${firstStep.toolCalls.length}`);
+        console.log(
+          `[Orchestrator] Tool calls count: ${firstStep.toolCalls.length}`,
+        );
         if (firstStep.toolCalls.length > 0) {
-          console.log(`[Orchestrator] First tool call keys:`, Object.keys(firstStep.toolCalls[0]));
+          console.log(
+            `[Orchestrator] First tool call keys:`,
+            Object.keys(firstStep.toolCalls[0]),
+          );
         }
       }
       if (firstStep.toolResults) {
-        console.log(`[Orchestrator] Tool results count: ${firstStep.toolResults.length}`);
+        console.log(
+          `[Orchestrator] Tool results count: ${firstStep.toolResults.length}`,
+        );
         if (firstStep.toolResults.length > 0) {
-          console.log(`[Orchestrator] First tool result keys:`, Object.keys(firstStep.toolResults[0]));
+          console.log(
+            `[Orchestrator] First tool result keys:`,
+            Object.keys(firstStep.toolResults[0]),
+          );
           const firstResult = firstStep.toolResults[0];
           if (firstResult.result) {
-            console.log(`[Orchestrator] First tool result.result type:`, typeof firstResult.result);
-            console.log(`[Orchestrator] First tool result.result (first 200 chars):`, 
-              JSON.stringify(firstResult.result).substring(0, 200));
+            console.log(
+              `[Orchestrator] First tool result.result type:`,
+              typeof firstResult.result,
+            );
+            console.log(
+              `[Orchestrator] First tool result.result (first 200 chars):`,
+              JSON.stringify(firstResult.result).substring(0, 200),
+            );
           }
         }
       }
@@ -203,7 +225,7 @@ Summarize what you learned and where leadership info might be found.`,
     const metadataContext = researchResult.steps
       .flatMap((s: any) => {
         const toolResults = s.toolResults || [];
-        
+
         // Extract results from toolResults - use 'output' not 'result'
         return toolResults
           .map((tr: any) => {
@@ -211,15 +233,15 @@ Summarize what you learned and where leadership info might be found.`,
             if (Array.isArray(output)) {
               return output;
             }
-            if (output && typeof output === 'object') {
+            if (output && typeof output === "object") {
               return [output];
             }
             return [];
           })
           .flat();
       })
-      .filter((r: any) => r && typeof r === 'object' && (r.title || r.content))
-      .map((r: any) => `${r.title || 'No title'}\n${r.content || ''}`)
+      .filter((r: any) => r && typeof r === "object" && (r.title || r.content))
+      .map((r: any) => `${r.title || "No title"}\n${r.content || ""}`)
       .join("\n\n");
 
     const { object: metadata } = await generateObject({
@@ -262,7 +284,7 @@ Bad searches (will get wrong results):
 
 Start by searching:
 1. "${domain}" founders CEO
-2. site:linkedin.com/in "${domain}" 
+2. site:linkedin.com/in "${domain}"
 3. site:crunchbase.com/organization "${domain.replace(/\.(com|ai|io|co)$/, "")}"
 
 After each search, evaluate: do these results look like they're about the RIGHT company?
@@ -273,7 +295,7 @@ If not, try a different approach.`,
     const peopleContext = peopleResult.steps
       .flatMap((s: any) => {
         const toolResults = s.toolResults || [];
-        
+
         // Extract results from toolResults - use 'output' not 'result'
         return toolResults
           .map((tr: any) => {
@@ -281,22 +303,29 @@ If not, try a different approach.`,
             if (Array.isArray(output)) {
               return output;
             }
-            if (output && typeof output === 'object') {
+            if (output && typeof output === "object") {
               return [output];
             }
             return [];
           })
           .flat();
       })
-      .filter((r: any) => r && typeof r === 'object' && (r.title || r.content))
-      .map((r: any) => `Source: ${r.title || 'No title'}\nURL: ${r.url || 'No URL'}\n${r.content || ''}`)
+      .filter((r: any) => r && typeof r === "object" && (r.title || r.content))
+      .map(
+        (r: any) =>
+          `Source: ${r.title || "No title"}\nURL: ${r.url || "No URL"}\n${r.content || ""}`,
+      )
       .join("\n\n---\n\n");
 
-    console.log(`[Orchestrator] Extracting people from ${peopleContext.length} chars of context`);
-    
+    console.log(
+      `[Orchestrator] Extracting people from ${peopleContext.length} chars of context`,
+    );
+
     // Validate we have real context - if not, return empty people array
     if (peopleContext.length < 100) {
-      console.log(`[Orchestrator] WARNING: Insufficient context (${peopleContext.length} chars), skipping people extraction`);
+      console.log(
+        `[Orchestrator] WARNING: Insufficient context (${peopleContext.length} chars), skipping people extraction`,
+      );
       return {
         metadata,
         people: [],
@@ -308,7 +337,7 @@ If not, try a different approach.`,
       schema: PeopleExtractionSchema,
       prompt: `Extract leadership for ${metadata.name || domain} (website: ${domain}).
 
-CRITICAL: Only include people who DEFINITELY work at ${domain}. 
+CRITICAL: Only include people who DEFINITELY work at ${domain}.
 - Check URLs - linkedin.com profiles should mention ${domain}
 - Check context - does it clearly say they work at this company?
 - If unsure, mark confidence as "low"
@@ -321,16 +350,20 @@ ${peopleContext}
 
 For each person, assess confidence:
 - HIGH: URL contains ${domain} or explicitly states they work there
-- MEDIUM: Context suggests they work there but not 100% clear  
+- MEDIUM: Context suggests they work there but not 100% clear
 - LOW: Might be wrong company or outdated`,
     });
 
-    console.log(`[Orchestrator] Extracted ${extraction.people.length} people, needsMoreSearch: ${extraction.needsMoreSearch}`);
+    console.log(
+      `[Orchestrator] Extracted ${extraction.people.length} people, needsMoreSearch: ${extraction.needsMoreSearch}`,
+    );
     console.log(`[Orchestrator] Reasoning: ${extraction.reasoning}`);
 
     // Validate: If we extracted people but had no real context, they're hallucinations
     if (extraction.people.length > 0 && peopleContext.length < 100) {
-      console.log(`[Orchestrator] WARNING: People extracted from insufficient context (${peopleContext.length} chars), rejecting as hallucinations`);
+      console.log(
+        `[Orchestrator] WARNING: People extracted from insufficient context (${peopleContext.length} chars), rejecting as hallucinations`,
+      );
       return {
         metadata,
         people: [],
@@ -338,16 +371,19 @@ For each person, assess confidence:
     }
 
     // Step 5: If needed, do targeted validation searches
-    if (extraction.needsMoreSearch || extraction.people.every((p) => p.confidence === "low")) {
+    if (
+      extraction.needsMoreSearch ||
+      extraction.people.every((p) => p.confidence === "low")
+    ) {
       console.log(`[Orchestrator] Step 3: Validating with additional searches`);
-      
+
       const validationResult = await generateText({
         model,
         tools: { search },
         // @ts-expect-error - maxToolRoundtrips is valid but not in types
         maxToolRoundtrips: 3,
         prompt: `The previous search for ${domain} leadership may have wrong results.
-        
+
 Previous findings (possibly wrong):
 ${extraction.people.map((p) => `- ${p.name}: ${p.role} (confidence: ${p.confidence})`).join("\n")}
 
@@ -365,7 +401,7 @@ Report what you find.`,
       const validationContext = validationResult.steps
         .flatMap((s: any) => {
           const toolResults = s.toolResults || [];
-          
+
           // Extract results from toolResults - use 'output' not 'result'
           return toolResults
             .map((tr: any) => {
@@ -373,15 +409,17 @@ Report what you find.`,
               if (Array.isArray(output)) {
                 return output;
               }
-              if (output && typeof output === 'object') {
+              if (output && typeof output === "object") {
                 return [output];
               }
               return [];
             })
             .flat();
         })
-        .filter((r: any) => r && typeof r === 'object' && (r.title || r.content))
-        .map((r: any) => `${r.title || 'No title'}\n${r.content || ''}`)
+        .filter(
+          (r: any) => r && typeof r === "object" && (r.title || r.content),
+        )
+        .map((r: any) => `${r.title || "No title"}\n${r.content || ""}`)
         .join("\n\n");
 
       if (validationContext.length > 100) {
@@ -403,30 +441,42 @@ Only include people you're confident about now.`,
         });
 
         // Use validated results if better
-        if (validatedExtraction.people.filter((p) => p.confidence !== "low").length > 
-            extraction.people.filter((p) => p.confidence !== "low").length) {
+        if (
+          validatedExtraction.people.filter((p) => p.confidence !== "low")
+            .length >
+          extraction.people.filter((p) => p.confidence !== "low").length
+        ) {
           return {
             metadata,
-            people: validatedExtraction.people.filter((p) => p.confidence !== "low"),
+            people: validatedExtraction.people.filter(
+              (p) => p.confidence !== "low",
+            ),
           };
         }
       }
     }
 
     // Return high/medium confidence people
-    const confidentPeople = extraction.people.filter((p) => p.confidence !== "low");
-    
+    const confidentPeople = extraction.people.filter(
+      (p) => p.confidence !== "low",
+    );
+
     // Final validation: Only return people if we had real context to extract from
-    const finalPeople = confidentPeople.length > 0 ? confidentPeople : extraction.people.slice(0, 3);
-    
+    const finalPeople =
+      confidentPeople.length > 0
+        ? confidentPeople
+        : extraction.people.slice(0, 3);
+
     if (finalPeople.length > 0 && peopleContext.length < 100) {
-      console.log(`[Orchestrator] WARNING: Final validation failed - people extracted from insufficient context (${peopleContext.length} chars), returning empty`);
+      console.log(
+        `[Orchestrator] WARNING: Final validation failed - people extracted from insufficient context (${peopleContext.length} chars), returning empty`,
+      );
       return {
         metadata,
         people: [],
       };
     }
-    
+
     return {
       metadata,
       people: finalPeople,
@@ -456,7 +506,7 @@ Only include people you're confident about now.`,
               companyName,
               person.name,
               person.role,
-              person.emails[0]
+              person.emails[0],
             );
           }
         }
