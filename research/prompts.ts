@@ -71,5 +71,5 @@ Never fabricate to complete the schema.
 ## Output Format
 For each person:
 - **Name**:
-- **Role**:
+- **Role**: - Should ALWAYS be present
 - **LinkedIn Profile URL**: (only if explicitly found; otherwise omit)`;
