@@ -1,26 +1,67 @@
-import { Agent, webSearchTool, MemorySession, run } from "@openai/agents";
+import { Agent, webSearchTool, MemorySession, run, tool } from "@openai/agents";
 import * as readline from "readline";
-import { triagePrompt, queryPrompt, peopleSearchPrompt } from "./prompts";
+import { z } from "zod";
+import OpenAI from "openai";
+import { triagePrompt, peopleSearchPrompt } from "./prompts";
+import { QueryGeneratorOutput } from "./types";
+
+const openai = new OpenAI();
+
+const queryGeneratorTool = tool({
+  name: "generate_search_queries",
+  description:
+    "Generate optimized search queries to find people. Call this FIRST before using web_search.",
+  parameters: z.object({
+    request: z
+      .string()
+      .describe(
+        "Full description of what kind of people to find, including company, role, location, and any other context",
+      ),
+  }),
+  execute: async ({ request }) => {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: [
+        {
+          role: "system",
+          content: `Generate 6-10 search queries to find people based on the request.
+
+Rules:
+- Use searches from a maximum of 2 years ago. Fastest way to do it is to add a date, eg: [your query] after:2024-01-20
+- Use site:linkedin.com for LinkedIn-specific searches
+- Use quotes for exact phrases
+- Use Boolean operators (AND, OR)
+- Include title synonyms (SWE, Developer, Engineer, etc.)
+- Include "worked at" / "experience at" patterns
+- For specific person searches, generate 1-5 targeted queries
+
+Return JSON: { "queries": ["query1", ...], "reasoning": "brief explanation" }`,
+        },
+        {
+          role: "user",
+          content: request,
+        },
+      ],
+      response_format: { type: "json_object" },
+    });
+
+    const result = JSON.parse(completion.choices[0].message.content || "{}");
+    return QueryGeneratorOutput.parse(result);
+  },
+});
 
 const peopleSearchAgent = new Agent({
   name: "people_search",
   instructions: peopleSearchPrompt,
   model: "gpt-5.2",
-  tools: [webSearchTool()],
-});
-
-const queryGenerator = new Agent({
-  name: "query_generator",
-  instructions: queryPrompt,
-  model: "gpt-4.1",
-  handoffs: [peopleSearchAgent],
+  tools: [queryGeneratorTool, webSearchTool()],
 });
 
 const triageAgent = new Agent({
   name: "triage",
   instructions: triagePrompt,
   model: "gpt-4.1",
-  handoffs: [queryGenerator, peopleSearchAgent],
+  handoffs: [peopleSearchAgent],
 });
 
 const session = new MemorySession();
