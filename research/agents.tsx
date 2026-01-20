@@ -1,18 +1,26 @@
 import { Agent, webSearchTool, MemorySession, run } from "@openai/agents";
 import * as readline from "readline";
-import {
-  PeopleFinderOutput,
-  PeopleFinderOutputType,
-  QueryGeneratorOutput,
-  QueryGeneratorOutputType,
-} from "./types";
-import { getPeopleSearchPrompt, queryPrompt } from "./prompts";
+import { triagePrompt, queryPrompt, peopleSearchPrompt } from "./prompts";
+
+const peopleSearchAgent = new Agent({
+  name: "people_search",
+  instructions: peopleSearchPrompt,
+  model: "gpt-5.2",
+  tools: [webSearchTool()],
+});
 
 const queryGenerator = new Agent({
   name: "query_generator",
   instructions: queryPrompt,
   model: "gpt-4.1",
-  outputType: QueryGeneratorOutput,
+  handoffs: [peopleSearchAgent],
+});
+
+const triageAgent = new Agent({
+  name: "triage",
+  instructions: triagePrompt,
+  model: "gpt-4.1",
+  handoffs: [queryGenerator, peopleSearchAgent],
 });
 
 const session = new MemorySession();
@@ -32,44 +40,8 @@ async function chat() {
       }
 
       try {
-        const queryResult = await run(queryGenerator, input, { session });
-        const queryOutput = queryResult.finalOutput as
-          | QueryGeneratorOutputType
-          | undefined;
-
-        if (!queryOutput?.queries?.length) {
-          askQuestion();
-          return;
-        }
-
-        console.log(`\nQueries: ${queryOutput.queries.join(", ")}\n`);
-
-        const peopleSearchAgent = new Agent({
-          name: "people_search_assistant",
-          instructions: getPeopleSearchPrompt(queryOutput.queries),
-          model: "gpt-5.2",
-          tools: [webSearchTool()],
-          outputType: PeopleFinderOutput,
-        });
-
-        const result = await run(
-          peopleSearchAgent,
-          `Find people using the queries: ${queryOutput.queries}`,
-          { session },
-        );
-        const output = result.finalOutput as PeopleFinderOutputType | undefined;
-
-        if (output?.status === "people_found" && output.people) {
-          output.people.forEach((person, i) => {
-            console.log(
-              `${i + 1}. ${person.name} - ${person.role} at ${person.company}`,
-            );
-            console.log(`   ${person.description}`);
-            console.log(`   ${person.profileUrl}\n`);
-          });
-        } else if (output?.message) {
-          console.log(`\n${output.message}\n`);
-        }
+        const result = await run(triageAgent, input, { session });
+        console.log(`\n${result.finalOutput}\n`);
       } catch (error) {
         console.error("Error:", error instanceof Error ? error.message : error);
       }
