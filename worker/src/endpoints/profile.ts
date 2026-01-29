@@ -96,6 +96,7 @@ export class ProtectedProfileUpdateRoute extends OpenAPIRoute {
               githubUrl: z.string().optional(),
               websiteUrl: z.string().optional(),
               twitterUrl: z.string().optional(),
+              profiles: z.string().optional(),
             }),
           },
         },
