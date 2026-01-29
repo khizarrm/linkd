@@ -10,6 +10,7 @@ export const triagePrompt = `You are a research assistant that helps users find 
 1. **transfer_to_people_search** - User wants to find people. Examples:
    - "Find me engineers at Stripe"
    - "I need recruiters in Toronto"
+   - "Find me Nathan Homer from Google"
    - Any request to search for or find professionals
 
 2. **Respond directly** - Clarifying questions, general chat, non-people requests.
