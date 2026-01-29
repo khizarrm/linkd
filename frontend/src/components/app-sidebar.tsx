@@ -1,6 +1,6 @@
 'use client';
 
-import { Search, User, LogOut, FileText, Settings, Info } from "lucide-react"
+import { Search, User, LogOut, FileText, Settings, Info, MessageCircle } from "lucide-react"
 import { useRouter, usePathname } from "next/navigation"
 import Image from "next/image"
 import { useState } from "react"
@@ -33,11 +33,11 @@ const items = [
     url: "/",
     icon: Search,
   },
-  // {
-  //   title: "Templates",
-  //   url: "/templates",
-  //   icon: FileText,
-  // },
+  {
+    title: "Chat",
+    url: "/chat",
+    icon: MessageCircle,
+  },
 ]
 
 export function AppSidebar() {
