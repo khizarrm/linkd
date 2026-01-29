@@ -23,7 +23,7 @@ export class ResearchAgentRoute extends OpenAPIRoute {
               conversationId: z
                 .string()
                 .optional()
-                .describe("Optional conversation ID for session continuity (stored on OpenAI servers)"),
+                .describe("Optional conversation ID for session continuity"),
             }),
           },
         },
@@ -31,20 +31,14 @@ export class ResearchAgentRoute extends OpenAPIRoute {
     },
     responses: {
       "200": {
-        description: "Streaming response from the agent with conversationId header",
-        headers: {
-          "X-Conversation-Id": {
-            schema: z.string(),
-            description: "Conversation ID for session continuity",
-          },
-        },
+        description: "Streaming response from the agent",
         content: {
           "text/event-stream": {
             schema: z.object({
-              chunk: z.string().optional().describe("Text chunk from the agent"),
-              done: z.boolean().optional().describe("Indicates stream completion"),
-              conversationId: z.string().optional().describe("Conversation ID for session continuity"),
-              error: z.string().optional().describe("Error message if something went wrong"),
+              chunk: z.string().optional(),
+              done: z.boolean().optional(),
+              conversationId: z.string().optional(),
+              error: z.string().optional(),
             }),
           },
         },
@@ -55,7 +49,8 @@ export class ResearchAgentRoute extends OpenAPIRoute {
   async handle(c: any) {
     const env: CloudflareBindings = c.env;
     const reqData = await this.getValidatedData<typeof this.schema>();
-    const { query, conversationId } = reqData.body;
+    const body = reqData.body!;
+    const { query, conversationId } = body;
 
     const tools = createTools(env);
 
@@ -78,14 +73,9 @@ export class ResearchAgentRoute extends OpenAPIRoute {
       handoffs: [peopleSearchAgent],
     });
 
-    function isValidConversationId(id: string | undefined): boolean {
-      if (!id) return false;
-      return /^[a-zA-Z0-9_-]+$/.test(id);
-    }
-
-    const session = new OpenAIConversationsSession({
-      conversationId: isValidConversationId(conversationId) ? conversationId : undefined,
-    });
+    const session = conversationId
+      ? new OpenAIConversationsSession({ conversationId })
+      : new OpenAIConversationsSession();
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
@@ -99,20 +89,19 @@ export class ResearchAgentRoute extends OpenAPIRoute {
           const textStream = (result as any).toTextStream();
 
           for await (const chunk of textStream) {
-            const sseData = `data: ${JSON.stringify({ chunk })}\n\n`;
-            controller.enqueue(encoder.encode(sseData));
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ chunk })}\n\n`));
           }
 
+          const finalSessionId = await session.getSessionId();
           controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify({ done: true, conversationId: session.conversationId })}\n\n`)
+            encoder.encode(`data: ${JSON.stringify({ done: true, conversationId: finalSessionId })}\n\n`)
           );
           controller.close();
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : "Unknown error";
+          const finalSessionId = session.sessionId || conversationId || "unknown";
           controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ error: errorMessage, conversationId: session.conversationId })}\n\n`
-            )
+            encoder.encode(`data: ${JSON.stringify({ error: errorMessage, conversationId: finalSessionId })}\n\n`)
           );
           controller.close();
         }
@@ -124,7 +113,7 @@ export class ResearchAgentRoute extends OpenAPIRoute {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
         Connection: "keep-alive",
-        "X-Conversation-Id": session.conversationId,
+        "X-Conversation-Id": conversationId || session.sessionId || "",
       },
     });
   }

@@ -15,6 +15,7 @@ export function createTools(env: CloudflareBindings) {
           "Full description of what kind of people to find, including company, role, location, and any other context",
         ),
     }),
+    strict: true,
     execute: async ({ request }) => {
       const response = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
@@ -49,7 +50,9 @@ Return JSON: { "queries": ["query1", ...], "reasoning": "brief explanation" }`,
         }),
       });
 
-      const completion = await response.json();
+      const completion = await response.json() as {
+        choices: [{ message: { content: string } }];
+      };
       const result = JSON.parse(completion.choices[0].message.content || "{}");
       return QueryGeneratorOutput.parse(result);
     },
@@ -102,7 +105,8 @@ Return JSON: { "queries": ["query1", ...], "reasoning": "brief explanation" }`,
           "Known email from company to infer pattern (e.g., 'john.doe@company.com'). Pass empty string if unknown.",
         ),
     }),
-    execute: async ({ name, domain, knownPattern }) => {
+    strict: true,
+    execute: async ({ name, company, domain, knownPattern }) => {
       const cleanDomain = domain.replace(/^www\./, "").toLowerCase();
 
       const parts = name.trim().split(/\s+/);
