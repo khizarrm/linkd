@@ -26,6 +26,7 @@ export class ProtectedProfileGetRoute extends OpenAPIRoute {
                 githubUrl: z.string().nullable(),
                 websiteUrl: z.string().nullable(),
                 twitterUrl: z.string().nullable(),
+                profiles: z.string().nullable(),
                 createdAt: z.string(),
                 updatedAt: z.string(),
               }),
@@ -119,6 +120,7 @@ export class ProtectedProfileUpdateRoute extends OpenAPIRoute {
                 githubUrl: z.string().nullable(),
                 websiteUrl: z.string().nullable(),
                 twitterUrl: z.string().nullable(),
+                profiles: z.string().nullable(),
                 createdAt: z.string(),
                 updatedAt: z.string(),
               }),
@@ -164,6 +166,7 @@ export class ProtectedProfileUpdateRoute extends OpenAPIRoute {
       linkedinUrl?: string | null;
       githubUrl?: string | null;
       websiteUrl?: string | null;
+      profiles?: string | null;
       twitterUrl?: string | null;
       updatedAt: Date;
     } = {
