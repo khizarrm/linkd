@@ -11,7 +11,8 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
-    "@openai/agents": "^0.4.1",
+    "@ai-sdk/openai": "^2.0.71",
+    "ai": "^5.0.98",
     "dotenv": "^17.2.3",
     "zod": "^4.3.5"
   },

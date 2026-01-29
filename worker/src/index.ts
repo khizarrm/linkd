@@ -37,6 +37,7 @@ import {
 } from "./endpoints/profile";
 import { PublicFeedbackRoute } from "./endpoints/feedback";
 import { ClerkWebhookRoute } from "./endpoints/clerkWebhook";
+import { ResearchAgentRoute } from "./agents/research/endpoint";
 import { findExistingCompanyAndEmployees } from "./db/companies";
 
 interface Env {
@@ -232,6 +233,9 @@ openapi.get(
 );
 openapi.get("/api/protected/profile", ProtectedProfileGetRoute);
 openapi.patch("/api/protected/profile", ProtectedProfileUpdateRoute);
+
+// Research Agent Route (OpenAI Agents SDK)
+openapi.post("/api/agents/research", ResearchAgentRoute);
 
 // Vectorize Routes
 openapi.post(
