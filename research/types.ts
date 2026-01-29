@@ -28,3 +28,27 @@ export const QueryGeneratorOutput = z.object({
 });
 
 export type QueryGeneratorOutputType = z.infer<typeof QueryGeneratorOutput>;
+
+export const TriageOutput = z.object({
+  status: z.enum(["ready", "needs_info"]),
+  companyName: z.string().optional(),
+  role: z.string().optional(),
+  location: z.string().optional(),
+  clarifyingQuestion: z.string().optional(),
+});
+
+export type TriageOutputType = z.infer<typeof TriageOutput>;
+
+export const EmailFinderOutput = z.object({
+  people: z.array(
+    z.object({
+      name: z.string(),
+      role: z.string(),
+      company: z.string(),
+      email: z.string().nullable(),
+      emailSource: z.enum(["search", "guess", "none"]),
+    })
+  ),
+});
+
+export type EmailFinderOutputType = z.infer<typeof EmailFinderOutput>;

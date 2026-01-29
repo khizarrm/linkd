@@ -12,6 +12,7 @@
   "type": "module",
   "dependencies": {
     "@openai/agents": "^0.4.1",
+    "dotenv": "^17.2.3",
     "zod": "^4.3.5"
   },
   "devDependencies": {

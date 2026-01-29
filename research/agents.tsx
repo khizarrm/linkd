@@ -1,13 +1,13 @@
 import { Agent, webSearchTool, MemorySession, run } from "@openai/agents";
 import * as readline from "readline";
 import { triagePrompt, peopleSearchPrompt } from "./prompts";
-import { queryGeneratorTool } from "./tools";
+import { queryGeneratorTool, getUserInfo, emailFinderTool } from "./tools";
 
 const peopleSearchAgent = new Agent({
   name: "people_search",
   instructions: peopleSearchPrompt,
   model: "gpt-5.2",
-  tools: [queryGeneratorTool, webSearchTool()],
+  tools: [queryGeneratorTool, getUserInfo, emailFinderTool, webSearchTool()],
 });
 
 const triageAgent = new Agent({
@@ -43,7 +43,6 @@ async function chat() {
           stream: true,
         } as any);
 
-        console.log("💭 Thinking...");
         const textStream = (result as any).toTextStream();
         for await (const chunk of textStream) {
           process.stdout.write(chunk);
