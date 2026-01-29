@@ -42,21 +42,23 @@ function tryParsePeopleFinder(content: string): PeopleFinderResult | null {
 
 function PersonCard({ person }: { person: Person }) {
   return (
-    <div className="flex items-start justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-3">
+    <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3.5 space-y-3">
       <div className="min-w-0">
         <p className="text-sm font-medium text-white lowercase">{person.name}</p>
-        <p className="text-xs text-white/60 lowercase">{person.role} · {person.company}</p>
-        <p className="text-xs text-white/40 leading-relaxed mt-1">{person.description}</p>
+        <p className="text-xs text-white/50 lowercase">{person.role} · {person.company}</p>
       </div>
+      {person.description && (
+        <p className="text-xs text-white/35 leading-relaxed">{person.description}</p>
+      )}
       {person.profileUrl && (
         <a
           href={person.profileUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="shrink-0 flex items-center gap-1.5 rounded-md bg-[#0A66C2] hover:bg-[#0A66C2]/80 transition-colors px-3 py-1.5 text-xs font-medium text-white"
+          className="flex items-center justify-center gap-2 w-full rounded-lg bg-[#0A66C2] hover:bg-[#0A66C2]/85 transition-colors py-2 text-xs font-medium text-white"
         >
           <ExternalLink className="h-3 w-3" />
-          linkedin
+          view profile
         </a>
       )}
     </div>

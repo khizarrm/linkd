@@ -32,7 +32,7 @@ export const PeopleFinderOutput = z.object({
     .array(EmailFinderOutput)
     .describe("A list of all the verified emails you have found")
     .optional(),
-  followUp: z.string().describe("a follow up message"),
+  followUp: z.string().describe("a follow up message").optional(),
 });
 
 export type Person = z.infer<typeof PersonSchema>;

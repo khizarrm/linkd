@@ -78,6 +78,7 @@ export class ResearchAgentRoute extends OpenAPIRoute {
       instructions: triagePrompt,
       model: "gpt-4.1",
       handoffs: [peopleSearchAgent],
+      tools: [tools.getUserInfo],
     });
 
     const session = conversationId

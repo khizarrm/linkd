@@ -1,10 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useAuth } from '@clerk/nextjs';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Send, Loader2 } from 'lucide-react';
+import { ArrowUp, Square } from 'lucide-react';
 import { MessageContent } from '@/components/chat/message-content';
 
 interface Message {
@@ -154,6 +152,19 @@ export default function ChatPage() {
     abortControllerRef.current?.abort();
   };
 
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const autoResize = useCallback(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+  }, []);
+
+  useEffect(() => {
+    autoResize();
+  }, [input, autoResize]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -163,18 +174,18 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-screen bg-black" style={{ fontFamily: 'var(--font-fira-mono)' }}>
-      <header className="flex h-16 shrink-0 items-center border-b border-white/10">
-        <div className="w-full max-w-2xl mx-auto px-6">
-          <h1 className="text-lg font-medium text-white lowercase">chat</h1>
+      <header className="flex h-14 shrink-0 items-center border-b border-white/[0.06]">
+        <div className="w-full max-w-3xl mx-auto px-6">
+          <h1 className="text-sm font-medium text-white/80 lowercase tracking-wide">linkd</h1>
         </div>
       </header>
 
       <div className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-2xl mx-auto space-y-6">
+        <div className="max-w-3xl mx-auto space-y-5">
           {messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-full text-white/40 space-y-4">
-              <p className="text-sm lowercase">start a conversation</p>
-              <p className="text-xs">ask about finding people at companies</p>
+            <div className="flex flex-col items-center justify-center h-[60vh] text-white/30 space-y-2">
+              <p className="text-sm lowercase">find anyone&apos;s email</p>
+              <p className="text-xs text-white/20">try &quot;find the cto of stripe&quot;</p>
             </div>
           )}
 
@@ -186,10 +197,10 @@ export default function ChatPage() {
               }`}
             >
               <div
-                className={`max-w-[80%] rounded-lg px-4 py-3 text-sm whitespace-pre-wrap ${
+                className={`max-w-[85%] text-sm whitespace-pre-wrap ${
                   message.role === 'user'
-                    ? 'bg-white text-black'
-                    : 'bg-white/10 text-white border border-white/10'
+                    ? 'rounded-2xl rounded-br-md bg-white text-black px-4 py-2.5'
+                    : 'rounded-2xl rounded-bl-md bg-white/[0.07] text-white/85 px-4 py-3'
                 }`}
               >
                 {message.content ? (
@@ -200,7 +211,11 @@ export default function ChatPage() {
                   )
                 ) : (
                   isLoading && message.role === 'assistant' && (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <div className="flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-white/40 animate-pulse" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-white/40 animate-pulse [animation-delay:150ms]" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-white/40 animate-pulse [animation-delay:300ms]" />
+                    </div>
                   )
                 )}
               </div>
@@ -210,37 +225,41 @@ export default function ChatPage() {
         </div>
       </div>
 
-      <div className="border-t border-white/10 p-4">
-        <form onSubmit={handleSubmit} className="flex items-end gap-2 max-w-2xl mx-auto">
-          <Textarea
+      <div className="p-4 pb-6">
+        <form
+          onSubmit={handleSubmit}
+          className="relative max-w-3xl mx-auto rounded-2xl border border-white/[0.08] bg-white/[0.03] transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.05]"
+        >
+          <textarea
+            ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="type a message..."
+            placeholder="ask anything..."
             disabled={isLoading}
-            className="min-h-[60px] max-h-[200px] bg-white/5 border-white/10 text-white placeholder:text-white/40 resize-none lowercase"
             rows={1}
+            className="block w-full resize-none bg-transparent text-sm text-white/90 placeholder:text-white/25 px-4 py-3.5 pr-14 outline-none disabled:opacity-50 lowercase"
+            style={{ minHeight: '48px', maxHeight: '200px' }}
           />
-          {isLoading ? (
-            <Button
-              type="button"
-              onClick={handleStop}
-              variant="outline"
-              size="icon"
-              className="shrink-0 border-white/20 hover:bg-white/10"
-            >
-              <Loader2 className="h-4 w-4 animate-spin" />
-            </Button>
-          ) : (
-            <Button
-              type="submit"
-              disabled={!input.trim()}
-              size="icon"
-              className="shrink-0 bg-white text-black hover:bg-white/90 disabled:opacity-50"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
-          )}
+          <div className="absolute right-2.5 bottom-2.5">
+            {isLoading ? (
+              <button
+                type="button"
+                onClick={handleStop}
+                className="flex items-center justify-center h-8 w-8 rounded-lg bg-white/10 hover:bg-white/15 transition-colors"
+              >
+                <Square className="h-3 w-3 text-white/70 fill-white/70" />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={!input.trim()}
+                className="flex items-center justify-center h-8 w-8 rounded-lg bg-white hover:bg-white/90 disabled:opacity-20 disabled:hover:bg-white transition-all"
+              >
+                <ArrowUp className="h-4 w-4 text-black" strokeWidth={2.5} />
+              </button>
+            )}
+          </div>
         </form>
       </div>
     </div>
