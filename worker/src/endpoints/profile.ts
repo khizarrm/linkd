@@ -75,6 +75,7 @@ export class ProtectedProfileGetRoute extends OpenAPIRoute {
         githubUrl: user.githubUrl,
         websiteUrl: user.websiteUrl,
         twitterUrl: user.twitterUrl,
+        profiles: user.profiles,
         createdAt: new Date(user.createdAt).toISOString(),
         updatedAt: new Date(user.updatedAt).toISOString(),
       },

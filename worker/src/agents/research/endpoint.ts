@@ -64,12 +64,7 @@ export class ResearchAgentRoute extends OpenAPIRoute {
       name: "people_search",
       instructions: peopleSearchPrompt,
       model: "gpt-5.2",
-      tools: [
-        tools.queryGeneratorTool,
-        tools.getUserInfo,
-        tools.emailFinderTool,
-        webSearchTool(),
-      ],
+      tools: [tools.queryGeneratorTool, tools.emailFinderTool, webSearchTool()],
       outputType: PeopleFinderOutput,
     });
 
