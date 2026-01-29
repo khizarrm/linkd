@@ -174,18 +174,16 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-screen bg-black" style={{ fontFamily: 'var(--font-fira-mono)' }}>
-      <header className="flex h-14 shrink-0 items-center border-b border-white/[0.06]">
-        <div className="w-full max-w-3xl mx-auto px-6">
-          <h1 className="text-sm font-medium text-white/80 lowercase tracking-wide">linkd</h1>
-        </div>
+      <header className="flex h-16 shrink-0 items-center justify-center border-b border-white/[0.06]">
+        <h1 className="text-lg font-semibold text-white lowercase tracking-wide">linkd — chat</h1>
       </header>
 
       <div className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-3xl mx-auto space-y-5">
+        <div className={`max-w-3xl mx-auto space-y-5 ${messages.length === 0 ? 'flex items-center justify-center h-full' : ''}`}>
           {messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-[60vh] text-white/30 space-y-2">
-              <p className="text-sm lowercase">find anyone&apos;s email</p>
-              <p className="text-xs text-white/20">try &quot;find the cto of stripe&quot;</p>
+            <div className="flex flex-col items-center text-center text-white/30 space-y-2">
+              <p className="text-base lowercase">let&apos;s get you employed</p>
+              <p className="text-xs text-white/20 lowercase">currently in testing</p>
             </div>
           )}
 

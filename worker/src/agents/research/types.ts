@@ -5,10 +5,7 @@ export const PersonSchema = z.object({
   role: z.string(),
   company: z.string(),
   description: z.string(),
-  profileUrl: z
-    .string()
-    .describe("A working link LinkedIn profile URL of the person")
-    .optional(),
+  profileUrl: z.string().optional(),
 });
 
 export const EmailFinderOutput = z.object({
@@ -21,9 +18,7 @@ export const EmailFinderOutput = z.object({
 
 export const PeopleFinderOutput = z.object({
   status: z.enum(["people_found", "emails_found", "cant_find"]),
-  message: z
-    .string()
-    .describe("just what you did, no need to add the people in this part"),
+  message: z.string(),
   people: z
     .array(PersonSchema)
     .describe("A list of people that you have searched for")
