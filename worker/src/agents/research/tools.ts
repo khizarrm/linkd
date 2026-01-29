@@ -17,18 +17,20 @@ export function createTools(env: CloudflareBindings) {
     }),
     strict: true,
     execute: async ({ request }) => {
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${env.OPENAI_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: "gpt-4.1-mini",
-          messages: [
-            {
-              role: "system",
-              content: `Generate 6-10 search queries to find people based on the request.
+      const response = await fetch(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: "gpt-4.1-mini",
+            messages: [
+              {
+                role: "system",
+                content: `Generate 6-10 search queries to find people based on the request.
 
 Rules:
 - Use searches from a maximum of 2 years ago. Fastest way to do it is to add a date, eg: [your query] after:2024-01-20
@@ -40,17 +42,18 @@ Rules:
 - For specific person searches, generate 1-5 targeted queries
 
 Return JSON: { "queries": ["query1", ...], "reasoning": "brief explanation" }`,
-            },
-            {
-              role: "user",
-              content: request,
-            },
-          ],
-          response_format: { type: "json_object" },
-        }),
-      });
+              },
+              {
+                role: "user",
+                content: request,
+              },
+            ],
+            response_format: { type: "json_object" },
+          }),
+        },
+      );
 
-      const completion = await response.json() as {
+      const completion = (await response.json()) as {
         choices: [{ message: { content: string } }];
       };
       const result = JSON.parse(completion.choices[0].message.content || "{}");
@@ -78,7 +81,7 @@ Return JSON: { "queries": ["query1", ...], "reasoning": "brief explanation" }`,
   });
 
   async function verifyEmail(email: string): Promise<string> {
-    const apiKey = env.ZEROBOUNCE_API_KEY;
+    const apiKey = "e8f1d1eee4e444e996351966d451dfd6";
     if (!apiKey) {
       throw new Error("ZEROBOUNCE_API_KEY not set");
     }
@@ -86,6 +89,13 @@ Return JSON: { "queries": ["query1", ...], "reasoning": "brief explanation" }`,
     const url = `https://api.zerobounce.net/v2/validate?api_key=${apiKey}&email=${encodeURIComponent(email)}`;
 
     const response = await fetch(url);
+    console.log("response is: ", response);
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`ZeroBounce API error (${response.status}): ${text}`);
+    }
+
     const data = (await response.json()) as { status: string };
 
     return data.status;

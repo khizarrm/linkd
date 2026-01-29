@@ -5,6 +5,7 @@ import { useAuth } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Send, Loader2 } from 'lucide-react';
+import { MessageContent } from '@/components/chat/message-content';
 
 interface Message {
   id: string;
@@ -162,43 +163,55 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-screen bg-black" style={{ fontFamily: 'var(--font-fira-mono)' }}>
-      <header className="flex h-16 shrink-0 items-center px-6 border-b border-white/10">
-        <h1 className="text-lg font-medium text-white lowercase">chat</h1>
+      <header className="flex h-16 shrink-0 items-center border-b border-white/10">
+        <div className="w-full max-w-2xl mx-auto px-6">
+          <h1 className="text-lg font-medium text-white lowercase">chat</h1>
+        </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-white/40 space-y-4">
-            <p className="text-sm lowercase">start a conversation</p>
-            <p className="text-xs">ask about finding people at companies</p>
-          </div>
-        )}
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="max-w-2xl mx-auto space-y-6">
+          {messages.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-full text-white/40 space-y-4">
+              <p className="text-sm lowercase">start a conversation</p>
+              <p className="text-xs">ask about finding people at companies</p>
+            </div>
+          )}
 
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`flex ${
-              message.role === 'user' ? 'justify-end' : 'justify-start'
-            }`}
-          >
+          {messages.map((message) => (
             <div
-              className={`max-w-[80%] rounded-lg px-4 py-3 text-sm whitespace-pre-wrap ${
-                message.role === 'user'
-                  ? 'bg-white text-black'
-                  : 'bg-white/10 text-white border border-white/10'
+              key={message.id}
+              className={`flex ${
+                message.role === 'user' ? 'justify-end' : 'justify-start'
               }`}
             >
-              {message.content || (isLoading && message.role === 'assistant' && (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ))}
+              <div
+                className={`max-w-[80%] rounded-lg px-4 py-3 text-sm whitespace-pre-wrap ${
+                  message.role === 'user'
+                    ? 'bg-white text-black'
+                    : 'bg-white/10 text-white border border-white/10'
+                }`}
+              >
+                {message.content ? (
+                  message.role === 'assistant' ? (
+                    <MessageContent content={message.content} />
+                  ) : (
+                    message.content
+                  )
+                ) : (
+                  isLoading && message.role === 'assistant' && (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  )
+                )}
+              </div>
             </div>
-          </div>
-        ))}
-        <div ref={messagesEndRef} />
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
       </div>
 
       <div className="border-t border-white/10 p-4">
-        <form onSubmit={handleSubmit} className="flex items-end gap-2 max-w-4xl mx-auto">
+        <form onSubmit={handleSubmit} className="flex items-end gap-2 max-w-2xl mx-auto">
           <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}

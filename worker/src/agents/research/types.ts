@@ -7,16 +7,32 @@ export const PersonSchema = z.object({
   description: z.string(),
   profileUrl: z
     .string()
-    .describe("A working linkedin link of the persons profile")
+    .describe("A working link LinkedIn profile URL of the person")
     .optional(),
 });
 
+export const EmailFinderOutput = z.object({
+  name: z.string(),
+  role: z.string(),
+  company: z.string(),
+  email: z.string().nullable(),
+  emailSource: z.enum(["search", "guess", "none"]),
+});
+
 export const PeopleFinderOutput = z.object({
-  status: z.enum(["people_found", "cant_find"]),
-  message: z.string(),
-  people: z.array(PersonSchema).optional(),
-  reason: z.string().optional(),
-  suggestedAlternatives: z.array(z.string()).optional(),
+  status: z.enum(["people_found", "emails_found", "cant_find"]),
+  message: z
+    .string()
+    .describe("just what you did, no need to add the people in this part"),
+  people: z
+    .array(PersonSchema)
+    .describe("A list of people that you have searched for")
+    .optional(),
+  emails: z
+    .array(EmailFinderOutput)
+    .describe("A list of all the verified emails you have found")
+    .optional(),
+  followUp: z.string().describe("a follow up message"),
 });
 
 export type Person = z.infer<typeof PersonSchema>;
@@ -38,17 +54,4 @@ export const TriageOutput = z.object({
 });
 
 export type TriageOutputType = z.infer<typeof TriageOutput>;
-
-export const EmailFinderOutput = z.object({
-  people: z.array(
-    z.object({
-      name: z.string(),
-      role: z.string(),
-      company: z.string(),
-      email: z.string().nullable(),
-      emailSource: z.enum(["search", "guess", "none"]),
-    })
-  ),
-});
-
 export type EmailFinderOutputType = z.infer<typeof EmailFinderOutput>;
