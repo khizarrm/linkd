@@ -15,6 +15,7 @@ const triageAgent = new Agent({
   instructions: triagePrompt,
   model: "gpt-4.1",
   handoffs: [peopleSearchAgent],
+  tools: [getUserInfo],
 });
 
 const session = new MemorySession();

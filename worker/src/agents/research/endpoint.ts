@@ -1,6 +1,6 @@
 import { OpenAPIRoute } from "chanfana";
 import { z } from "zod";
-import { Agent, webSearchTool, MemorySession, run } from "@openai/agents";
+import { Agent, webSearchTool, OpenAIConversationsSession, run } from "@openai/agents";
 import { triagePrompt, peopleSearchPrompt } from "./prompts";
 import { createTools } from "./tools";
 import type { CloudflareBindings } from "../../env.d";
@@ -20,11 +20,10 @@ export class ResearchAgentRoute extends OpenAPIRoute {
                 .string()
                 .min(1)
                 .describe("The user's query about finding people at a company"),
-              stream: z
-                .boolean()
+              conversationId: z
+                .string()
                 .optional()
-                .default(true)
-                .describe("Whether to stream the response"),
+                .describe("Optional conversation ID for session continuity (stored on OpenAI servers)"),
             }),
           },
         },
@@ -32,14 +31,20 @@ export class ResearchAgentRoute extends OpenAPIRoute {
     },
     responses: {
       "200": {
-        description: "Streaming or non-streaming response from the agent",
+        description: "Streaming response from the agent with conversationId header",
+        headers: {
+          "X-Conversation-Id": {
+            schema: z.string(),
+            description: "Conversation ID for session continuity",
+          },
+        },
         content: {
           "text/event-stream": {
-            schema: z.string(),
-          },
-          "application/json": {
             schema: z.object({
-              response: z.string(),
+              chunk: z.string().optional().describe("Text chunk from the agent"),
+              done: z.boolean().optional().describe("Indicates stream completion"),
+              conversationId: z.string().optional().describe("Conversation ID for session continuity"),
+              error: z.string().optional().describe("Error message if something went wrong"),
             }),
           },
         },
@@ -50,7 +55,7 @@ export class ResearchAgentRoute extends OpenAPIRoute {
   async handle(c: any) {
     const env: CloudflareBindings = c.env;
     const reqData = await this.getValidatedData<typeof this.schema>();
-    const { query, stream: shouldStream } = reqData.body;
+    const { query, conversationId } = reqData.body;
 
     const tools = createTools(env);
 
@@ -73,89 +78,54 @@ export class ResearchAgentRoute extends OpenAPIRoute {
       handoffs: [peopleSearchAgent],
     });
 
-    const session = new MemorySession();
-
-    if (shouldStream) {
-      const encoder = new TextEncoder();
-      const stream = new ReadableStream({
-        async start(controller) {
-          try {
-            const result = await run(triageAgent, query, {
-              session,
-              stream: true,
-            });
-
-            for await (const event of result) {
-              if (event.type === "raw_model_stream_event") {
-                const data = event.data as any;
-                if (data.type === "output_text_delta" && data.delta) {
-                  const sseData = `data: ${JSON.stringify({ type: "text", content: data.delta })}\n\n`;
-                  controller.enqueue(encoder.encode(sseData));
-                }
-              } else if (event.type === "agent_updated_stream_event") {
-                const sseData = `data: ${JSON.stringify({
-                  type: "agent_update",
-                  agent: event.agent.name,
-                })}\n\n`;
-                controller.enqueue(encoder.encode(sseData));
-              } else if (event.type === "run_item_stream_event") {
-                const item = event.item as any;
-                if (item.type === "tool_call") {
-                  const sseData = `data: ${JSON.stringify({
-                    type: "tool_call",
-                    tool: item.name,
-                  })}\n\n`;
-                  controller.enqueue(encoder.encode(sseData));
-                }
-              }
-            }
-
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done" })}\n\n`));
-            controller.close();
-          } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : "Unknown error";
-            controller.enqueue(
-              encoder.encode(`data: ${JSON.stringify({ type: "error", message: errorMessage })}\n\n`)
-            );
-            controller.close();
-          }
-        },
-      });
-
-      return new Response(stream, {
-        headers: {
-          "Content-Type": "text/event-stream",
-          "Cache-Control": "no-cache",
-          Connection: "keep-alive",
-        },
-      });
-    } else {
-      const result = await run(triageAgent, query, {
-        session,
-        stream: false,
-      });
-
-      const textOutput = result.toTextStream ? await streamToString(result.toTextStream()) : "";
-
-      return new Response(
-        JSON.stringify({
-          response: textOutput,
-        }),
-        {
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+    function isValidConversationId(id: string | undefined): boolean {
+      if (!id) return false;
+      return /^[a-zA-Z0-9_-]+$/.test(id);
     }
-  }
-}
 
-async function streamToString(stream: ReadableStream): Promise<string> {
-  const reader = stream.getReader();
-  let result = "";
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    result += value;
+    const session = new OpenAIConversationsSession({
+      conversationId: isValidConversationId(conversationId) ? conversationId : undefined,
+    });
+
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          const result = await run(triageAgent, query, {
+            session,
+            stream: true,
+          });
+
+          const textStream = (result as any).toTextStream();
+
+          for await (const chunk of textStream) {
+            const sseData = `data: ${JSON.stringify({ chunk })}\n\n`;
+            controller.enqueue(encoder.encode(sseData));
+          }
+
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ done: true, conversationId: session.conversationId })}\n\n`)
+          );
+          controller.close();
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : "Unknown error";
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ error: errorMessage, conversationId: session.conversationId })}\n\n`
+            )
+          );
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+        "X-Conversation-Id": session.conversationId,
+      },
+    });
   }
-  return result;
 }
