@@ -21,7 +21,7 @@ export const EmailFinderOutput = z.object({
 });
 
 export const PeopleFinderOutput = z.object({
-  status: z.enum(["people_found", "emails_found", "cant_find"]),
+  status: z.enum(["people_found", "emails_found", "cant_find", "greeting"]),
   message: z.string(),
   people: z
     .array(PersonSchema)
@@ -31,7 +31,6 @@ export const PeopleFinderOutput = z.object({
     .array(EmailFinderOutput)
     .describe("A list of all the verified emails you have found")
     .optional(),
-  followUp: z.string().describe("a follow up message").optional(),
 });
 
 export type Person = z.infer<typeof PersonSchema>;
@@ -42,14 +41,4 @@ export const QueryGeneratorOutput = z.object({
 });
 
 export type QueryGeneratorOutputType = z.infer<typeof QueryGeneratorOutput>;
-
-export const TriageOutput = z.object({
-  status: z.enum(["ready", "needs_info"]),
-  companyName: z.string().optional(),
-  role: z.string().optional(),
-  location: z.string().optional(),
-  clarifyingQuestion: z.string().optional(),
-});
-
-export type TriageOutputType = z.infer<typeof TriageOutput>;
 export type EmailFinderOutputType = z.infer<typeof EmailFinderOutput>;

@@ -26,6 +26,9 @@ export class ResearchAgentRoute extends OpenAPIRoute {
                 .string()
                 .min(1)
                 .describe("The user's query about finding people at a company"),
+              clerkUserId: z
+                .string()
+                .describe("The Clerk user ID of the authenticated user"),
               conversationId: z
                 .string()
                 .optional()
@@ -56,9 +59,9 @@ export class ResearchAgentRoute extends OpenAPIRoute {
     const env: CloudflareBindings = c.env;
     const reqData = await this.getValidatedData<typeof this.schema>();
     const body = reqData.body!;
-    const { query, conversationId } = body;
+    const { query, clerkUserId, conversationId } = body;
 
-    const tools = createTools(env);
+    const tools = createTools(env, clerkUserId);
 
     const peopleSearchAgent = new Agent({
       name: "people_search",
@@ -80,37 +83,42 @@ export class ResearchAgentRoute extends OpenAPIRoute {
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
+        const send = (data: Record<string, unknown>) => {
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify(data)}\n\n`),
+          );
+        };
+
         try {
           const result = await run(peopleSearchAgent, query, {
             session,
             stream: true,
           });
 
-          const textStream = (result as any).toTextStream();
-
-          for await (const chunk of textStream) {
-            controller.enqueue(
-              encoder.encode(`data: ${JSON.stringify({ chunk })}\n\n`),
-            );
+          for await (const event of result) {
+            if (event.type === "run_item_stream_event") {
+              if (event.name === "tool_called") {
+                const toolName = (event.item as any).rawItem?.name ?? "unknown";
+                send({ type: "tool_call", toolName, status: "called" });
+              } else if (event.name === "tool_output") {
+                const toolName = (event.item as any).rawItem?.name ?? "unknown";
+                send({ type: "tool_call", toolName, status: "completed" });
+              }
+            }
           }
 
+          const finalOutput = result.finalOutput;
+          send({ type: "output", data: finalOutput });
+
           const finalSessionId = await session.getSessionId();
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ done: true, conversationId: finalSessionId })}\n\n`,
-            ),
-          );
+          send({ done: true, conversationId: finalSessionId });
           controller.close();
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : "Unknown error";
           const finalSessionId =
             session.sessionId || conversationId || "unknown";
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ error: errorMessage, conversationId: finalSessionId })}\n\n`,
-            ),
-          );
+          send({ error: errorMessage, conversationId: finalSessionId });
           controller.close();
         }
       },

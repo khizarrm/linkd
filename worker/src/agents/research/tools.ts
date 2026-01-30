@@ -2,8 +2,12 @@ import { tool } from "@openai/agents";
 import { z } from "zod";
 import { QueryGeneratorOutput } from "./types";
 import type { CloudflareBindings } from "../../env.d";
+import { drizzle } from "drizzle-orm/d1";
+import { eq } from "drizzle-orm";
+import { users } from "../../db/auth.schema";
+import { schema } from "../../db";
 
-export function createTools(env: CloudflareBindings) {
+export function createTools(env: CloudflareBindings, clerkUserId: string) {
   const queryGeneratorTool = tool({
     name: "generate_search_queries",
     description:
@@ -12,11 +16,12 @@ export function createTools(env: CloudflareBindings) {
       request: z
         .string()
         .describe(
-          "Full description of what kind of people to find, including company, role, location, and any other context",
+          "Full description of what kind of people to find, including company, role, location, and user info",
         ),
     }),
     strict: true,
     execute: async ({ request }) => {
+      console.log("running with: ", request);
       const response = await fetch(
         "https://api.openai.com/v1/chat/completions",
         {
@@ -26,7 +31,7 @@ export function createTools(env: CloudflareBindings) {
             Authorization: `Bearer ${env.OPENAI_API_KEY}`,
           },
           body: JSON.stringify({
-            model: "gpt-4.1-mini",
+            model: "gpt-4o",
             messages: [
               {
                 role: "system",
@@ -57,6 +62,7 @@ Return JSON: { "queries": ["query1", ...], "reasoning": "brief explanation" }`,
         choices: [{ message: { content: string } }];
       };
       const result = JSON.parse(completion.choices[0].message.content || "{}");
+      console.log("output: ", result);
       return QueryGeneratorOutput.parse(result);
     },
   });
@@ -67,16 +73,17 @@ Return JSON: { "queries": ["query1", ...], "reasoning": "brief explanation" }`,
       "Get information about the user preferences. includes location, role, and interests.",
     parameters: z.object({}),
     execute: async () => {
-      return `**User Profile**
+      console.log("getting user info");
+      const db = drizzle(env.DB, { schema });
+      const user = await db.query.users.findFirst({
+        where: eq(users.clerkUserId, clerkUserId),
+      });
 
-| Field | Value |
-|-------|-------|
-| Name | Khizar Malik |
-| Standing | 4th Year |
-| Program | Computer Science |
-| University | Carleton University |
-| Location | Ottawa |
-| Interests | Web development, Agentic AI (open to other areas) |`;
+      if (!user || !user.info) {
+        return "No user info available. The user has not filled in their profile yet, please ask them to do so to continue.";
+      }
+
+      return `**User Profile**\n\n${user.info}`;
     },
   });
 
@@ -151,7 +158,7 @@ Return JSON: { "queries": ["query1", ...], "reasoning": "brief explanation" }`,
         try {
           const status = await verifyEmail(email);
           console.log("status: ", status, email);
-          if (status === "valid" || status === "catch_all") {
+          if (status === "valid" || status === "catch-all") {
             return { email, pattern: email.split("@")[0], verified: true };
           }
         } catch (error) {

@@ -4,12 +4,16 @@ import { drizzle } from "drizzle-orm/d1";
 import { schema } from "../db";
 import { users } from "../db/auth.schema";
 import { eq } from "drizzle-orm";
-import { verifyClerkToken } from "../lib/clerk-auth";
 
 export class ProtectedProfileGetRoute extends OpenAPIRoute {
   schema = {
     tags: ["API"],
     summary: "Get User Profile",
+    request: {
+      query: z.object({
+        clerkUserId: z.string(),
+      }),
+    },
     responses: {
       "200": {
         description: "Profile retrieved",
@@ -26,16 +30,13 @@ export class ProtectedProfileGetRoute extends OpenAPIRoute {
                 githubUrl: z.string().nullable(),
                 websiteUrl: z.string().nullable(),
                 twitterUrl: z.string().nullable(),
-                profiles: z.string().nullable(),
+                info: z.string().nullable(),
                 createdAt: z.string(),
                 updatedAt: z.string(),
               }),
             }),
           },
         },
-      },
-      "401": {
-        description: "Unauthorized",
       },
       "404": {
         description: "User not found",
@@ -45,18 +46,10 @@ export class ProtectedProfileGetRoute extends OpenAPIRoute {
 
   async handle(c: any) {
     const env = c.env;
-    const request = c.req.raw;
-
-    // Verify Clerk token
-    const authResult = await verifyClerkToken(request, env.CLERK_SECRET_KEY);
-    if (!authResult) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { clerkUserId } = authResult;
+    const reqData = await this.getValidatedData<typeof this.schema>();
+    const { clerkUserId } = reqData.query;
     const db = drizzle(env.DB, { schema });
 
-    // Get user from database
     const user = await db.query.users.findFirst({
       where: eq(users.clerkUserId, clerkUserId),
     });
@@ -76,7 +69,7 @@ export class ProtectedProfileGetRoute extends OpenAPIRoute {
         githubUrl: user.githubUrl,
         websiteUrl: user.websiteUrl,
         twitterUrl: user.twitterUrl,
-        profiles: user.profiles,
+        info: user.info,
         createdAt: new Date(user.createdAt).toISOString(),
         updatedAt: new Date(user.updatedAt).toISOString(),
       },
@@ -93,12 +86,13 @@ export class ProtectedProfileUpdateRoute extends OpenAPIRoute {
         content: {
           "application/json": {
             schema: z.object({
+              clerkUserId: z.string(),
               name: z.string().optional(),
               linkedinUrl: z.string().optional(),
               githubUrl: z.string().optional(),
               websiteUrl: z.string().optional(),
               twitterUrl: z.string().optional(),
-              profiles: z.string().optional(),
+              info: z.string().optional(),
             }),
           },
         },
@@ -120,16 +114,13 @@ export class ProtectedProfileUpdateRoute extends OpenAPIRoute {
                 githubUrl: z.string().nullable(),
                 websiteUrl: z.string().nullable(),
                 twitterUrl: z.string().nullable(),
-                profiles: z.string().nullable(),
+                info: z.string().nullable(),
                 createdAt: z.string(),
                 updatedAt: z.string(),
               }),
             }),
           },
         },
-      },
-      "401": {
-        description: "Unauthorized",
       },
       "404": {
         description: "User not found",
@@ -139,16 +130,10 @@ export class ProtectedProfileUpdateRoute extends OpenAPIRoute {
 
   async handle(c: any) {
     const env = c.env;
-    const request = c.req.raw;
-
-    // Verify Clerk token
-    const authResult = await verifyClerkToken(request, env.CLERK_SECRET_KEY);
-    if (!authResult) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { clerkUserId } = authResult;
-    const updateData = await this.getValidatedData<typeof this.schema>().then(d => d.body);
+    const updateData = await this.getValidatedData<typeof this.schema>().then(
+      (d) => d.body,
+    );
+    const { clerkUserId } = updateData;
     const db = drizzle(env.DB, { schema });
 
     // Check if user exists
@@ -166,8 +151,8 @@ export class ProtectedProfileUpdateRoute extends OpenAPIRoute {
       linkedinUrl?: string | null;
       githubUrl?: string | null;
       websiteUrl?: string | null;
-      profiles?: string | null;
       twitterUrl?: string | null;
+      info?: string | null;
       updatedAt: Date;
     } = {
       updatedAt: new Date(),
@@ -188,8 +173,8 @@ export class ProtectedProfileUpdateRoute extends OpenAPIRoute {
     if (updateData.twitterUrl !== undefined) {
       updateFields.twitterUrl = updateData.twitterUrl || null;
     }
-    if (updateData.profiles !== undefined) {
-      updateFields.profiles = updateData.profiles || null;
+    if (updateData.info !== undefined) {
+      updateFields.info = updateData.info || null;
     }
 
     // Update user
@@ -212,11 +197,10 @@ export class ProtectedProfileUpdateRoute extends OpenAPIRoute {
         githubUrl: updatedUser.githubUrl,
         websiteUrl: updatedUser.websiteUrl,
         twitterUrl: updatedUser.twitterUrl,
-        profiles: updatedUser.profiles,
+        info: updatedUser.info,
         createdAt: new Date(updatedUser.createdAt).toISOString(),
         updatedAt: new Date(updatedUser.updatedAt).toISOString(),
       },
     };
   }
 }
-

@@ -2,21 +2,29 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useAuth } from "@clerk/nextjs";
-import { ArrowUp, Square } from "lucide-react";
+import { ArrowUp, Square, User } from "lucide-react";
 import { MessageContent } from "@/components/chat/message-content";
+import { UserInfoDialog } from "@/components/chat/user-info-dialog";
+
+interface ToolCall {
+  toolName: string;
+  status: "called" | "completed";
+}
 
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+  toolCalls?: ToolCall[];
 }
 
 export default function ChatPage() {
-  const { getToken } = useAuth();
+  const { getToken, userId } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [userInfoOpen, setUserInfoOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -52,7 +60,8 @@ export default function ChatPage() {
       const token = await getToken();
       abortControllerRef.current = new AbortController();
 
-      const response = await fetch("/api/agents/research", {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
+      const response = await fetch(`${apiBase}/api/agents/research`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -60,6 +69,7 @@ export default function ChatPage() {
         },
         body: JSON.stringify({
           query: userMessage.content,
+          clerkUserId: userId,
           ...(conversationId && { conversationId }),
         }),
         signal: abortControllerRef.current.signal,
@@ -96,11 +106,42 @@ export default function ChatPage() {
           try {
             const data = JSON.parse(dataStr);
 
-            if (data.chunk) {
+            if (data.type === "tool_call") {
+              setMessages((prev) =>
+                prev.map((msg) => {
+                  if (msg.id !== assistantMessageId) return msg;
+                  const calls = msg.toolCalls ?? [];
+                  if (data.status === "called") {
+                    return {
+                      ...msg,
+                      toolCalls: [
+                        ...calls,
+                        { toolName: data.toolName, status: "called" as const },
+                      ],
+                    };
+                  }
+                  // mark existing call as completed
+                  return {
+                    ...msg,
+                    toolCalls: calls.map((tc) =>
+                      tc.toolName === data.toolName
+                        ? { ...tc, status: "completed" as const }
+                        : tc,
+                    ),
+                  };
+                }),
+              );
+            }
+
+            if (data.type === "output") {
               setMessages((prev) =>
                 prev.map((msg) =>
                   msg.id === assistantMessageId
-                    ? { ...msg, content: msg.content + data.chunk }
+                    ? {
+                        ...msg,
+                        content: JSON.stringify(data.data),
+                        toolCalls: undefined,
+                      }
                     : msg,
                 ),
               );
@@ -114,7 +155,7 @@ export default function ChatPage() {
               setMessages((prev) =>
                 prev.map((msg) =>
                   msg.id === assistantMessageId
-                    ? { ...msg, content: "Error: " + data.error }
+                    ? { ...msg, content: "Error: " + data.error, toolCalls: undefined }
                     : msg,
                 ),
               );
@@ -216,16 +257,42 @@ export default function ChatPage() {
                   ) : (
                     message.content
                   )
-                ) : (
-                  isLoading &&
-                  message.role === "assistant" && (
+                ) : message.role === "assistant" && isLoading ? (
+                  message.toolCalls && message.toolCalls.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {message.toolCalls.map((tc, i) => (
+                        <div
+                          key={i}
+                          className="flex items-center gap-2 text-xs"
+                        >
+                          {tc.status === "called" ? (
+                            <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                          ) : (
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                          )}
+                          <span
+                            className={
+                              tc.status === "called"
+                                ? "text-amber-400/80"
+                                : "text-emerald-400/60"
+                            }
+                          >
+                            {tc.toolName.replace(/_/g, " ")}
+                          </span>
+                          <span className="text-white/20">
+                            {tc.status === "called" ? "running" : "done"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
                     <div className="flex items-center gap-1.5">
                       <span className="h-1.5 w-1.5 rounded-full bg-white/40 animate-pulse" />
                       <span className="h-1.5 w-1.5 rounded-full bg-white/40 animate-pulse [animation-delay:150ms]" />
                       <span className="h-1.5 w-1.5 rounded-full bg-white/40 animate-pulse [animation-delay:300ms]" />
                     </div>
                   )
-                )}
+                ) : null}
               </div>
             </div>
           ))}
@@ -234,42 +301,53 @@ export default function ChatPage() {
       </div>
 
       <div className="p-4 pb-6">
-        <form
-          onSubmit={handleSubmit}
-          className="relative max-w-3xl mx-auto rounded-2xl border border-white/[0.08] bg-white/[0.03] transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.05]"
-        >
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="ask anything..."
-            disabled={isLoading}
-            rows={1}
-            className="block w-full resize-none bg-transparent text-sm text-white/90 placeholder:text-white/25 px-4 py-3.5 pr-14 outline-none disabled:opacity-50 lowercase"
-            style={{ minHeight: "48px", maxHeight: "200px" }}
-          />
-          <div className="absolute right-2.5 bottom-2.5">
-            {isLoading ? (
-              <button
-                type="button"
-                onClick={handleStop}
-                className="flex items-center justify-center h-8 w-8 rounded-lg bg-white/10 hover:bg-white/15 transition-colors"
-              >
-                <Square className="h-3 w-3 text-white/70 fill-white/70" />
-              </button>
-            ) : (
-              <button
-                type="submit"
-                disabled={!input.trim()}
-                className="flex items-center justify-center h-8 w-8 rounded-lg bg-white hover:bg-white/90 disabled:opacity-20 disabled:hover:bg-white transition-all"
-              >
-                <ArrowUp className="h-4 w-4 text-black" strokeWidth={2.5} />
-              </button>
-            )}
-          </div>
-        </form>
+        <div className="flex items-end gap-2 max-w-3xl mx-auto">
+          <form
+            onSubmit={handleSubmit}
+            className="relative flex-1 rounded-2xl border border-white/[0.08] bg-white/[0.03] transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.05]"
+          >
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="ask anything..."
+              disabled={isLoading}
+              rows={1}
+              className="block w-full resize-none bg-transparent text-sm text-white/90 placeholder:text-white/25 px-4 py-3.5 pr-14 outline-none disabled:opacity-50 lowercase"
+              style={{ minHeight: "48px", maxHeight: "200px" }}
+            />
+            <div className="absolute right-2.5 bottom-2.5">
+              {isLoading ? (
+                <button
+                  type="button"
+                  onClick={handleStop}
+                  className="flex items-center justify-center h-8 w-8 rounded-lg bg-white/10 hover:bg-white/15 transition-colors"
+                >
+                  <Square className="h-3 w-3 text-white/70 fill-white/70" />
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={!input.trim()}
+                  className="flex items-center justify-center h-8 w-8 rounded-lg bg-white hover:bg-white/90 disabled:opacity-20 disabled:hover:bg-white transition-all"
+                >
+                  <ArrowUp className="h-4 w-4 text-black" strokeWidth={2.5} />
+                </button>
+              )}
+            </div>
+          </form>
+          <button
+            type="button"
+            onClick={() => setUserInfoOpen(true)}
+            className="flex items-center justify-center h-[48px] w-[48px] rounded-2xl border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.07] transition-colors flex-shrink-0"
+          >
+            <User className="h-4 w-4 text-white/30" />
+          </button>
+        </div>
       </div>
+
+      <UserInfoDialog open={userInfoOpen} onOpenChange={setUserInfoOpen} />
     </div>
   );
 }

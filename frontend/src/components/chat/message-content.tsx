@@ -21,11 +21,10 @@ interface EmailEntry {
 }
 
 interface PeopleFinderResult {
-  status: 'people_found' | 'emails_found' | 'cant_find';
+  status: 'people_found' | 'emails_found' | 'cant_find' | 'greeting';
   message: string;
   people?: Person[];
   emails?: EmailEntry[];
-  followUp: string;
 }
 
 function tryParsePeopleFinder(content: string): PeopleFinderResult | null {
@@ -45,8 +44,8 @@ function PersonCard({ person }: { person: Person }) {
   return (
     <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3.5 space-y-3">
       <div className="min-w-0">
-        <p className="text-sm font-medium text-white lowercase">{person.name}</p>
-        <p className="text-xs text-white/50 lowercase">
+        <p className="text-sm font-medium text-white">{person.name}</p>
+        <p className="text-xs text-white/50">
           {person.role} · {person.company}{person.location ? ` · ${person.location}` : ''}
         </p>
       </div>
@@ -88,8 +87,8 @@ function EmailEntryCard({ entry }: { entry: EmailEntry }) {
       }`}
     >
       <div className="min-w-0">
-        <p className="text-sm font-medium text-white lowercase">{entry.name}</p>
-        <p className="text-xs text-white/60 lowercase">{entry.role} · {entry.company}</p>
+        <p className="text-sm font-medium text-white">{entry.name}</p>
+        <p className="text-xs text-white/60">{entry.role} · {entry.company}</p>
       </div>
       {found ? (
         <div className="shrink-0 flex items-center gap-1.5">
@@ -118,7 +117,7 @@ function EmailEntryCard({ entry }: { entry: EmailEntry }) {
 function PeopleFinderView({ data }: { data: PeopleFinderResult }) {
   return (
     <div className="space-y-3">
-      <p className="text-sm text-white lowercase">{data.message}</p>
+      <p className="text-sm text-white">{data.message}</p>
 
       {data.people && data.people.length > 0 && (
         <div className="space-y-2">
@@ -136,9 +135,6 @@ function PeopleFinderView({ data }: { data: PeopleFinderResult }) {
         </div>
       )}
 
-      {data.followUp && (
-        <p className="text-sm text-white/70 lowercase leading-relaxed whitespace-pre-wrap">{data.followUp}</p>
-      )}
     </div>
   );
 }
