@@ -39,7 +39,6 @@ export type PeopleFinderOutputType = z.infer<typeof PeopleFinderOutput>;
 
 export const QueryGeneratorOutput = z.object({
   queries: z.array(z.string()),
-  reasoning: z.string(),
 });
 
 export type QueryGeneratorOutputType = z.infer<typeof QueryGeneratorOutput>;
