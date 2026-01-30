@@ -3,6 +3,10 @@ import { z } from "zod";
 export const PersonSchema = z.object({
   name: z.string(),
   role: z.string(),
+  location: z
+    .string()
+    .describe("where the individual is based. if not shown, leave it blank")
+    .optional(),
   company: z.string(),
   description: z.string(),
   profileUrl: z.string().optional(),

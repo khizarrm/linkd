@@ -6,6 +6,7 @@ import { ExternalLink, Copy, Check } from 'lucide-react';
 interface Person {
   name: string;
   role: string;
+  location?: string;
   company: string;
   description: string;
   profileUrl?: string;
@@ -45,7 +46,9 @@ function PersonCard({ person }: { person: Person }) {
     <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3.5 space-y-3">
       <div className="min-w-0">
         <p className="text-sm font-medium text-white lowercase">{person.name}</p>
-        <p className="text-xs text-white/50 lowercase">{person.role} · {person.company}</p>
+        <p className="text-xs text-white/50 lowercase">
+          {person.role} · {person.company}{person.location ? ` · ${person.location}` : ''}
+        </p>
       </div>
       {person.description && (
         <p className="text-xs text-white/35 leading-relaxed">{person.description}</p>

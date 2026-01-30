@@ -188,6 +188,9 @@ export class ProtectedProfileUpdateRoute extends OpenAPIRoute {
     if (updateData.twitterUrl !== undefined) {
       updateFields.twitterUrl = updateData.twitterUrl || null;
     }
+    if (updateData.profiles !== undefined) {
+      updateFields.profiles = updateData.profiles || null;
+    }
 
     // Update user
     const result = await db
@@ -209,6 +212,7 @@ export class ProtectedProfileUpdateRoute extends OpenAPIRoute {
         githubUrl: updatedUser.githubUrl,
         websiteUrl: updatedUser.websiteUrl,
         twitterUrl: updatedUser.twitterUrl,
+        profiles: updatedUser.profiles,
         createdAt: new Date(updatedUser.createdAt).toISOString(),
         updatedAt: new Date(updatedUser.updatedAt).toISOString(),
       },

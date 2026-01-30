@@ -64,7 +64,7 @@ Return JSON: { "queries": ["query1", ...], "reasoning": "brief explanation" }`,
   const getUserInfo = tool({
     name: "get_user_info",
     description:
-      "Get information about the current user. Use this when you need to personalize responses or understand user context.",
+      "Get information about the user preferences. includes location, role, and interests.",
     parameters: z.object({}),
     execute: async () => {
       return `**User Profile**
@@ -108,7 +108,11 @@ Return JSON: { "queries": ["query1", ...], "reasoning": "brief explanation" }`,
     parameters: z.object({
       name: z.string().describe("Person's full name"),
       company: z.string().describe("Company name"),
-      domain: z.string().describe("Company domain (e.g., 'stripe.com')"),
+      domain: z
+        .string()
+        .describe(
+          "Company domain (e.g., 'stripe.com'). Be careful with these, they can be locaion based too if the company is large (eg. ca.ibm.com).",
+        ),
       knownPattern: z
         .string()
         .describe(
@@ -134,6 +138,7 @@ Return JSON: { "queries": ["query1", ...], "reasoning": "brief explanation" }`,
 
       patterns.push(
         `${first}.${last}@${cleanDomain}`,
+        `${last}@${cleanDomain}`,
         `${first}${last}@${cleanDomain}`,
         `${first}_${last}@${cleanDomain}`,
         `${firstInitial}${last}@${cleanDomain}`,
@@ -146,7 +151,7 @@ Return JSON: { "queries": ["query1", ...], "reasoning": "brief explanation" }`,
         try {
           const status = await verifyEmail(email);
           console.log("status: ", status, email);
-          if (status === "valid" || status === "catch-all") {
+          if (status === "valid" || status === "catch_all") {
             return { email, pattern: email.split("@")[0], verified: true };
           }
         } catch (error) {

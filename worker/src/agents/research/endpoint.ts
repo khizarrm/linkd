@@ -6,7 +6,7 @@ import {
   OpenAIConversationsSession,
   run,
 } from "@openai/agents";
-import { triagePrompt, peopleSearchPrompt } from "./prompts";
+import { peopleSearchPrompt } from "./prompts";
 import { createTools } from "./tools";
 import type { CloudflareBindings } from "../../env.d";
 import { PeopleFinderOutput } from "./types";
@@ -64,16 +64,13 @@ export class ResearchAgentRoute extends OpenAPIRoute {
       name: "people_search",
       instructions: peopleSearchPrompt,
       model: "gpt-5.2",
-      tools: [tools.queryGeneratorTool, tools.emailFinderTool, webSearchTool()],
+      tools: [
+        tools.queryGeneratorTool,
+        tools.getUserInfo,
+        tools.emailFinderTool,
+        webSearchTool(),
+      ],
       outputType: PeopleFinderOutput,
-    });
-
-    const triageAgent = new Agent({
-      name: "triage",
-      instructions: triagePrompt,
-      model: "gpt-4.1",
-      handoffs: [peopleSearchAgent],
-      tools: [tools.getUserInfo],
     });
 
     const session = conversationId
@@ -84,7 +81,7 @@ export class ResearchAgentRoute extends OpenAPIRoute {
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          const result = await run(triageAgent, query, {
+          const result = await run(peopleSearchAgent, query, {
             session,
             stream: true,
           });
