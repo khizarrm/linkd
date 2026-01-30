@@ -19,7 +19,6 @@ remote = true
 
 [dev]
 port = 8787
-env_file = ".env"
 
 [[durable_objects.bindings]]
 name = "Orchestrator"

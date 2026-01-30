@@ -10,8 +10,7 @@ import { schema } from "../../db";
 export function createTools(env: CloudflareBindings, clerkUserId: string) {
   const queryGeneratorTool = tool({
     name: "generate_search_queries",
-    description:
-      "Generate optimized search queries to find people. Call this FIRST before using web_search.",
+    description: "Generate optimized search queries to find people",
     parameters: z.object({
       request: z
         .string()
@@ -73,7 +72,6 @@ Return JSON: { "queries": ["query1", ...], "reasoning": "brief explanation" }`,
       "Get information about the user preferences. includes location, role, and interests.",
     parameters: z.object({}),
     execute: async () => {
-      console.log("getting user info");
       const db = drizzle(env.DB, { schema });
       const user = await db.query.users.findFirst({
         where: eq(users.clerkUserId, clerkUserId),
