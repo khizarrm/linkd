@@ -150,8 +150,6 @@ Return JSON: { "queries": ["query1", ...], "reasoning": "brief explanation" }`,
         `${first}@${cleanDomain}`,
       );
 
-      patterns = patterns.slice(0, 3);
-
       for (const email of patterns) {
         try {
           const status = await verifyEmail(email);
