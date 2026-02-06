@@ -91,111 +91,104 @@ export function UserInfoDialog({ open, onOpenChange }: UserInfoDialogProps) {
     }
   };
 
-  const inputClass = "w-full h-9 px-3 bg-white/[0.03] border border-white/[0.06] text-white/80 placeholder:text-white/15 lowercase tracking-wide text-[13px] rounded-lg outline-none focus:border-white/15 focus:bg-white/[0.05] transition-all";
-  const textareaClass = "w-full px-3 py-2.5 bg-white/[0.03] border border-white/[0.06] text-white/80 placeholder:text-white/15 lowercase tracking-wide text-[13px] rounded-lg outline-none focus:border-white/15 focus:bg-white/[0.05] transition-all resize-none";
-  const labelClass = "text-[10px] uppercase text-white/25 block mb-1 tracking-[0.15em]";
-  const font = { fontFamily: 'var(--font-fira-mono)' };
+  const inputClass = "w-full h-10 px-3.5 bg-stone-50 ring-1 ring-stone-200 text-stone-800 placeholder:text-stone-400 text-[15px] rounded-xl outline-none focus:ring-stone-300 focus:bg-white transition-all";
+  const textareaClass = "w-full px-3.5 py-3 bg-stone-50 ring-1 ring-stone-200 text-stone-800 placeholder:text-stone-400 text-[15px] rounded-xl outline-none focus:ring-stone-300 focus:bg-white transition-all resize-none";
+  const labelClass = "text-[13px] text-stone-500 block mb-2 font-medium";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[480px] p-0 max-h-[85vh] flex flex-col bg-[#0a0a0a] border-white/[0.06] rounded-2xl overflow-hidden shadow-2xl shadow-black/50">
-        <div className="px-5 pt-4 pb-3 border-b border-white/[0.04] flex-shrink-0">
+      <DialogContent className="sm:max-w-[440px] p-0 max-h-[85vh] flex flex-col bg-white border-stone-200 rounded-3xl overflow-hidden shadow-2xl font-sans">
+        <div className="px-6 pt-5 pb-4 border-b border-stone-100 flex-shrink-0">
           <DialogHeader className="p-0">
-            <DialogTitle className="flex items-center gap-2.5 text-white/50 lowercase tracking-wide text-xs font-normal" style={font}>
-              <div className="w-6 h-6 rounded-full bg-white/[0.05] flex items-center justify-center">
-                <User className="h-3 w-3 text-white/30" />
+            <DialogTitle className="flex items-center gap-3 text-stone-900 tracking-tight text-base font-semibold">
+              <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center">
+                <User className="h-4 w-4 text-stone-500" />
               </div>
-              your info
+              Your Profile
             </DialogTitle>
           </DialogHeader>
         </div>
 
-        <div className="px-5 py-4 overflow-y-auto flex-1 min-h-0 space-y-3">
+        <div className="px-6 py-5 overflow-y-auto flex-1 min-h-0 space-y-5">
           <div>
-            <label className={labelClass} style={font}>name</label>
+            <label className={labelClass}>Name</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="your full name"
+              placeholder="Your full name"
               className={inputClass}
-              style={font}
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className={labelClass} style={font}>location</label>
+              <label className={labelClass}>Location</label>
               <input
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                placeholder="city, country"
+                placeholder="City, Country"
                 className={inputClass}
-                style={font}
               />
             </div>
             <div>
-              <label className={labelClass} style={font}>school</label>
+              <label className={labelClass}>School</label>
               <input
                 value={school}
                 onChange={(e) => setSchool(e.target.value)}
-                placeholder="university"
+                placeholder="University"
                 className={inputClass}
-                style={font}
               />
             </div>
           </div>
 
           <div>
-            <label className={labelClass} style={font}>program</label>
+            <label className={labelClass}>Program</label>
             <input
               value={program}
               onChange={(e) => setProgram(e.target.value)}
-              placeholder="e.g., computer science"
+              placeholder="e.g., Computer Science"
               className={inputClass}
-              style={font}
             />
           </div>
 
           <div>
-            <label className={labelClass} style={font}>interests</label>
+            <label className={labelClass}>Interests</label>
             <textarea
               value={interests}
               onChange={(e) => setInterests(e.target.value)}
-              placeholder="what you're interested in..."
+              placeholder="What you're interested in..."
               className={textareaClass}
-              style={{ ...font, minHeight: '64px' }}
+              style={{ minHeight: '80px' }}
             />
           </div>
 
           <div>
-            <label className={labelClass} style={font}>notes</label>
+            <label className={labelClass}>Notes</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="anything else..."
+              placeholder="Anything else..."
               className={textareaClass}
-              style={{ ...font, minHeight: '64px' }}
+              style={{ minHeight: '80px' }}
             />
           </div>
         </div>
 
-        <div className="px-5 py-3 border-t border-white/[0.04] flex justify-end gap-2 flex-shrink-0">
+        <div className="px-6 py-4 border-t border-stone-100 flex justify-end gap-3 flex-shrink-0">
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="text-white/20 hover:text-white/50 text-[11px] lowercase tracking-wide h-8 px-3 rounded-lg transition-colors"
-            style={font}
+            className="text-stone-500 hover:text-stone-700 text-[15px] font-medium h-10 px-4 rounded-xl hover:bg-stone-100 transition-colors"
           >
-            cancel
+            Cancel
           </button>
           <button
             type="button"
             onClick={handleSubmit}
             disabled={saving}
-            className="bg-white/[0.08] hover:bg-white/[0.12] text-white/50 hover:text-white/70 text-[11px] lowercase tracking-wide h-8 px-4 rounded-lg border border-white/[0.04] transition-all disabled:opacity-40"
-            style={font}
+            className="bg-stone-900 hover:bg-stone-800 text-white text-[15px] font-medium h-10 px-5 rounded-xl transition-all disabled:opacity-50"
           >
-            {saving ? 'saving...' : 'save'}
+            {saving ? 'Saving...' : 'Save'}
           </button>
         </div>
       </DialogContent>

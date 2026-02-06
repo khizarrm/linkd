@@ -42,25 +42,25 @@ function tryParsePeopleFinder(content: string): PeopleFinderResult | null {
 
 function PersonCard({ person }: { person: Person }) {
   return (
-    <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3.5 space-y-3">
+    <div className="rounded-2xl bg-stone-50 px-4 py-4 space-y-3">
       <div className="min-w-0">
-        <p className="text-sm font-medium text-white">{person.name}</p>
-        <p className="text-xs text-white/50">
+        <p className="text-[15px] font-medium text-stone-900">{person.name}</p>
+        <p className="text-[13px] text-stone-500 mt-0.5">
           {person.role} · {person.company}{person.location ? ` · ${person.location}` : ''}
         </p>
       </div>
       {person.description && (
-        <p className="text-xs text-white/35 leading-relaxed">{person.description}</p>
+        <p className="text-[13px] text-stone-400 leading-relaxed">{person.description}</p>
       )}
       {person.profileUrl && (
         <a
           href={person.profileUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 w-full rounded-lg bg-[#0A66C2] hover:bg-[#0A66C2]/85 transition-colors py-2 text-xs font-medium text-white"
+          className="flex items-center justify-center gap-2 w-full rounded-xl bg-stone-900 hover:bg-stone-800 transition-colors py-2.5 text-[13px] font-medium text-white"
         >
-          <ExternalLink className="h-3 w-3" />
-          view profile
+          <ExternalLink className="h-3.5 w-3.5" />
+          View Profile
         </a>
       )}
     </div>
@@ -80,34 +80,34 @@ function EmailEntryCard({ entry }: { entry: EmailEntry }) {
 
   return (
     <div
-      className={`flex items-start justify-between gap-3 rounded-lg border px-3.5 py-3 ${
+      className={`flex items-center justify-between gap-4 rounded-xl px-4 py-3.5 ${
         found
-          ? 'border-emerald-500/20 bg-emerald-500/[0.04]'
-          : 'border-red-500/20 bg-red-500/[0.04]'
+          ? 'bg-emerald-50 ring-1 ring-emerald-100'
+          : 'bg-stone-100 ring-1 ring-stone-200'
       }`}
     >
       <div className="min-w-0">
-        <p className="text-sm font-medium text-white">{entry.name}</p>
-        <p className="text-xs text-white/60">{entry.role} · {entry.company}</p>
+        <p className="text-[15px] font-medium text-stone-900">{entry.name}</p>
+        <p className="text-[13px] text-stone-500">{entry.role} · {entry.company}</p>
       </div>
       {found ? (
-        <div className="shrink-0 flex items-center gap-1.5">
+        <div className="shrink-0 flex items-center gap-2">
           <a
             href={`mailto:${entry.email}`}
-            className="flex items-center rounded-md bg-emerald-500/15 hover:bg-emerald-500/25 transition-colors px-3 py-1.5 text-xs font-medium text-emerald-400"
+            className="flex items-center rounded-lg bg-emerald-100 hover:bg-emerald-200 transition-colors px-3 py-2 text-[13px] font-medium text-emerald-700"
           >
             {entry.email}
           </a>
           <button
             onClick={handleCopy}
-            className="flex items-center justify-center rounded-md bg-white/10 hover:bg-white/15 transition-colors p-1.5 text-white/60 hover:text-white"
+            className="flex items-center justify-center rounded-lg bg-white hover:bg-stone-50 ring-1 ring-stone-200 transition-colors p-2 text-stone-400 hover:text-stone-600"
           >
-            {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+            {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
           </button>
         </div>
       ) : (
-        <span className="shrink-0 text-xs font-medium text-red-400/80 px-3 py-1.5">
-          not found
+        <span className="shrink-0 text-[13px] font-medium text-stone-400 px-3 py-2">
+          Not found
         </span>
       )}
     </div>
@@ -116,11 +116,11 @@ function EmailEntryCard({ entry }: { entry: EmailEntry }) {
 
 function PeopleFinderView({ data }: { data: PeopleFinderResult }) {
   return (
-    <div className="space-y-3">
-      <p className="text-sm text-white">{data.message}</p>
+    <div className="space-y-4">
+      <p className="text-[15px] text-stone-700">{data.message}</p>
 
       {data.people && data.people.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {data.people.map((person, i) => (
             <PersonCard key={i} person={person} />
           ))}
@@ -128,7 +128,7 @@ function PeopleFinderView({ data }: { data: PeopleFinderResult }) {
       )}
 
       {data.emails && data.emails.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {data.emails.map((entry, i) => (
             <EmailEntryCard key={i} entry={entry} />
           ))}

@@ -2,9 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useAuth } from "@clerk/nextjs";
-import { ArrowUp, Square, User } from "lucide-react";
+import { ArrowUp, Square } from "lucide-react";
 import { MessageContent } from "@/components/chat/message-content";
-import { UserInfoDialog } from "@/components/chat/user-info-dialog";
 
 interface ToolCall {
   toolName: string;
@@ -24,7 +23,6 @@ export default function ChatPage() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
-  const [userInfoOpen, setUserInfoOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -214,25 +212,22 @@ export default function ChatPage() {
   };
 
   return (
-    <div
-      className="flex flex-col h-screen bg-black"
-      style={{ fontFamily: "var(--font-fira-mono)" }}
-    >
-      <header className="flex h-16 shrink-0 items-center justify-center border-b border-white/[0.06]">
-        <h1 className="text-lg font-semibold text-white lowercase tracking-wide">
-          linkd — chat
+    <div className="flex flex-col h-screen bg-stone-50 font-sans">
+      <header className="flex h-14 shrink-0 items-center justify-center border-b border-stone-100">
+        <h1 className="text-sm font-medium text-stone-800 tracking-tight">
+          linkd
         </h1>
       </header>
 
       <div className="flex-1 overflow-y-auto p-6">
         <div
-          className={`max-w-3xl mx-auto space-y-5 ${messages.length === 0 ? "flex items-center justify-center h-full" : ""}`}
+          className={`max-w-2xl mx-auto space-y-5 ${messages.length === 0 ? "flex items-center justify-center h-full" : ""}`}
         >
           {messages.length === 0 && (
-            <div className="flex flex-col items-center text-center text-white/30 space-y-2">
-              <p className="text-base lowercase">let&apos;s get bro employed</p>
-              <p className="text-xs text-white/20 lowercase">
-                currently in testing
+            <div className="flex flex-col items-center text-center space-y-3">
+              <p className="text-lg font-light text-stone-400">What can I help you find?</p>
+              <p className="text-xs text-stone-300">
+                Search for companies, people, or emails
               </p>
             </div>
           )}
@@ -245,10 +240,10 @@ export default function ChatPage() {
               }`}
             >
               <div
-                className={`max-w-[85%] text-sm whitespace-pre-wrap ${
+                className={`max-w-[80%] text-[15px] leading-relaxed whitespace-pre-wrap ${
                   message.role === "user"
-                    ? "rounded-2xl rounded-br-md bg-white text-black px-4 py-2.5"
-                    : "rounded-2xl rounded-bl-md bg-white/[0.07] text-white/85 px-4 py-3"
+                    ? "rounded-3xl rounded-br-lg bg-stone-900 text-white px-5 py-3"
+                    : "rounded-3xl rounded-bl-lg bg-white ring-1 ring-stone-100 shadow-sm text-stone-700 px-5 py-4"
                 }`}
               >
                 {message.content ? (
@@ -259,37 +254,37 @@ export default function ChatPage() {
                   )
                 ) : message.role === "assistant" && isLoading ? (
                   message.toolCalls && message.toolCalls.length > 0 ? (
-                    <div className="space-y-1.5">
+                    <div className="space-y-2.5">
                       {message.toolCalls.map((tc, i) => (
                         <div
                           key={i}
-                          className="flex items-center gap-2 text-xs"
+                          className="flex items-center gap-2.5 text-[13px]"
                         >
                           {tc.status === "called" ? (
-                            <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                            <span className="h-2 w-2 rounded-full bg-blue-400 animate-pulse" />
                           ) : (
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                            <span className="h-2 w-2 rounded-full bg-emerald-400" />
                           )}
                           <span
-                            className={
+                            className={`font-medium ${
                               tc.status === "called"
-                                ? "text-amber-400/80"
-                                : "text-emerald-400/60"
-                            }
+                                ? "text-stone-600"
+                                : "text-stone-500"
+                            }`}
                           >
                             {tc.toolName.replace(/_/g, " ")}
                           </span>
-                          <span className="text-white/20">
-                            {tc.status === "called" ? "running" : "done"}
+                          <span className="text-stone-300 text-xs">
+                            {tc.status === "called" ? "running..." : "done"}
                           </span>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="flex items-center gap-1.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-white/40 animate-pulse" />
-                      <span className="h-1.5 w-1.5 rounded-full bg-white/40 animate-pulse [animation-delay:150ms]" />
-                      <span className="h-1.5 w-1.5 rounded-full bg-white/40 animate-pulse [animation-delay:300ms]" />
+                    <div className="flex items-center gap-1">
+                      <span className="h-2 w-2 rounded-full bg-stone-200 animate-pulse" />
+                      <span className="h-2 w-2 rounded-full bg-stone-200 animate-pulse [animation-delay:150ms]" />
+                      <span className="h-2 w-2 rounded-full bg-stone-200 animate-pulse [animation-delay:300ms]" />
                     </div>
                   )
                 ) : null}
@@ -300,54 +295,45 @@ export default function ChatPage() {
         </div>
       </div>
 
-      <div className="p-4 pb-6">
-        <div className="flex items-end gap-2 max-w-3xl mx-auto">
+      <div className="p-4 pb-8 bg-gradient-to-t from-stone-50 via-stone-50 to-transparent">
+        <div className="flex items-end gap-3 max-w-2xl mx-auto">
           <form
             onSubmit={handleSubmit}
-            className="relative flex-1 rounded-2xl border border-white/[0.08] bg-white/[0.03] transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.05]"
+            className="relative flex-1 rounded-2xl bg-white ring-1 ring-stone-200 shadow-sm transition-all focus-within:ring-stone-300 focus-within:shadow-md"
           >
             <textarea
               ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="ask anything..."
+              placeholder="Ask anything..."
               disabled={isLoading}
               rows={1}
-              className="block w-full resize-none bg-transparent text-sm text-white/90 placeholder:text-white/25 px-4 py-3.5 pr-14 outline-none disabled:opacity-50 lowercase"
-              style={{ minHeight: "48px", maxHeight: "200px" }}
+              className="block w-full resize-none bg-transparent text-[15px] text-stone-800 placeholder:text-stone-400 px-4 py-3.5 pr-14 outline-none disabled:opacity-50"
+              style={{ minHeight: "52px", maxHeight: "200px" }}
             />
             <div className="absolute right-2.5 bottom-2.5">
               {isLoading ? (
                 <button
                   type="button"
                   onClick={handleStop}
-                  className="flex items-center justify-center h-8 w-8 rounded-lg bg-white/10 hover:bg-white/15 transition-colors"
+                  className="flex items-center justify-center h-9 w-9 rounded-xl bg-stone-100 hover:bg-stone-200 transition-colors"
                 >
-                  <Square className="h-3 w-3 text-white/70 fill-white/70" />
+                  <Square className="h-3.5 w-3.5 text-stone-500 fill-stone-500" />
                 </button>
               ) : (
                 <button
                   type="submit"
                   disabled={!input.trim()}
-                  className="flex items-center justify-center h-8 w-8 rounded-lg bg-white hover:bg-white/90 disabled:opacity-20 disabled:hover:bg-white transition-all"
+                  className="flex items-center justify-center h-9 w-9 rounded-xl bg-stone-900 hover:bg-stone-800 disabled:opacity-20 disabled:hover:bg-stone-900 transition-all"
                 >
-                  <ArrowUp className="h-4 w-4 text-black" strokeWidth={2.5} />
+                  <ArrowUp className="h-4 w-4 text-white" strokeWidth={2.5} />
                 </button>
               )}
             </div>
           </form>
-          <button
-            type="button"
-            onClick={() => setUserInfoOpen(true)}
-            className="flex items-center justify-center h-[48px] w-[48px] rounded-2xl border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.07] transition-colors flex-shrink-0"
-          >
-            <User className="h-4 w-4 text-white/30" />
-          </button>
         </div>
       </div>
-
-      <UserInfoDialog open={userInfoOpen} onOpenChange={setUserInfoOpen} />
     </div>
   );
 }
