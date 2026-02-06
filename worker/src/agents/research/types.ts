@@ -5,11 +5,14 @@ export const PersonSchema = z.object({
   role: z.string(),
   location: z
     .string()
-    .describe("where the individual is based. if not shown, leave it blank")
+    .describe("city/region if shown, otherwise blank")
     .optional(),
   company: z.string(),
-  description: z.string(),
-  profileUrl: z.string().optional(),
+  description: z.string().describe("brief summary from their profile"),
+  linkedinUrl: z
+    .string()
+    .describe("full linkedin profile url (e.g., https://www.linkedin.com/in/john-doe)")
+    .min(1, "linkedin url is required - extract from search results"),
 });
 
 export const EmailFinderOutput = z.object({

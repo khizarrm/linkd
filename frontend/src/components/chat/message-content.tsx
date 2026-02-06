@@ -9,7 +9,7 @@ interface Person {
   location?: string;
   company: string;
   description: string;
-  profileUrl?: string;
+  linkedinUrl: string;
 }
 
 interface EmailEntry {
@@ -52,15 +52,15 @@ function PersonCard({ person }: { person: Person }) {
       {person.description && (
         <p className="text-[13px] text-stone-400 leading-relaxed">{person.description}</p>
       )}
-      {person.profileUrl && (
+      {person.linkedinUrl && (
         <a
-          href={person.profileUrl}
+          href={person.linkedinUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center justify-center gap-2 w-full rounded-xl bg-stone-900 hover:bg-stone-800 transition-colors py-2.5 text-[13px] font-medium text-white"
         >
           <ExternalLink className="h-3.5 w-3.5" />
-          View Profile
+          View LinkedIn
         </a>
       )}
     </div>

@@ -7,16 +7,17 @@ import { ArrowUp, Square } from "lucide-react";
 import { MessageContent } from "@/components/chat/message-content";
 import { useProtectedApi } from "@/hooks/use-protected-api";
 
-interface ToolCall {
-  toolName: string;
-  status: "called" | "completed";
+interface Step {
+  id: string;
+  label: string;
+  status: "running" | "done";
 }
 
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
-  toolCalls?: ToolCall[];
+  steps?: Step[];
 }
 
 interface ChatInterfaceProps {
@@ -133,7 +134,7 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
       const token = await getToken();
       abortControllerRef.current = new AbortController();
 
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
       const response = await fetch(`${apiBase}/api/agents/research`, {
         method: "POST",
         headers: {
@@ -180,27 +181,26 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
           try {
             const data = JSON.parse(dataStr);
 
-            if (data.type === "tool_call") {
+            if (data.type === "step") {
               setMessages((prev) =>
                 prev.map((msg) => {
                   if (msg.id !== assistantMessageId) return msg;
-                  const calls = msg.toolCalls ?? [];
-                  if (data.status === "called") {
+                  const steps = msg.steps ?? [];
+                  const existing = steps.find((s) => s.id === data.id);
+                  if (existing) {
                     return {
                       ...msg,
-                      toolCalls: [
-                        ...calls,
-                        { toolName: data.toolName, status: "called" as const },
-                      ],
+                      steps: steps.map((s) =>
+                        s.id === data.id ? { ...s, status: data.status } : s,
+                      ),
                     };
                   }
                   return {
                     ...msg,
-                    toolCalls: calls.map((tc) =>
-                      tc.toolName === data.toolName
-                        ? { ...tc, status: "completed" as const }
-                        : tc,
-                    ),
+                    steps: [
+                      ...steps,
+                      { id: data.id, label: data.label, status: data.status },
+                    ],
                   };
                 }),
               );
@@ -214,7 +214,7 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
                     ? {
                         ...msg,
                         content: finalContent,
-                        toolCalls: undefined,
+                        steps: undefined,
                       }
                     : msg,
                 ),
@@ -233,7 +233,7 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
               setMessages((prev) =>
                 prev.map((msg) =>
                   msg.id === assistantMessageId
-                    ? { ...msg, content: finalContent, toolCalls: undefined }
+                    ? { ...msg, content: finalContent, steps: undefined }
                     : msg,
                 ),
               );
@@ -342,30 +342,21 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
                     message.content
                   )
                 ) : message.role === "assistant" && isLoading ? (
-                  message.toolCalls && message.toolCalls.length > 0 ? (
-                    <div className="space-y-2.5">
-                      {message.toolCalls.map((tc, i) => (
+                  message.steps && message.steps.length > 0 ? (
+                    <div className="space-y-2">
+                      {message.steps.map((step) => (
                         <div
-                          key={i}
-                          className="flex items-center gap-2.5 text-[13px]"
+                          key={step.id}
+                          className={`text-[13px] font-medium transition-all duration-700 ease-out ${
+                            step.status === "running"
+                              ? "text-foreground animate-pulse"
+                              : "text-muted-foreground/40"
+                          }`}
                         >
-                          {tc.status === "called" ? (
-                            <span className="h-2 w-2 rounded-full bg-blue-400 animate-pulse" />
-                          ) : (
-                            <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                          {step.label}
+                          {step.status === "running" && (
+                            <span className="text-muted-foreground/50">...</span>
                           )}
-                          <span
-                            className={`font-medium ${
-                              tc.status === "called"
-                                ? "text-foreground"
-                                : "text-muted-foreground"
-                            }`}
-                          >
-                            {tc.toolName.replace(/_/g, " ")}
-                          </span>
-                          <span className="text-muted-foreground/60 text-xs">
-                            {tc.status === "called" ? "running..." : "done"}
-                          </span>
                         </div>
                       ))}
                     </div>
