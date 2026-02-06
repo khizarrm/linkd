@@ -16,6 +16,7 @@ export interface CloudflareBindings {
     GOOGLE_CLIENT_SECRET?: string;
     CLERK_SECRET_KEY: string;
     CLERK_WEBHOOK_SIGNING_SECRET: string;
+    TAVILY_API_KEY: string;
 }
 
 declare global {

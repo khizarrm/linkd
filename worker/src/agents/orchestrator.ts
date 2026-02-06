@@ -87,7 +87,7 @@ class Orchestrator extends Agent<CloudflareBindings> {
         },
         { env: this.env } as any,
       )) as {
-        people: Array<{ name: string; role: string; emails: string[] }>;
+        people: Array<{ name: string; role: string; emails: Array<{ email: string; verificationStatus: "verified" | "possible" }> }>;
       };
 
       const peopleWithEmails = emailResult.people.filter(

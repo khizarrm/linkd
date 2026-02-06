@@ -2,7 +2,6 @@
 
 import { useAuth } from '@clerk/nextjs';
 import { apiFetch } from '@/lib/api';
-import { getCachedProfile, setCachedProfile } from '@/lib/profile-cache';
 import type { OrchestratorResponse } from '@/lib/api';
 
 export function useProtectedApi() {
@@ -99,75 +98,6 @@ export function useProtectedApi() {
       return response.json();
     },
 
-    // Profile
-    getProfile: async (forceRefresh = false) => {
-      if (!userId) throw new Error('Not authenticated');
-
-      // Check cache first unless force refresh is requested
-      if (!forceRefresh) {
-        const cached = getCachedProfile();
-        if (cached) {
-          return {
-            success: true,
-            user: cached,
-            session: {
-              id: '',
-              expiresAt: '',
-            },
-          };
-        }
-      }
-
-      // Fetch from API
-      const token = await getToken();
-      const response = await apiFetch(`/api/protected/profile?clerkUserId=${encodeURIComponent(userId)}`, {
-        method: 'GET',
-      }, token);
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Failed to get profile' }));
-        throw new Error(error.message || error.error || 'Failed to get profile');
-      }
-
-      const data = await response.json();
-
-      // Cache the profile data
-      if (data.success && data.user) {
-        setCachedProfile(data.user);
-      }
-
-      return data;
-    },
-
-    updateProfile: async (data: {
-      name?: string;
-      linkedinUrl?: string;
-      githubUrl?: string;
-      websiteUrl?: string;
-      twitterUrl?: string;
-      info?: string;
-    }) => {
-      if (!userId) throw new Error('Not authenticated');
-
-      const token = await getToken();
-      const response = await apiFetch('/api/protected/profile', {
-        method: 'PATCH',
-        body: JSON.stringify({ ...data, clerkUserId: userId }),
-      }, token);
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Failed to update profile' }));
-        throw new Error(error.message || error.error || 'Failed to update profile');
-      }
-
-      const result = await response.json();
-
-      // Update cache with new data
-      if (result.success && result.user) {
-        setCachedProfile(result.user);
-      }
-
-      return result;
-    },
-
     // Agents
     orchestrator: async (params: { query: string }): Promise<OrchestratorResponse> => {
       const token = await getToken();
@@ -181,6 +111,63 @@ export function useProtectedApi() {
       }
       return response.json();
     },
+
+    // Chats
+    listChats: async () => {
+      const token = await getToken();
+      const response = await apiFetch('/api/protected/chats', {
+        method: 'GET',
+      }, token);
+      if (!response.ok) throw new Error('Failed to list chats');
+      return response.json();
+    },
+
+    createChat: async (data?: { title?: string }) => {
+      const token = await getToken();
+      const response = await apiFetch('/api/protected/chats', {
+        method: 'POST',
+        body: JSON.stringify(data || {}),
+      }, token);
+      if (!response.ok) throw new Error('Failed to create chat');
+      return response.json();
+    },
+
+    getChat: async (id: string) => {
+      const token = await getToken();
+      const response = await apiFetch(`/api/protected/chats/${id}`, {
+        method: 'GET',
+      }, token);
+      if (!response.ok) throw new Error('Failed to get chat');
+      return response.json();
+    },
+
+    updateChat: async (id: string, data: { title?: string; openaiConversationId?: string }) => {
+      const token = await getToken();
+      const response = await apiFetch(`/api/protected/chats/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }, token);
+      if (!response.ok) throw new Error('Failed to update chat');
+      return response.json();
+    },
+
+    deleteChat: async (id: string) => {
+      const token = await getToken();
+      const response = await apiFetch(`/api/protected/chats/${id}`, {
+        method: 'DELETE',
+      }, token);
+      if (!response.ok) throw new Error('Failed to delete chat');
+      return response.json();
+    },
+
+    addMessage: async (chatId: string, data: { role: 'user' | 'assistant'; content: string }) => {
+      const token = await getToken();
+      const response = await apiFetch(`/api/protected/chats/${chatId}/messages`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }, token);
+      if (!response.ok) throw new Error('Failed to add message');
+      return response.json();
+    },
   };
 }
-

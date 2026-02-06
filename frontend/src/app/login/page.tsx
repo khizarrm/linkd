@@ -90,9 +90,12 @@ function ResultsCard({ result }: { result: OrchestratorResponse }) {
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(email);
+      const emailStr = typeof email === "string" ? email : email?.email;
+      if (!emailStr) return;
+
+      await navigator.clipboard.writeText(emailStr);
       triggerHaptic("medium");
-      setCopiedEmail(email);
+      setCopiedEmail(emailStr);
       setTimeout(() => setCopiedEmail(null), 2000);
     } catch (error) {
       console.error("Failed to copy:", error);
@@ -129,13 +132,13 @@ function ResultsCard({ result }: { result: OrchestratorResponse }) {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-3 p-3 bg-[#141414] border border-white/5 rounded">
+         <div className="flex items-center gap-3 p-3 bg-[#141414] border border-white/5 rounded">
           <Mail className="w-4 h-4 text-white/50 shrink-0" />
           <code
             className="flex-1 text-sm text-white/90 truncate"
             style={{ fontFamily: "var(--font-fira-mono)" }}
           >
-            {email}
+            {typeof email === "string" ? email : email?.email || ""}
           </code>
           <button
             onClick={handleCopy}

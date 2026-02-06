@@ -1,87 +1,183 @@
 import { tool } from "@openai/agents";
 import { z } from "zod";
-import { QueryGeneratorOutput } from "./types";
+import { tavily } from "@tavily/core";
 import type { CloudflareBindings } from "../../env.d";
-import { drizzle } from "drizzle-orm/d1";
-import { eq } from "drizzle-orm";
-import { users } from "../../db/auth.schema";
-import { schema } from "../../db";
 
-export function createTools(env: CloudflareBindings, clerkUserId: string) {
-  const queryGeneratorTool = tool({
-    name: "generate_search_queries",
-    description: "Generate optimized search queries to find people",
-    parameters: z.object({
-      request: z
-        .string()
-        .describe(
-          "Full description of what kind of people to find, including company, role, location, and user info",
-        ),
+const RoleType = z.enum([
+  "recruiter",
+  "talent_acquisition",
+  "university_recruiter",
+  "hr",
+  "hiring_manager",
+  "engineering_manager",
+  "team_lead",
+  "engineer",
+  "frontend",
+  "backend",
+  "fullstack",
+  "mobile",
+  "devops",
+  "ml_ai",
+  "data",
+  "product",
+  "design",
+  "ux_research",
+  "founder",
+  "executive",
+  "director",
+  "other",
+]);
+
+const ROLE_EXPANSIONS: Record<string, string> = {
+  recruiter: `(recruiter OR "technical recruiter" OR "senior recruiter" OR "lead recruiter" OR "recruiting" OR sourcer OR "talent sourcer")`,
+  talent_acquisition: `("talent acquisition" OR "talent partner" OR "ta manager" OR "ta specialist" OR "people partner" OR "people operations")`,
+  university_recruiter: `("university recruiter" OR "campus recruiter" OR "early career" OR "college recruiter" OR "intern recruiter" OR "early talent")`,
+  hr: `(hr OR "human resources" OR "hr manager" OR "hr business partner" OR "people team" OR "head of people")`,
+  hiring_manager: `("hiring manager" OR "engineering manager" OR "eng manager" OR "team lead" OR "tech lead")`,
+  engineering_manager: `("engineering manager" OR "director of engineering" OR "vp engineering" OR "head of engineering")`,
+  team_lead: `("team lead" OR "tech lead" OR "staff engineer" OR "principal engineer" OR "lead engineer")`,
+  engineer: `(engineer OR developer OR swe OR "software engineer" OR programmer)`,
+  frontend: `(frontend OR "front-end" OR "ui engineer" OR react OR vue OR angular)`,
+  backend: `(backend OR "back-end" OR "server engineer" OR "api engineer" OR "platform engineer")`,
+  fullstack: `("full stack" OR fullstack OR "full-stack" OR "generalist engineer")`,
+  mobile: `(mobile OR ios OR android OR "mobile engineer" OR swift OR kotlin OR "react native")`,
+  devops: `(devops OR sre OR "site reliability" OR "platform engineer" OR "infrastructure engineer")`,
+  ml_ai: `("machine learning" OR ml OR ai OR "data scientist" OR "ml engineer" OR "research scientist")`,
+  data: `(data OR "data engineer" OR "data analyst" OR "analytics engineer" OR "business intelligence")`,
+  product: `("product manager" OR pm OR "product lead" OR "product director" OR apm OR "group pm")`,
+  design: `(designer OR "product designer" OR "ux designer" OR "design lead" OR "head of design")`,
+  ux_research: `("ux researcher" OR "user researcher" OR "design researcher" OR "research lead")`,
+  founder: `(founder OR "co-founder" OR cofounder OR ceo OR cto OR coo OR chief)`,
+  executive: `(executive OR ceo OR cto OR cfo OR coo OR cmo OR cpo OR cro OR "c-suite")`,
+  director: `(director OR vp OR "vice president" OR "head of" OR "senior director")`,
+};
+
+export function createTools(env: CloudflareBindings) {
+  const companyLookupTool = tool({
+    name: "company_lookup",
+    description: `Look up company information to verify the company name and check for ambiguity (multiple companies with same name).
+
+Use this when:
+- Starting research for a company
+- Unsure if company name is accurate
+- Need official company name, domain, or LinkedIn page
+
+This tool:
+1. Searches for the company online
+2. Returns official company info (name, domain, industry, etc.)
+3. Detects if multiple companies share the same name (ambiguous)
+4. Returns company LinkedIn page URL if found
+
+If ambiguity is detected (multiple companies with same name), you should ask the user to clarify which one they mean.`,
+parameters: z.object({
+      companyName: z.string().describe("company name as provided by the user"),
+      userContext: z.string().nullable().describe("any additional context from user that might help identify the correct company (industry, location, etc.)"),
     }),
     strict: true,
-    execute: async ({ request }) => {
-      console.log("running with: ", request);
-      const response = await fetch(
-        "https://api.openai.com/v1/chat/completions",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${env.OPENAI_API_KEY}`,
-          },
-          body: JSON.stringify({
-            model: "gpt-4o",
-            messages: [
-              {
-                role: "system",
-                content: `Generate 6-10 search queries to find people based on the request.
+    execute: async ({ companyName, userContext }) => {
+      console.log(`[companyLookup] Input: companyName="${companyName}" userContext="${userContext}"`);
 
-Rules:
-- Use searches from a maximum of 2 years ago. Fastest way to do it is to add a date, eg: [your query] after:2024-01-20
-- Use site:linkedin.com for LinkedIn-specific searches
-- Use quotes for exact phrases
-- Use Boolean operators (AND, OR)
-- Include title synonyms (SWE, Developer, Engineer, etc.)
-- Include "worked at" / "experience at" patterns
-- For specific person searches, generate 1-5 targeted queries
+      const tvly = tavily({ apiKey: env.TAVILY_API_KEY });
 
-Return JSON: { "queries": ["query1", ...], "reasoning": "brief explanation" }`,
-              },
-              {
-                role: "user",
-                content: request,
-              },
-            ],
-            response_format: { type: "json_object" },
-          }),
-        },
-      );
+      try {
+        const searchQuery = `"${companyName}" company official website ${userContext || ""}`.trim();
+        console.log(`[companyLookup] Query: "${searchQuery}"`);
 
-      const completion = (await response.json()) as {
-        choices: [{ message: { content: string } }];
-      };
-      const result = JSON.parse(completion.choices[0].message.content || "{}");
-      console.log("output: ", result);
-      return QueryGeneratorOutput.parse(result);
+        const response = await tvly.search(searchQuery, {
+          searchDepth: "basic",
+          maxResults: 10,
+          includeRawContent: true,
+        });
+
+        console.log(`[companyLookup] Tavily returned ${response.results.length} results`);
+
+        const companies: Array<{
+          name: string;
+          domain: string | null;
+          industry: string;
+          description: string;
+          linkedinCompanyUrl: string | null;
+        }> = [];
+
+        const domainRegex = /https?:\/\/(?:www\.)?([a-z0-9.-]+\.[a-z]{2,})/i;
+        const linkedinCompanyRegex = /https?:\/\/(?:www\.)?linkedin\.com\/company\/[^\/]+/i;
+
+        for (const result of response.results) {
+          const domainMatch = result.content.match(domainRegex);
+          const linkedinMatch = result.content.match(linkedinCompanyRegex);
+          const domain = domainMatch ? domainMatch[1] : null;
+
+          companies.push({
+            name: companyName,
+            domain,
+            industry: "Unknown",
+            description: result.content.substring(0, 200),
+            linkedinCompanyUrl: linkedinMatch ? linkedinMatch[0] : null,
+          });
+        }
+
+        const uniqueDomains = new Set(companies.filter(c => c.domain).map(c => c.domain));
+        const isAmbiguous = uniqueDomains.size > 1;
+
+        let bestMatch = companies[0];
+        if (isAmbiguous) {
+          bestMatch = companies.find(c =>
+            c.linkedinCompanyUrl ||
+            (c.domain && c.domain.includes(companyName.toLowerCase().replace(/\s+/g, "")))
+          ) || companies[0];
+        }
+
+        console.log(`[companyLookup] Found ${companies.length} result(s), ambiguous=${isAmbiguous}, bestMatch domain=${bestMatch.domain}`);
+
+        return {
+          query: searchQuery,
+          isAmbiguous,
+          companies,
+          recommendedCompany: bestMatch,
+          requiresClarification: isAmbiguous,
+        };
+      } catch (error) {
+        console.error("[companyLookup] ❌ Company lookup failed:", error);
+        return {
+          query: companyName,
+          isAmbiguous: false,
+          companies: [],
+          recommendedCompany: null,
+          requiresClarification: false,
+          error: String(error),
+        };
+      }
     },
   });
 
-  const getUserInfo = tool({
-    name: "get_user_info",
-    description:
-      "Get information about the user preferences. includes location, role, and interests.",
-    parameters: z.object({}),
-    execute: async () => {
-      const db = drizzle(env.DB, { schema });
-      const user = await db.query.users.findFirst({
-        where: eq(users.clerkUserId, clerkUserId),
-      });
+  const linkedinXrayTool = tool({
+    name: "linkedin_xray_search",
+    description: `generate a linkedin x-ray boolean search query for finding people at a specific company.
+    
+examples:
+- "recruiters at stripe" -> company: "stripe", role: "recruiter"
+- "talent acquisition at google in nyc" -> company: "google", role: "talent_acquisition", location: "new york"
+- "engineering managers at airbnb" -> company: "airbnb", role: "engineering_manager"
+- "campus recruiters at meta" -> company: "meta", role: "university_recruiter"`,
+    parameters: z.object({
+      company: z.string().describe("company name exactly as mentioned"),
+      role: RoleType.describe("type of person to find"),
+      customRole: z.string().nullable().describe("for 'other' role type: specify custom role, otherwise null"),
+      location: z.string().nullable().describe("city, state, country, or region, otherwise null"),
+    }),
+    strict: true,
+    execute: async ({ company, role, customRole, location }) => {
+      console.log(`[linkedinXray] Input: company="${company}" role="${role}" customRole="${customRole}" location="${location}"`);
 
-      if (!user || !user.info) {
-        return "No user info available. The user has not filled in their profile yet, please ask them to do so to continue.";
-      }
+      let roleClause = role === "other" && customRole
+        ? `("${customRole}")`
+        : ROLE_EXPANSIONS[role] || `("${role}")`;
 
-      return `**User Profile**\n\n${user.info}`;
+      let query = `site:linkedin.com/in "${company}" ${roleClause}`;
+      if (location) query += ` "${location}"`;
+
+      console.log(`[linkedinXray] Generated query: ${query}`);
+      return { query, role, company, location: location || null };
     },
   });
 
@@ -108,24 +204,16 @@ Return JSON: { "queries": ["query1", ...], "reasoning": "brief explanation" }`,
 
   const emailFinderTool = tool({
     name: "find_and_verify_email",
-    description:
-      "Generate and verify email patterns for a person at a company. Tests up to 3 patterns using ZeroBounce API.",
+    description: "generate and verify email patterns for a person at a company",
     parameters: z.object({
-      name: z.string().describe("Person's full name"),
-      company: z.string().describe("Company name"),
-      domain: z
-        .string()
-        .describe(
-          "Company domain (e.g., 'stripe.com'). Be careful with these, they can be locaion based too if the company is large (eg. ca.ibm.com).",
-        ),
-      knownPattern: z
-        .string()
-        .describe(
-          "Known email from company to infer pattern (e.g., 'john.doe@company.com'). Pass empty string if unknown.",
-        ),
+      name: z.string().describe("person's full name"),
+      company: z.string().describe("company name"),
+      domain: z.string().describe("company domain (e.g., 'stripe.com')"),
+      knownPattern: z.string().nullable().describe("known email to infer pattern, otherwise null"),
     }),
     strict: true,
     execute: async ({ name, company, domain, knownPattern }) => {
+      console.log(`[emailFinder] Input: name="${name}" company="${company}" domain="${domain}" knownPattern="${knownPattern}"`);
       const cleanDomain = domain.replace(/^www\./, "").toLowerCase();
 
       const parts = name.trim().split(/\s+/);
@@ -135,7 +223,7 @@ Return JSON: { "queries": ["query1", ...], "reasoning": "brief explanation" }`,
 
       let patterns: string[] = [];
 
-      if (knownPattern && knownPattern.trim() !== "") {
+      if (knownPattern && knownPattern.trim() !== "" && knownPattern !== null) {
         const knownLocal = knownPattern.split("@")[0];
         const knownDomain = knownPattern.split("@")[1] || cleanDomain;
         patterns.push(`${knownLocal}@${knownDomain}`);
@@ -150,25 +238,85 @@ Return JSON: { "queries": ["query1", ...], "reasoning": "brief explanation" }`,
         `${first}@${cleanDomain}`,
       );
 
+      console.log(`[emailFinder] Testing ${patterns.length} patterns:`, patterns);
+
       for (const email of patterns) {
         try {
           const status = await verifyEmail(email);
           console.log("status: ", status, email);
-          if (status === "valid" || status === "catch-all") {
-            return { email, pattern: email.split("@")[0], verified: true };
+          if (status === "valid") {
+            console.log(`[emailFinder] ✅ Found verified email: ${email} (status: ${status})`);
+            return { email, pattern: email.split("@")[0], verificationStatus: "verified" };
+          } else if (status === "catch-all" || status === "catch_all") {
+            console.log(`[emailFinder] ✅ Found possible email (catch-all): ${email} (status: ${status})`);
+            return { email, pattern: email.split("@")[0], verificationStatus: "possible" };
+          } else if (status === "acceptable") {
+            console.log(`[emailFinder] ✅Found possible email (acceptable): ${email} (status: ${status})`);
+            return { email, pattern: email.split("@")[0], verificationStatus: "possible" };
           }
+          console.log(`[emailFinder] ❌ Rejected: ${email} (status: ${status})`);
         } catch (error) {
           console.error(`Failed to verify ${email}:`, error);
         }
       }
 
-      return { email: null, pattern: null, verified: false };
+      console.log(`[emailFinder] No valid email found for ${name} at ${cleanDomain}`);
+      return { email: null, pattern: null, verificationStatus: null };
     },
   });
 
-  return {
-    queryGeneratorTool,
-    getUserInfo,
+  const searchWebTool = tool({
+    name: "web_search",
+    description: `Search the web for LinkedIn profiles. Takes a search query (typically from linkedin_xray_search) and returns real LinkedIn profile URLs with snippets. Only returns results from linkedin.com.`,
+    parameters: z.object({
+      query: z.string().describe("The search query to execute (e.g. site:linkedin.com/in \"stripe\" (recruiter OR \"technical recruiter\"))"),
+    }),
+    execute: async ({ query }) => {
+      console.log(`[webSearch] Query: "${query}"`);
+      console.log(`[webSearch] Using Tavily with includeDomains: ["linkedin.com"]`);
+
+      const tvly = tavily({ apiKey: env.TAVILY_API_KEY });
+
+      try {
+        const startTime = Date.now();
+        const response = await tvly.search(query, {
+          searchDepth: "advanced",
+          includeDomains: ["linkedin.com"],
+          maxResults: 10,
+          includeRawContent: false,
+        });
+        const elapsed = Date.now() - startTime;
+
+        console.log(`[webSearch] Tavily returned ${response.results.length} results in ${elapsed}ms`);
+        response.results.forEach((r, i) => {
+          console.log(`[webSearch]   [${i}] ${r.url} — "${r.title}"`);
+        });
+
+        const results = response.results
+          .filter((r) => r.url.includes("linkedin.com/in/"))
+          .map((r) => ({
+            title: r.title,
+            url: r.url,
+            content: r.content,
+          }));
+
+        console.log(`[webSearch] After /in/ filter: ${results.length} profile URLs`);
+        results.forEach((r, i) => {
+          console.log(`[webSearch]   ✅ [${i}] ${r.url}`);
+        });
+
+        return JSON.stringify({ results });
+      } catch (error) {
+        console.error("[webSearch] ❌ Tavily search failed:", error);
+        return JSON.stringify({ results: [] });
+      }
+    },
+  });
+
+return {
+    companyLookupTool,
+    linkedinXrayTool,
     emailFinderTool,
+    searchWebTool,
   };
 }
