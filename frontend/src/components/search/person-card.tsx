@@ -19,8 +19,9 @@ export function PersonCard({ person, favicon, companyName, index }: PersonCardPr
   const hasEmail = person.emails && person.emails.length > 0;
   const emails = person.emails || [];
   const firstEmail = emails[0] ?? null;
+  const firstEmailStr = typeof firstEmail === "string" ? firstEmail : firstEmail?.email ?? null;
 
-  const domain = firstEmail ? firstEmail.split('@')[1] : null;
+  const domain = firstEmailStr ? firstEmailStr.split('@')[1] : null;
   const companyUrl = domain ? `https://${domain}` : null;
 
   // Generate favicon URL from domain if not provided as prop
@@ -45,7 +46,7 @@ export function PersonCard({ person, favicon, companyName, index }: PersonCardPr
 
   return (
     <div className="w-full max-w-2xl mx-auto p-6 bg-[#0a0a0a] border border-white/10 rounded-lg animate-bounce-in">
-      {hasEmail && firstEmail ? (
+      {hasEmail && firstEmailStr ? (
         <div className="space-y-4">
           <div className="flex items-start gap-3">
             {faviconUrl && !faviconError && (
@@ -67,13 +68,13 @@ export function PersonCard({ person, favicon, companyName, index }: PersonCardPr
               )}
             </div>
           </div>
-          <div className="flex items-center gap-3 p-3 bg-[#141414] border border-white/5 rounded">
+           <div className="flex items-center gap-3 p-3 bg-[#141414] border border-white/5 rounded">
             <Mail className="w-4 h-4 text-white/50 shrink-0" />
             <code className="flex-1 text-sm text-white/90 truncate" style={{ fontFamily: 'var(--font-fira-mono)' }}>
-              {firstEmail}
+              {firstEmailStr}
             </code>
             <button
-              onClick={() => handleCopyEmail(firstEmail)}
+              onClick={() => firstEmailStr && handleCopyEmail(firstEmailStr)}
               className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded text-sm transition-all duration-[150ms] hover:scale-[1.02] will-change-transform"
               style={{ fontFamily: 'var(--font-fira-mono)', transform: 'translateZ(0)' }}
             >
