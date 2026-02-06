@@ -4,8 +4,10 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { ArrowUp, Square } from "lucide-react";
+import { motion } from "framer-motion";
 import { MessageContent } from "@/components/chat/message-content";
 import { useProtectedApi } from "@/hooks/use-protected-api";
+import { useChatContext } from "@/contexts/chat-context";
 
 interface Step {
   id: string;
@@ -24,13 +26,45 @@ interface ChatInterfaceProps {
   chatId?: string;
 }
 
+function StreamingText({ content }: { content: string }) {
+  if (content.trimStart().startsWith("{")) {
+    return <MessageContent content={content} />;
+  }
+
+  return (
+    <motion.div>
+      {content.split(/(\s+)/).map((segment, i) => {
+        if (segment.match(/^\s+$/)) {
+          return <span key={i}>{segment}</span>;
+        }
+        return (
+          <motion.span
+            key={i}
+            initial={{ opacity: 0, filter: "blur(4px)" }}
+            animate={{ opacity: 1, filter: "blur(0px)" }}
+            transition={{
+              duration: 0.4,
+              ease: "easeOut",
+            }}
+            className="inline-block"
+          >
+            {segment}
+          </motion.span>
+        );
+      })}
+    </motion.div>
+  );
+}
+
 export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
   const { getToken } = useAuth();
   const router = useRouter();
   const api = useProtectedApi();
-  
+  const { addChat } = useChatContext();
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
+  const [isFocused, setIsFocused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [chatId, setChatId] = useState<string | null>(initialChatId || null);
 
@@ -43,7 +77,7 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
   }, [initialChatId]);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(!!initialChatId);
-  
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -70,11 +104,13 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
         setChatId(id);
         setConversationId(response.chat.openaiConversationId || null);
         setMessages(
-          response.messages.map((msg: { id: string; role: string; content: string }) => ({
-            id: msg.id,
-            role: msg.role as "user" | "assistant",
-            content: msg.content,
-          }))
+          response.messages.map(
+            (msg: { id: string; role: string; content: string }) => ({
+              id: msg.id,
+              role: msg.role as "user" | "assistant",
+              content: msg.content,
+            }),
+          ),
         );
       }
     } catch (error) {
@@ -88,6 +124,13 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
   const createNewChat = async (): Promise<string> => {
     const response = await api.createChat();
     if (response.success) {
+      const newChat = {
+        id: response.chat.id,
+        title: response.chat.title || "New chat",
+        createdAt: response.chat.createdAt || new Date().toISOString(),
+        updatedAt: response.chat.updatedAt || new Date().toISOString(),
+      };
+      addChat(newChat);
       return response.chat.id;
     }
     throw new Error("Failed to create chat");
@@ -118,12 +161,17 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
       if (!currentChatId) {
         currentChatId = await createNewChat();
         setChatId(currentChatId);
-        window.history.replaceState(null, '', `/chat/${currentChatId}`);
-        
-        await api.updateChat(currentChatId, { title: generateTitle(userMessage.content) });
+        window.history.replaceState(null, "", `/chat/${currentChatId}`);
+
+        await api.updateChat(currentChatId, {
+          title: generateTitle(userMessage.content),
+        });
       }
 
-      await api.addMessage(currentChatId, { role: "user", content: userMessage.content });
+      await api.addMessage(currentChatId, {
+        role: "user",
+        content: userMessage.content,
+      });
 
       const assistantMessageId = (Date.now() + 1).toString();
       setMessages((prev) => [
@@ -224,7 +272,9 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
             if (data.done && data.conversationId) {
               setConversationId(data.conversationId);
               if (currentChatId) {
-                await api.updateChat(currentChatId, { openaiConversationId: data.conversationId });
+                await api.updateChat(currentChatId, {
+                  openaiConversationId: data.conversationId,
+                });
               }
             }
 
@@ -238,13 +288,15 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
                 ),
               );
             }
-          } catch {
-          }
+          } catch {}
         }
       }
 
       if (finalContent && currentChatId) {
-        await api.addMessage(currentChatId, { role: "assistant", content: finalContent });
+        await api.addMessage(currentChatId, {
+          role: "assistant",
+          content: finalContent,
+        });
       }
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
@@ -310,108 +362,158 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
     <div className="flex flex-col h-full bg-background">
       <div className="flex-1 overflow-y-auto p-6">
         <div
-          className={`max-w-2xl mx-auto space-y-5 ${messages.length === 0 ? "flex items-center justify-center h-full" : ""}`}
+          className={`max-w-2xl mx-auto space-y-8 ${messages.length === 0 ? "flex items-center justify-center h-full" : ""}`}
         >
           {messages.length === 0 && (
             <div className="flex flex-col items-center text-center space-y-3">
-              <p className="text-lg font-light text-muted-foreground">What can I help you find?</p>
+              <p className="text-lg font-light text-muted-foreground">
+                What can I help you find?
+              </p>
               <p className="text-xs text-muted-foreground/60">
-                Search for companies, people, or emails
+                Search for people (currently in beta)
               </p>
             </div>
           )}
 
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${
-                message.role === "user" ? "justify-end" : "justify-start"
-              }`}
-            >
+          <div className="space-y-8">
+            {messages.map((message) => (
               <div
-                className={`max-w-[80%] text-[15px] leading-relaxed whitespace-pre-wrap ${
-                  message.role === "user"
-                    ? "rounded-3xl rounded-br-lg bg-primary text-primary-foreground px-5 py-3"
-                    : "rounded-3xl rounded-bl-lg bg-card text-card-foreground border px-5 py-4"
+                key={message.id}
+                className={`flex ${
+                  message.role === "user" ? "justify-end" : "justify-start"
                 }`}
               >
-                {message.content ? (
-                  message.role === "assistant" ? (
-                    <MessageContent content={message.content} />
-                  ) : (
-                    message.content
-                  )
-                ) : message.role === "assistant" && isLoading ? (
-                  message.steps && message.steps.length > 0 ? (
-                    <div className="space-y-2">
-                      {message.steps.map((step) => (
-                        <div
-                          key={step.id}
-                          className={`text-[13px] font-medium transition-all duration-700 ease-out ${
-                            step.status === "running"
-                              ? "text-foreground animate-pulse"
-                              : "text-muted-foreground/40"
-                          }`}
-                        >
-                          {step.label}
-                          {step.status === "running" && (
-                            <span className="text-muted-foreground/50">...</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1">
-                      <span className="h-2 w-2 rounded-full bg-muted-foreground/30 animate-pulse" />
-                      <span className="h-2 w-2 rounded-full bg-muted-foreground/30 animate-pulse [animation-delay:150ms]" />
-                      <span className="h-2 w-2 rounded-full bg-muted-foreground/30 animate-pulse [animation-delay:300ms]" />
-                    </div>
-                  )
-                ) : null}
+                <div
+                  className={`max-w-[80%] text-[15px] leading-relaxed whitespace-pre-wrap ${
+                    message.role === "user"
+                      ? "rounded-3xl rounded-br-lg bg-primary text-primary-foreground px-5 py-3"
+                      : "rounded-3xl rounded-bl-lg glass-chat-bubble text-foreground px-5 py-4 ring-1 ring-black/[0.08] shadow-sm"
+                  }`}
+                >
+                  {message.content ? (
+                    message.role === "assistant" ? (
+                      <StreamingText content={message.content} />
+                    ) : (
+                      message.content
+                    )
+                  ) : message.role === "assistant" && isLoading ? (
+                    message.steps && message.steps.length > 0 ? (
+                      <div className="space-y-2">
+                        {message.steps.map((step) => (
+                          <div
+                            key={step.id}
+                            className={`text-[13px] font-medium ${
+                              step.status === "running"
+                                ? "text-foreground animate-pulse"
+                                : "text-muted-foreground/40"
+                            }`}
+                          >
+                            {step.label}
+                            {step.status === "running" && (
+                              <span className="text-muted-foreground/50">
+                                ...
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 h-6 px-2">
+                        {[0, 1, 2].map((i) => (
+                          <motion.div
+                            key={i}
+                            className="h-1.5 w-1.5 rounded-full bg-foreground/60"
+                            animate={{
+                              y: ["0%", "-30%", "0%"],
+                              opacity: [0.5, 1, 0.5],
+                            }}
+                            transition={{
+                              duration: 1.2,
+                              repeat: Infinity,
+                              ease: "easeInOut",
+                              delay: i * 0.2,
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )
+                  ) : null}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
           <div ref={messagesEndRef} />
         </div>
       </div>
 
       <div className="p-4 pb-8 bg-gradient-to-t from-background via-background to-transparent">
         <div className="flex items-end gap-3 max-w-2xl mx-auto">
-          <form
+          <motion.form
+            layout
             onSubmit={handleSubmit}
-            className="relative flex-1 rounded-2xl bg-muted ring-1 ring-border shadow-sm transition-all focus-within:ring-ring focus-within:shadow-md"
+            className={`relative flex-1 rounded-2xl bg-muted ring-1 shadow-sm transition-all ${
+              isFocused ? "ring-ring shadow-md" : "ring-border"
+            }`}
           >
+            {!input && (
+              <span className="absolute left-4 top-3.5 text-muted-foreground pointer-events-none text-[15px]">
+                Ask anything...
+              </span>
+            )}
+
             <textarea
               ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask anything..."
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
               disabled={isLoading}
               rows={1}
-              className="block w-full resize-none bg-transparent text-[15px] text-foreground placeholder:text-muted-foreground px-4 py-3.5 pr-14 outline-none disabled:opacity-50"
+              className="block w-full resize-none bg-transparent text-[15px] text-foreground px-4 py-3.5 pr-14 outline-none disabled:opacity-50"
               style={{ minHeight: "52px", maxHeight: "200px" }}
             />
             <div className="absolute right-2.5 bottom-2.5">
               {isLoading ? (
-                <button
+                <motion.button
                   type="button"
                   onClick={handleStop}
+                  whileTap={{ scale: 0.95 }}
                   className="flex items-center justify-center h-9 w-9 rounded-xl bg-muted-foreground/10 hover:bg-muted-foreground/20 transition-colors"
                 >
                   <Square className="h-3.5 w-3.5 text-muted-foreground fill-muted-foreground" />
-                </button>
+                </motion.button>
               ) : (
-                <button
+                <motion.button
                   type="submit"
                   disabled={!input.trim()}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   className="flex items-center justify-center h-9 w-9 rounded-xl bg-primary hover:bg-primary/90 disabled:opacity-20 disabled:hover:bg-primary transition-all"
                 >
-                  <ArrowUp className="h-4 w-4 text-primary-foreground" strokeWidth={2.5} />
-                </button>
+                  <motion.div
+                    animate={
+                      input.trim()
+                        ? {
+                            rotate: [0, -10, 10, -10, 10, 0],
+                            transition: {
+                              duration: 0.5,
+                              repeat: Infinity,
+                              repeatDelay: 2,
+                            },
+                          }
+                        : {}
+                    }
+                  >
+                    <ArrowUp
+                      className="h-4 w-4 text-primary-foreground"
+                      strokeWidth={2.5}
+                    />
+                  </motion.div>
+                </motion.button>
               )}
             </div>
-          </form>
+          </motion.form>
         </div>
       </div>
     </div>

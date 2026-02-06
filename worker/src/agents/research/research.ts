@@ -12,6 +12,7 @@ export function createResearchAgent(env: CloudflareBindings) {
     model: "gpt-4.1",
     instructions: researchAgentPrompt,
     tools: [
+      tools.companyLookupTool,
       tools.linkedinXrayTool,
       tools.searchWebTool,
       tools.emailFinderTool,

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { MessageCircle, Trash2, MoreHorizontal } from 'lucide-react';
+import { Trash2, MoreHorizontal } from 'lucide-react';
+import { motion } from "framer-motion";
 import { useProtectedApi } from '@/hooks/use-protected-api';
+import { useChatContext } from '@/contexts/chat-context';
 import {
   SidebarGroup,
   SidebarGroupLabel,
@@ -77,13 +78,15 @@ function ChatItem({ chat, isActive, onDelete }: {
         isActive={isActive}
         onClick={() => router.push(`/chat/${chat.id}`)}
         tooltip={displayTitle}
+        className="h-auto py-2 relative overflow-hidden"
       >
-        <MessageCircle className="size-4" />
-        <span className="truncate">{displayTitle}</span>
+        <span className="truncate">
+          {displayTitle}
+        </span>
       </SidebarMenuButton>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <SidebarMenuAction showOnHover>
+          <SidebarMenuAction showOnHover className="top-2.5 hover:bg-transparent hover:text-sidebar-foreground data-[state=open]:bg-transparent data-[state=open]:text-sidebar-foreground">
             <MoreHorizontal className="size-4" />
           </SidebarMenuAction>
         </DropdownMenuTrigger>
@@ -114,13 +117,19 @@ function ChatGroup({ label, chats, currentChatId, onDelete }: {
       <SidebarGroupLabel>{label}</SidebarGroupLabel>
       <SidebarGroupContent>
         <SidebarMenu>
-          {chats.map((chat) => (
-            <ChatItem
+          {chats.map((chat, index) => (
+            <motion.div
               key={chat.id}
-              chat={chat}
-              isActive={chat.id === currentChatId}
-              onDelete={onDelete}
-            />
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+            >
+              <ChatItem
+                chat={chat}
+                isActive={chat.id === currentChatId}
+                onDelete={onDelete}
+              />
+            </motion.div>
           ))}
         </SidebarMenu>
       </SidebarGroupContent>
@@ -129,8 +138,7 @@ function ChatGroup({ label, chats, currentChatId, onDelete }: {
 }
 
 export function ChatHistoryList() {
-  const [chats, setChats] = useState<Chat[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { chats, removeChat, isLoading } = useChatContext();
   const api = useProtectedApi();
   const pathname = usePathname();
 
@@ -138,25 +146,10 @@ export function ChatHistoryList() {
     ? pathname.split('/chat/')[1] 
     : null;
 
-  const fetchChats = async () => {
-    try {
-      const response = await api.listChats();
-      setChats(response.chats || []);
-    } catch (error) {
-      console.error('Failed to fetch chats:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchChats();
-  }, []);
-
   const handleDelete = async (id: string) => {
     try {
       await api.deleteChat(id);
-      setChats((prev) => prev.filter((chat) => chat.id !== id));
+      removeChat(id);
     } catch (error) {
       console.error('Failed to delete chat:', error);
     }

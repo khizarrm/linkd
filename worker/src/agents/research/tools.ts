@@ -53,6 +53,103 @@ const ROLE_EXPANSIONS: Record<string, string> = {
 };
 
 export function createTools(env: CloudflareBindings) {
+  const companyLookupTool = tool({
+    name: "company_lookup",
+    description: `Look up company information to verify the company name and check for ambiguity (multiple companies with same name).
+
+Use this when:
+- Starting research for a company
+- Unsure if company name is accurate
+- Need official company name, domain, or LinkedIn page
+
+This tool:
+1. Searches for the company online
+2. Returns official company info (name, domain, industry, etc.)
+3. Detects if multiple companies share the same name (ambiguous)
+4. Returns company LinkedIn page URL if found
+
+If ambiguity is detected (multiple companies with same name), you should ask the user to clarify which one they mean.`,
+parameters: z.object({
+      companyName: z.string().describe("company name as provided by the user"),
+      userContext: z.string().nullable().describe("any additional context from user that might help identify the correct company (industry, location, etc.)"),
+    }),
+    strict: true,
+    execute: async ({ companyName, userContext }) => {
+      console.log(`[companyLookup] Input: companyName="${companyName}" userContext="${userContext}"`);
+
+      const tvly = tavily({ apiKey: env.TAVILY_API_KEY });
+
+      try {
+        const searchQuery = `"${companyName}" company official website ${userContext || ""}`.trim();
+        console.log(`[companyLookup] Query: "${searchQuery}"`);
+
+        const response = await tvly.search(searchQuery, {
+          searchDepth: "basic",
+          maxResults: 10,
+          includeRawContent: true,
+        });
+
+        console.log(`[companyLookup] Tavily returned ${response.results.length} results`);
+
+        const companies: Array<{
+          name: string;
+          domain: string | null;
+          industry: string;
+          description: string;
+          linkedinCompanyUrl: string | null;
+        }> = [];
+
+        const domainRegex = /https?:\/\/(?:www\.)?([a-z0-9.-]+\.[a-z]{2,})/i;
+        const linkedinCompanyRegex = /https?:\/\/(?:www\.)?linkedin\.com\/company\/[^\/]+/i;
+
+        for (const result of response.results) {
+          const domainMatch = result.content.match(domainRegex);
+          const linkedinMatch = result.content.match(linkedinCompanyRegex);
+          const domain = domainMatch ? domainMatch[1] : null;
+
+          companies.push({
+            name: companyName,
+            domain,
+            industry: "Unknown",
+            description: result.content.substring(0, 200),
+            linkedinCompanyUrl: linkedinMatch ? linkedinMatch[0] : null,
+          });
+        }
+
+        const uniqueDomains = new Set(companies.filter(c => c.domain).map(c => c.domain));
+        const isAmbiguous = uniqueDomains.size > 1;
+
+        let bestMatch = companies[0];
+        if (isAmbiguous) {
+          bestMatch = companies.find(c =>
+            c.linkedinCompanyUrl ||
+            (c.domain && c.domain.includes(companyName.toLowerCase().replace(/\s+/g, "")))
+          ) || companies[0];
+        }
+
+        console.log(`[companyLookup] Found ${companies.length} result(s), ambiguous=${isAmbiguous}, bestMatch domain=${bestMatch.domain}`);
+
+        return {
+          query: searchQuery,
+          isAmbiguous,
+          companies,
+          recommendedCompany: bestMatch,
+          requiresClarification: isAmbiguous,
+        };
+      } catch (error) {
+        console.error("[companyLookup] ❌ Company lookup failed:", error);
+        return {
+          query: companyName,
+          isAmbiguous: false,
+          companies: [],
+          recommendedCompany: null,
+          requiresClarification: false,
+          error: String(error),
+        };
+      }
+    },
+  });
+
   const linkedinXrayTool = tool({
     name: "linkedin_xray_search",
     description: `generate a linkedin x-ray boolean search query for finding people at a specific company.
@@ -147,9 +244,15 @@ examples:
         try {
           const status = await verifyEmail(email);
           console.log("status: ", status, email);
-          if (status === "valid" || status === "catch-all") {
-            console.log(`[emailFinder] ✅ Found valid email: ${email} (status: ${status})`);
-            return { email, pattern: email.split("@")[0], verified: true };
+          if (status === "valid") {
+            console.log(`[emailFinder] ✅ Found verified email: ${email} (status: ${status})`);
+            return { email, pattern: email.split("@")[0], verificationStatus: "verified" };
+          } else if (status === "catch-all" || status === "catch_all") {
+            console.log(`[emailFinder] ✅ Found possible email (catch-all): ${email} (status: ${status})`);
+            return { email, pattern: email.split("@")[0], verificationStatus: "possible" };
+          } else if (status === "acceptable") {
+            console.log(`[emailFinder] ✅Found possible email (acceptable): ${email} (status: ${status})`);
+            return { email, pattern: email.split("@")[0], verificationStatus: "possible" };
           }
           console.log(`[emailFinder] ❌ Rejected: ${email} (status: ${status})`);
         } catch (error) {
@@ -158,7 +261,7 @@ examples:
       }
 
       console.log(`[emailFinder] No valid email found for ${name} at ${cleanDomain}`);
-      return { email: null, pattern: null, verified: false };
+      return { email: null, pattern: null, verificationStatus: null };
     },
   });
 
@@ -210,7 +313,8 @@ examples:
     },
   });
 
-  return {
+return {
+    companyLookupTool,
     linkedinXrayTool,
     emailFinderTool,
     searchWebTool,

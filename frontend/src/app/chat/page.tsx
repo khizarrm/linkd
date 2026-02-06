@@ -1,14 +1,22 @@
+'use client';
+
 import { ChatInterface } from "@/components/chat/chat-interface";
+import { ChatProvider } from "@/contexts/chat-context";
+import { useProtectedApi } from "@/hooks/use-protected-api";
+import { useCallback } from "react";
 
 export default function ChatPage() {
+  const api = useProtectedApi();
+
+  const fetchChatsFn = useCallback(async () => {
+    return api.listChats();
+  }, [api]);
+
   return (
-    <div className="flex flex-col h-screen bg-background font-sans">
-      <header className="flex h-14 shrink-0 items-center justify-center border-b border-border">
-        <h1 className="text-sm font-medium text-foreground tracking-tight">
-          linkd
-        </h1>
-      </header>
-      <ChatInterface />
-    </div>
+    <ChatProvider fetchChatsFn={fetchChatsFn}>
+      <div className="flex flex-col h-screen bg-background font-sans">
+        <ChatInterface />
+      </div>
+    </ChatProvider>
   );
 }

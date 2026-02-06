@@ -139,30 +139,38 @@ export const emailFinder = tool({
       for (const email of candidates) {
         try {
           console.log(`[emailFinder] Testing: ${email}`);
-          const status = await verifyEmail(email, env);
+          const { status } = await verifyEmail(email, env);
           console.log(`[emailFinder] ${email} -> ${status}`);
 
           if (status === "valid") {
-            console.log(`[emailFinder] Found valid email: ${email}`);
+            console.log(`[emailFinder] Found verified email: ${email}`);
             return {
               domain: cleanDomain,
-              people: [{ name: person.name, role: person.role || "Founder", emails: [email] }],
-              summary: `Found email for ${person.name}`,
+              people: [{ name: person.name, role: person.role || "Founder", emails: [{ email, verificationStatus: "verified" as const }] }],
+              summary: `Found verified email for ${person.name}`,
+            };
+          } else if (status === "catch-all" || status === "catch_all" || status === "accept_all" || status === "role_based_accept_all") {
+            console.log(`[emailFinder] Found possible email (catch-all): ${email}`);
+            return {
+              domain: cleanDomain,
+              people: [{ name: person.name, role: person.role || "Founder", emails: [{ email, verificationStatus: "possible" as const }] }],
+              summary: `Found possible email for ${person.name}`,
             };
           }
+          console.log(`[emailFinder] Rejected: ${email} (status: ${status})`);
         } catch (error) {
           console.log(`[emailFinder] Error testing ${email}: ${error instanceof Error ? error.message : "Unknown"}`);
           continue;
         }
       }
 
-      console.log(`[emailFinder] No valid email found for ${person.name}`);
+      console.log(`[emailFinder] No email found for ${person.name}`);
     }
 
     return {
       domain: cleanDomain,
       people: [],
-      summary: "No valid emails found",
+      summary: "No emails found",
     };
   },
 });

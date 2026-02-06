@@ -1,8 +1,13 @@
 // Types
+export interface EmailEntry {
+  email: string;
+  verificationStatus: "verified" | "possible";
+}
+
 export interface OrchestratorPerson {
   name: string;
   role: string;
-  emails?: string[];
+  emails?: string[] | EmailEntry[];
 }
 
 export interface OrchestratorResponse {

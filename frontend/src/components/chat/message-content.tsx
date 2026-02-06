@@ -42,7 +42,7 @@ function tryParsePeopleFinder(content: string): PeopleFinderResult | null {
 
 function PersonCard({ person }: { person: Person }) {
   return (
-    <div className="rounded-2xl bg-stone-50 px-4 py-4 space-y-3">
+    <div className="rounded-2xl bg-stone-50 px-4 py-4 space-y-3 ring-1 ring-stone-200 shadow-sm">
       <div className="min-w-0">
         <p className="text-[15px] font-medium text-stone-900">{person.name}</p>
         <p className="text-[13px] text-stone-500 mt-0.5">
@@ -57,7 +57,7 @@ function PersonCard({ person }: { person: Person }) {
           href={person.linkedinUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 w-full rounded-xl bg-stone-900 hover:bg-stone-800 transition-colors py-2.5 text-[13px] font-medium text-white"
+          className="flex items-center justify-center gap-2 w-full rounded-xl bg-[#0077B5] hover:bg-[#006097] active:bg-[#005586] transition-all py-3 text-[13px] font-medium text-white shadow-lg shadow-[#0077B5]/20"
         >
           <ExternalLink className="h-3.5 w-3.5" />
           View LinkedIn

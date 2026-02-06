@@ -1,16 +1,23 @@
-import { ChatInterface } from "@/components/chat/chat-interface";
+'use client';
 
-export default async function ChatPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  
+import { ChatInterface } from "@/components/chat/chat-interface";
+import { ChatProvider } from "@/contexts/chat-context";
+import { useProtectedApi } from "@/hooks/use-protected-api";
+import { useCallback, use } from "react";
+
+export default function ChatPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const api = useProtectedApi();
+
+  const fetchChatsFn = useCallback(async () => {
+    return api.listChats();
+  }, [api]);
+
   return (
-    <div className="flex flex-col h-screen bg-background font-sans">
-      <header className="flex h-14 shrink-0 items-center justify-center border-b border-border">
-        <h1 className="text-sm font-medium text-foreground tracking-tight">
-          linkd
-        </h1>
-      </header>
-      <ChatInterface chatId={id} />
-    </div>
+    <ChatProvider fetchChatsFn={fetchChatsFn}>
+      <div className="flex flex-col h-screen bg-background font-sans">
+        <ChatInterface chatId={id} />
+      </div>
+    </ChatProvider>
   );
 }

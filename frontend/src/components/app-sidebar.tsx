@@ -1,10 +1,9 @@
 'use client';
 
-import { Search, User, LogOut, FileText, Settings, Info, MessageCircle, Plus } from "lucide-react"
-import { useRouter, usePathname } from "next/navigation"
+import { User, LogOut, FileText, Info, Plus } from "lucide-react"
+import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { useState } from "react"
-import Link from "next/link"
 import { useUser, useClerk } from "@clerk/nextjs"
 import { FeedbackDialog } from "./feedback-dialog"
 import { InfoDialog } from "./info-dialog"
@@ -25,30 +24,15 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar"
 
-// Menu items.
-const items = [
-  {
-    title: "Search",
-    url: "/",
-    icon: Search,
-  },
-  {
-    title: "Chat",
-    url: "/chat",
-    icon: MessageCircle,
-  },
-]
-
 export function AppSidebar() {
   const router = useRouter();
-  const pathname = usePathname();
   const [imageError, setImageError] = useState(false);
   const [showSignOut, setShowSignOut] = useState(false);
   const [isFeedbackDialogOpen, setIsFeedbackDialogOpen] = useState(false);
   const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
   // const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
 
-  const { user, isLoaded } = useUser();
+  const { user } = useUser();
   const { signOut } = useClerk();
 
   const handleSignOut = async () => {
@@ -73,15 +57,8 @@ export function AppSidebar() {
         <div className="flex h-12 items-center gap-2 px-4 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
           <span className="font-medium text-lg tracking-tight group-data-[collapsible=icon]:hidden">LINKD</span>
           <button
-            onClick={() => router.push('/chat')}
-            className="ml-auto p-1 hover:bg-sidebar-accent rounded-md transition-colors group-data-[collapsible=icon]:hidden"
-            aria-label="New chat"
-          >
-            <Plus className="size-4" />
-          </button>
-          <button
             onClick={() => setIsInfoDialogOpen(true)}
-            className="p-1 hover:bg-sidebar-accent rounded-md transition-colors group-data-[collapsible=icon]:hidden"
+            className="ml-auto p-1 hover:bg-sidebar-accent rounded-md transition-colors group-data-[collapsible=icon]:hidden"
             aria-label="About linkd"
           >
             <Info className="size-4" />
@@ -94,31 +71,21 @@ export function AppSidebar() {
           <SidebarGroupLabel>Application</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => {
-                const isActive = pathname === item.url || (item.url === '/chat' && pathname?.startsWith('/chat'));
-                const isExternal = item.url.startsWith('http');
-                return (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild tooltip={item.title} isActive={isActive}>
-                      {isExternal ? (
-                        <a href={item.url} target="_blank" rel="noopener noreferrer">
-                          <item.icon />
-                          <span>{item.title}</span>
-                        </a>
-                      ) : (
-                        <Link href={item.url}>
-                          <item.icon />
-                          <span>{item.title}</span>
-                        </Link>
-                      )}
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => router.push('/chat')}
+                  tooltip="New chat"
+                >
+                  <Plus className="size-4" />
+                  <span>New chat</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        <ChatHistoryList />
+        <div className="group-data-[collapsible=icon]:hidden">
+          <ChatHistoryList />
+        </div>
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>
