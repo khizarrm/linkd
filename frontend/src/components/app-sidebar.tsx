@@ -7,7 +7,6 @@ import { useState } from "react"
 import Link from "next/link"
 import { useUser, useClerk } from "@clerk/nextjs"
 // import { ProfileSettingsDialog } from "./settings/profile-settings-dialog"
-import { clearProfileCache } from "@/lib/profile-cache"
 import { FeedbackDialog } from "./feedback-dialog"
 import { InfoDialog } from "./info-dialog"
 
@@ -54,8 +53,6 @@ export function AppSidebar() {
 
   const handleSignOut = async () => {
     try {
-      // Clear profile cache on sign out
-      clearProfileCache();
       // Sign out using Clerk
       await signOut();
       // Manually redirect after signout completes

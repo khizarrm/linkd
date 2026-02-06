@@ -31,10 +31,6 @@ import {
   VectorizeUpdateCompanyRoute,
 } from "./endpoints/vectorize";
 import { PublicWaitlistRoute } from "./endpoints/waitlist";
-import {
-  ProtectedProfileGetRoute,
-  ProtectedProfileUpdateRoute,
-} from "./endpoints/profile";
 import { PublicFeedbackRoute } from "./endpoints/feedback";
 import { ClerkWebhookRoute } from "./endpoints/clerkWebhook";
 import { ResearchAgentRoute } from "./agents/research/endpoint";
@@ -231,8 +227,6 @@ openapi.get(
   "/api/protected/companies/:id/employees",
   ProtectedCompanyEmployeesRoute,
 );
-openapi.get("/api/protected/profile", ProtectedProfileGetRoute);
-openapi.patch("/api/protected/profile", ProtectedProfileUpdateRoute);
 
 // Research Agent Route (OpenAI Agents SDK)
 openapi.post("/api/agents/research", ResearchAgentRoute);

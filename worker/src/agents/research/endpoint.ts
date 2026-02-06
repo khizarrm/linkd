@@ -26,9 +26,6 @@ export class ResearchAgentRoute extends OpenAPIRoute {
                 .string()
                 .min(1)
                 .describe("The user's query about finding people at a company"),
-              clerkUserId: z
-                .string()
-                .describe("The Clerk user ID of the authenticated user"),
               conversationId: z
                 .string()
                 .optional()
@@ -59,9 +56,9 @@ export class ResearchAgentRoute extends OpenAPIRoute {
     const env: CloudflareBindings = c.env;
     const reqData = await this.getValidatedData<typeof this.schema>();
     const body = reqData.body!;
-    const { query, clerkUserId, conversationId } = body;
+    const { query, conversationId } = body;
 
-    const tools = createTools(env, clerkUserId);
+    const tools = createTools(env);
 
     const peopleSearchAgent = new Agent({
       name: "people_search",
@@ -69,7 +66,6 @@ export class ResearchAgentRoute extends OpenAPIRoute {
       model: "gpt-5.2",
       tools: [
         tools.queryGeneratorTool,
-        tools.getUserInfo,
         tools.emailFinderTool,
         webSearchTool(),
       ],

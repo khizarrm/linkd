@@ -1,5 +1,3 @@
-import { getCachedProfile, setCachedProfile, updateCachedProfile, clearProfileCache } from './profile-cache';
-
 // Types
 export interface OrchestratorPerson {
   name: string;
@@ -151,65 +149,4 @@ export const protectedApi = {
     return response.json();
   },
 
-  // Profile
-  getProfile: async (forceRefresh = false) => {
-    // Check cache first unless force refresh is requested
-    if (!forceRefresh) {
-      const cached = getCachedProfile();
-      if (cached) {
-        return {
-          success: true,
-          user: cached,
-          session: {
-            id: '',
-            expiresAt: '',
-          },
-        };
-      }
-    }
-
-    // Fetch from API
-    const response = await apiFetch('/api/protected/profile', {
-      method: 'GET',
-    });
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Failed to get profile' }));
-      throw new Error(error.message || error.error || 'Failed to get profile');
-    }
-    
-    const data = await response.json();
-    
-    // Cache the profile data
-    if (data.success && data.user) {
-      setCachedProfile(data.user);
-    }
-    
-    return data;
-  },
-
-  updateProfile: async (data: {
-    name?: string;
-    linkedinUrl?: string;
-    githubUrl?: string;
-    websiteUrl?: string;
-    twitterUrl?: string;
-  }) => {
-    const response = await apiFetch('/api/protected/profile', {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    });
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Failed to update profile' }));
-      throw new Error(error.message || error.error || 'Failed to update profile');
-    }
-    
-    const result = await response.json();
-    
-    // Update cache with new data
-    if (result.success && result.user) {
-      setCachedProfile(result.user);
-    }
-    
-    return result;
-  },
 };

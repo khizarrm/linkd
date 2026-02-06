@@ -16,5 +16,4 @@ export const users = sqliteTable("users", {
   githubUrl: text("github_url"),
   websiteUrl: text("website_url"),
   twitterUrl: text("twitter_url"),
-  info: text("info"),
 });

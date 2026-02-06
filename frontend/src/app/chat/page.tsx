@@ -18,7 +18,7 @@ interface Message {
 }
 
 export default function ChatPage() {
-  const { getToken, userId } = useAuth();
+  const { getToken } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -67,7 +67,6 @@ export default function ChatPage() {
         },
         body: JSON.stringify({
           query: userMessage.content,
-          clerkUserId: userId,
           ...(conversationId && { conversationId }),
         }),
         signal: abortControllerRef.current.signal,

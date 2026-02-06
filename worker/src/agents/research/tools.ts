@@ -2,12 +2,8 @@ import { tool } from "@openai/agents";
 import { z } from "zod";
 import { QueryGeneratorOutput } from "./types";
 import type { CloudflareBindings } from "../../env.d";
-import { drizzle } from "drizzle-orm/d1";
-import { eq } from "drizzle-orm";
-import { users } from "../../db/auth.schema";
-import { schema } from "../../db";
 
-export function createTools(env: CloudflareBindings, clerkUserId: string) {
+export function createTools(env: CloudflareBindings) {
   const queryGeneratorTool = tool({
     name: "generate_search_queries",
     description: "Generate optimized search queries to find people",
@@ -15,7 +11,7 @@ export function createTools(env: CloudflareBindings, clerkUserId: string) {
       request: z
         .string()
         .describe(
-          "Full description of what kind of people to find, including company, role, location, and user info",
+          "Full description of what kind of people to find, including company, role, and location",
         ),
     }),
     strict: true,
@@ -63,25 +59,6 @@ Return JSON: { "queries": ["query1", ...], "reasoning": "brief explanation" }`,
       const result = JSON.parse(completion.choices[0].message.content || "{}");
       console.log("output: ", result);
       return QueryGeneratorOutput.parse(result);
-    },
-  });
-
-  const getUserInfo = tool({
-    name: "get_user_info",
-    description:
-      "Get information about the user preferences. includes location, role, and interests.",
-    parameters: z.object({}),
-    execute: async () => {
-      const db = drizzle(env.DB, { schema });
-      const user = await db.query.users.findFirst({
-        where: eq(users.clerkUserId, clerkUserId),
-      });
-
-      if (!user || !user.info) {
-        return "No user info available. The user has not filled in their profile yet, please ask them to do so to continue.";
-      }
-
-      return `**User Profile**\n\n${user.info}`;
     },
   });
 
@@ -168,7 +145,6 @@ Return JSON: { "queries": ["query1", ...], "reasoning": "brief explanation" }`,
 
   return {
     queryGeneratorTool,
-    getUserInfo,
     emailFinderTool,
   };
 }
