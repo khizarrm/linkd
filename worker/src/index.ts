@@ -24,6 +24,14 @@ import {
   ProtectedCompanyEmployeesRoute,
 } from "./endpoints/companies";
 import {
+  ProtectedChatsListRoute,
+  ProtectedChatsCreateRoute,
+  ProtectedChatsGetRoute,
+  ProtectedChatsUpdateRoute,
+  ProtectedChatsDeleteRoute,
+  ProtectedMessagesCreateRoute,
+} from "./endpoints/chats";
+import {
   VectorizePopulateCompaniesRoute,
   VectorizePopulateEmployeesRoute,
   VectorizeSearchRoute,
@@ -227,6 +235,13 @@ openapi.get(
   "/api/protected/companies/:id/employees",
   ProtectedCompanyEmployeesRoute,
 );
+
+openapi.get("/api/protected/chats", ProtectedChatsListRoute);
+openapi.post("/api/protected/chats", ProtectedChatsCreateRoute);
+openapi.get("/api/protected/chats/:id", ProtectedChatsGetRoute);
+openapi.put("/api/protected/chats/:id", ProtectedChatsUpdateRoute);
+openapi.delete("/api/protected/chats/:id", ProtectedChatsDeleteRoute);
+openapi.post("/api/protected/chats/:id/messages", ProtectedMessagesCreateRoute);
 
 // Research Agent Route (OpenAI Agents SDK)
 openapi.post("/api/agents/research", ResearchAgentRoute);

@@ -2,17 +2,16 @@
 
 import { useAuth, useUser } from '@clerk/nextjs';
 import { useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { posthog } from '@/../instrumentation-client';
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
+import { AppSidebar } from '@/components/app-sidebar';
 
-/**
- * Conditional Layout Wrapper
- * Shows sidebar on all pages except login
- */
 export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const { isSignedIn } = useAuth();
   const { user } = useUser();
+  const pathname = usePathname();
 
-  // Identify user in PostHog when signed in
   useEffect(() => {
     if (isSignedIn && user) {
       posthog.identify(user.id, {
@@ -24,11 +23,24 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
     }
   }, [isSignedIn, user]);
 
-  // No sidebar for now - just render children
+  const isAuthPage = pathname === '/login' || pathname === '/sso-callback';
+  const showSidebar = isSignedIn && !isAuthPage;
+
+  if (!showSidebar) {
+    return (
+      <div className="min-h-screen w-full">
+        {children}
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen w-full">
-      {children}
-    </div>
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        {children}
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
 

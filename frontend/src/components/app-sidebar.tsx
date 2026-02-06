@@ -1,14 +1,14 @@
 'use client';
 
-import { Search, User, LogOut, FileText, Settings, Info, MessageCircle } from "lucide-react"
+import { Search, User, LogOut, FileText, Settings, Info, MessageCircle, Plus } from "lucide-react"
 import { useRouter, usePathname } from "next/navigation"
 import Image from "next/image"
 import { useState } from "react"
 import Link from "next/link"
 import { useUser, useClerk } from "@clerk/nextjs"
-// import { ProfileSettingsDialog } from "./settings/profile-settings-dialog"
 import { FeedbackDialog } from "./feedback-dialog"
 import { InfoDialog } from "./info-dialog"
+import { ChatHistoryList } from "./chat/chat-history-list"
 
 import {
   Sidebar,
@@ -73,8 +73,15 @@ export function AppSidebar() {
         <div className="flex h-12 items-center gap-2 px-4 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
           <span className="font-medium text-lg tracking-tight group-data-[collapsible=icon]:hidden">LINKD</span>
           <button
-            onClick={() => setIsInfoDialogOpen(true)}
+            onClick={() => router.push('/chat')}
             className="ml-auto p-1 hover:bg-sidebar-accent rounded-md transition-colors group-data-[collapsible=icon]:hidden"
+            aria-label="New chat"
+          >
+            <Plus className="size-4" />
+          </button>
+          <button
+            onClick={() => setIsInfoDialogOpen(true)}
+            className="p-1 hover:bg-sidebar-accent rounded-md transition-colors group-data-[collapsible=icon]:hidden"
             aria-label="About linkd"
           >
             <Info className="size-4" />
@@ -88,7 +95,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => {
-                const isActive = pathname === item.url;
+                const isActive = pathname === item.url || (item.url === '/chat' && pathname?.startsWith('/chat'));
                 const isExternal = item.url.startsWith('http');
                 return (
                   <SidebarMenuItem key={item.title}>
@@ -111,6 +118,7 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        <ChatHistoryList />
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>

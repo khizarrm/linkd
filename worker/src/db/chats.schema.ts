@@ -8,5 +8,7 @@ export const chats = sqliteTable("chats", {
     .notNull()
     .references(() => users.clerkUserId, { onDelete: "cascade" }),
   title: text("title"),
+  openaiConversationId: text("openai_conversation_id"),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`),
 });

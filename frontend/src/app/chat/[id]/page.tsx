@@ -1,6 +1,8 @@
 import { ChatInterface } from "@/components/chat/chat-interface";
 
-export default function ChatPage() {
+export default async function ChatPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  
   return (
     <div className="flex flex-col h-screen bg-background font-sans">
       <header className="flex h-14 shrink-0 items-center justify-center border-b border-border">
@@ -8,7 +10,7 @@ export default function ChatPage() {
           linkd
         </h1>
       </header>
-      <ChatInterface />
+      <ChatInterface chatId={id} />
     </div>
   );
 }

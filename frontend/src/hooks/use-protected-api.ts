@@ -111,5 +111,63 @@ export function useProtectedApi() {
       }
       return response.json();
     },
+
+    // Chats
+    listChats: async () => {
+      const token = await getToken();
+      const response = await apiFetch('/api/protected/chats', {
+        method: 'GET',
+      }, token);
+      if (!response.ok) throw new Error('Failed to list chats');
+      return response.json();
+    },
+
+    createChat: async (data?: { title?: string }) => {
+      const token = await getToken();
+      const response = await apiFetch('/api/protected/chats', {
+        method: 'POST',
+        body: JSON.stringify(data || {}),
+      }, token);
+      if (!response.ok) throw new Error('Failed to create chat');
+      return response.json();
+    },
+
+    getChat: async (id: string) => {
+      const token = await getToken();
+      const response = await apiFetch(`/api/protected/chats/${id}`, {
+        method: 'GET',
+      }, token);
+      if (!response.ok) throw new Error('Failed to get chat');
+      return response.json();
+    },
+
+    updateChat: async (id: string, data: { title?: string; openaiConversationId?: string }) => {
+      const token = await getToken();
+      const response = await apiFetch(`/api/protected/chats/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }, token);
+      if (!response.ok) throw new Error('Failed to update chat');
+      return response.json();
+    },
+
+    deleteChat: async (id: string) => {
+      const token = await getToken();
+      const response = await apiFetch(`/api/protected/chats/${id}`, {
+        method: 'DELETE',
+      }, token);
+      if (!response.ok) throw new Error('Failed to delete chat');
+      return response.json();
+    },
+
+    addMessage: async (chatId: string, data: { role: 'user' | 'assistant'; content: string }) => {
+      const token = await getToken();
+      const response = await apiFetch(`/api/protected/chats/${chatId}/messages`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }, token);
+      if (!response.ok) throw new Error('Failed to add message');
+      return response.json();
+    },
   };
 }

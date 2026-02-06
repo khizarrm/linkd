@@ -29,7 +29,11 @@ export class ResearchAgentRoute extends OpenAPIRoute {
               conversationId: z
                 .string()
                 .optional()
-                .describe("Optional conversation ID for session continuity"),
+                .describe("Optional OpenAI conversation ID for session continuity"),
+              chatId: z
+                .string()
+                .optional()
+                .describe("Optional chat ID for database persistence"),
             }),
           },
         },
@@ -56,7 +60,7 @@ export class ResearchAgentRoute extends OpenAPIRoute {
     const env: CloudflareBindings = c.env;
     const reqData = await this.getValidatedData<typeof this.schema>();
     const body = reqData.body!;
-    const { query, conversationId } = body;
+    const { query, conversationId, chatId } = body;
 
     const tools = createTools(env);
 
@@ -107,14 +111,14 @@ export class ResearchAgentRoute extends OpenAPIRoute {
           send({ type: "output", data: finalOutput });
 
           const finalSessionId = await session.getSessionId();
-          send({ done: true, conversationId: finalSessionId });
+          send({ done: true, conversationId: finalSessionId, chatId });
           controller.close();
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : "Unknown error";
           const finalSessionId =
             session.sessionId || conversationId || "unknown";
-          send({ error: errorMessage, conversationId: finalSessionId });
+          send({ error: errorMessage, conversationId: finalSessionId, chatId });
           controller.close();
         }
       },
