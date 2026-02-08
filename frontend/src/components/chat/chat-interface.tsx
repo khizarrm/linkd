@@ -205,54 +205,64 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
         throw new Error("No response body");
       }
 
-      let buffer = "";
-      let finalContent = "";
+let buffer = "";
+          let finalContent = "";
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
 
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed.startsWith("data: ")) continue;
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed.startsWith("data: ")) continue;
 
-          const dataStr = trimmed.slice(6);
-          if (!dataStr) continue;
+              const dataStr = trimmed.slice(6);
+              if (!dataStr) continue;
 
-          try {
-            const data = JSON.parse(dataStr);
+              try {
+                const data = JSON.parse(dataStr);
 
-            if (data.type === "step") {
-              setMessages((prev) =>
-                prev.map((msg) => {
-                  if (msg.id !== assistantMessageId) return msg;
-                  const steps = msg.steps ?? [];
-                  const existing = steps.find((s) => s.id === data.id);
-                  if (existing) {
-                    return {
-                      ...msg,
-                      steps: steps.map((s) =>
-                        s.id === data.id ? { ...s, status: data.status } : s,
-                      ),
-                    };
-                  }
-                  return {
-                    ...msg,
-                    steps: [
-                      ...steps,
-                      { id: data.id, label: data.label, status: data.status },
-                    ],
-                  };
-                }),
-              );
-            }
+                if (data.type === "step") {
+                  setMessages((prev) =>
+                    prev.map((msg) => {
+                      if (msg.id !== assistantMessageId) return msg;
+                      const steps = msg.steps ?? [];
+                      const existing = steps.find((s) => s.id === data.id);
+                      if (existing) {
+                        return {
+                          ...msg,
+                          steps: steps.map((s) =>
+                            s.id === data.id ? { ...s, status: data.status } : s,
+                          ),
+                        };
+                      }
+                      return {
+                        ...msg,
+                        steps: [
+                          ...steps,
+                          { id: data.id, label: data.label, status: data.status },
+                        ],
+                      };
+                    }),
+                  );
+                }
+
+                if (data.type === "text-delta") {
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === assistantMessageId
+                        ? { ...msg, content: (msg.content || "") + data.delta }
+                        : msg,
+                    ),
+                  );
+                }
 
             if (data.type === "output") {
-              finalContent = JSON.stringify(data.data);
+              finalContent = data.data.message || "";
               setMessages((prev) =>
                 prev.map((msg) =>
                   msg.id === assistantMessageId
@@ -357,42 +367,44 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
           )}
 
           <div className="space-y-8">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${
-                  message.role === "user" ? "justify-end" : "justify-start"
-                }`}
-              >
+            {messages.map((message) => {
+              const hasResponseContent = message.content && message.content.trim().length > 0;
+              const shouldShowAccordion = message.steps && message.steps.length > 0 && !hasResponseContent && message.role === "assistant" && isLoading;
+
+              return (
                 <div
-                  className={`text-[15px] leading-relaxed whitespace-pre-wrap ${
-                    message.role === "user"
-                      ? "max-w-[80%] rounded-3xl rounded-br-lg bg-primary text-primary-foreground px-5 py-3"
-                      : "text-foreground w-full"
+                  key={message.id}
+                  className={`flex flex-col ${
+                    message.role === "user" ? "items-end" : "items-start"
                   }`}
                 >
                   {message.content ? (
-                    message.role === "assistant" ? (
-                      <StreamingText content={message.content} />
-                    ) : (
-                      message.content
-                    )
+                    <div
+                      className={`text-[15px] leading-relaxed whitespace-pre-wrap ${
+                        message.role === "user"
+                          ? "max-w-[80%] rounded-3xl rounded-br-lg bg-primary text-primary-foreground px-5 py-3"
+                          : "text-foreground w-full"
+                      }`}
+                    >
+                      {message.role === "assistant" ? (
+                        <StreamingText content={message.content} />
+                      ) : (
+                        message.content
+                      )}
+                    </div>
+                  ) : shouldShowAccordion ? (
+                    <div className="space-y-2">
+                      <ToolCallAccordion
+                        steps={message.steps}
+                        isLoading={isLoading}
+                      />
+                    </div>
                   ) : message.role === "assistant" && isLoading ? (
-                    message.steps && message.steps.length > 0 ? (
-                      <div className="space-y-2">
-                        <ToolCallAccordion
-                          steps={message.steps}
-                          isLoading={isLoading}
-                        />
-                      </div>
-                    ) : (
-                      <MessageLoading />
-                    )
+                    <MessageLoading />
                   ) : null}
                 </div>
-
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div ref={messagesEndRef} />
         </div>

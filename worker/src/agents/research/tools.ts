@@ -54,20 +54,14 @@ const ROLE_EXPANSIONS: Record<string, string> = {
 
 export function createTools(env: CloudflareBindings) {
   const companyLookupTool = tool({
-    description: `Look up company information to verify the company name and check for ambiguity (multiple companies with same name).
-
-Use this when:
-- Starting research for a company
-- Unsure if company name is accurate
-- Need official company name, domain, or LinkedIn page
+    description: `FIRST STEP ONLY: Verify company info. After this, you MUST continue to search LinkedIn for people!
 
 This tool:
-1. Searches for the company online
-2. Returns official company info (name, domain, industry, etc.)
-3. Detects if multiple companies share the same name (ambiguous)
-4. Returns company LinkedIn page URL if found
+1. Verifies company exists and gets official domain
+2. Returns company name, domain, and basic info
+3. Checks for ambiguity (multiple companies with same name)
 
-If ambiguity is detected (multiple companies with same name), you should ask the user to clarify which one they mean.`,
+CRITICAL: After calling this tool, DO NOT stop. Continue to call linkedin_xray_search then web_search to find people.`,
     inputSchema: z.object({
       companyName: z.string().describe("company name as provided by the user"),
       userContext: z.string().nullable().describe("any additional context from user that might help identify the correct company (industry, location, etc.)"),
@@ -125,7 +119,7 @@ If ambiguity is detected (multiple companies with same name), you should ask the
           ) || companies[0];
         }
 
-        console.log(`[companyLookup] Found ${companies.length} result(s), ambiguous=${isAmbiguous}, bestMatch domain=${bestMatch.domain}`);
+        console.log(`[companyLookup] Found ${companies.length} result(s), ambiguous=${isAmbiguous}, bestMatch domain=${bestMatch.domain}, name=${bestMatch.name}`);
 
         return {
           query: searchQuery,
@@ -149,13 +143,11 @@ If ambiguity is detected (multiple companies with same name), you should ask the
   });
 
   const linkedinXrayTool = tool({
-    description: `generate a linkedin x-ray boolean search query for finding people at a specific company.
-    
-examples:
-- "recruiters at stripe" -> company: "stripe", role: "recruiter"
-- "talent acquisition at google in nyc" -> company: "google", role: "talent_acquisition", location: "new york"
-- "engineering managers at airbnb" -> company: "airbnb", role: "engineering_manager"
-- "campus recruiters at meta" -> company: "meta", role: "university_recruiter"`,
+    description: `Generate LinkedIn search query. After this, you MUST call web_search to actually get results!
+
+Generates a LinkedIn x-ray boolean search query string for finding people.
+
+After using this tool to get the query, immediately call web_search with that query to get actual LinkedIn profiles.`,
     inputSchema: z.object({
       company: z.string().describe("company name exactly as mentioned"),
       role: RoleType.describe("type of person to find"),
@@ -260,7 +252,11 @@ examples:
   });
 
   const searchWebTool = tool({
-    description: `Search the web for LinkedIn profiles. Takes a search query (typically from linkedin_xray_search) and returns real LinkedIn profile URLs with snippets. Only returns results from linkedin.com.`,
+    description: `Execute the search. Must be called AFTER linkedin_xray_search!
+
+Takes a search query (from linkedin_xray_search tool) and executes it to return actual LinkedIn profile URLs and snippets.
+
+CRITICAL: Always call this after linkedin_xray_search. Don't stop after generating the query - actually search!`,
     inputSchema: z.object({
       query: z.string().describe("The search query to execute (e.g. site:linkedin.com/in \"stripe\" (recruiter OR \"technical recruiter\"))"),
     }),

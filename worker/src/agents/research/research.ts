@@ -1,5 +1,5 @@
 import { anthropic } from "@ai-sdk/anthropic";
-import { streamText } from "ai";
+import { streamText, stepCountIs } from "ai";
 import { researchAgentPrompt } from "./prompts";
 import { PeopleFinderOutput } from "./types";
 import { createTools } from "./tools";
@@ -17,16 +17,33 @@ export async function runResearchAgent(
 ) {
   const tools = createTools(env);
 
+  const messages: any[] = [];
+  if (options?.previousMessages && options.previousMessages.length > 0) {
+    for (const msg of options.previousMessages) {
+      messages.push({
+        role: msg.role,
+        content: msg.content,
+      });
+    }
+  }
+  messages.push({
+    role: "user",
+    content: query,
+  });
+
   const result = streamText({
     model: anthropic("claude-sonnet-4-0"),
     system: researchAgentPrompt,
-    prompt: query,
+    messages,
     tools: {
       company_lookup: tools.companyLookupTool,
       linkedin_xray_search: tools.linkedinXrayTool,
       web_search: tools.searchWebTool,
       find_and_verify_email: tools.emailFinderTool,
     },
+    // @ts-expect-error - stopWhen is valid in AI SDK 5.x
+    stopWhen: stepCountIs(10),
+    temperature: 0.7,
   });
 
   return result;

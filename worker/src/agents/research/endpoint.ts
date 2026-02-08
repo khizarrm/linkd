@@ -1,14 +1,30 @@
 import { OpenAPIRoute } from "chanfana";
 import { z } from "zod";
-import { runTriageAgent } from "./triage";
-import { runResearchAgent, PeopleFinderOutput } from "./research";
+import { classifyIntent, type TriageResult } from "./triage-classifier";
+import { runResearchAgent } from "./research";
 import type { CloudflareBindings } from "../../env.d";
+import { drizzle } from "drizzle-orm/d1";
+import { eq } from "drizzle-orm";
+import { schema } from "../../db";
+import { messages } from "../../db/messages.schema";
 
 const TOOL_LABELS: Record<string, string> = {
   linkedin_xray_search: "Generating search query",
   web_search: "Searching LinkedIn",
   find_and_verify_email: "Finding & verifying email",
 };
+
+async function loadChatHistory(chatId: string, env: CloudflareBindings): Promise<any[]> {
+  const dbClient = drizzle(env.DB, { schema });
+  const chatMessages = await dbClient.query.messages.findMany({
+    where: eq(messages.chatId, chatId),
+    orderBy: [messages.createdAt],
+  });
+  return chatMessages.map((msg) => ({
+    role: msg.role || "user",
+    content: msg.content || "",
+  }));
+}
 
 export class ResearchAgentRoute extends OpenAPIRoute {
   schema = {
@@ -64,6 +80,13 @@ export class ResearchAgentRoute extends OpenAPIRoute {
     console.log(`[endpoint] Incoming request: query="${query}" conversationId="${conversationId}" chatId="${chatId}"`);
 
     const sessionId = conversationId || crypto.randomUUID();
+
+    let previousMessages: any[] = [];
+    if (chatId) {
+      previousMessages = await loadChatHistory(chatId, env);
+      console.log(`[endpoint] Loaded ${previousMessages.length} previous messages from chatId="${chatId}"`);
+    }
+
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
@@ -76,69 +99,51 @@ export class ResearchAgentRoute extends OpenAPIRoute {
         let stepCounter = 0;
 
         try {
-          stepCounter++;
-          send({
-            type: "step",
-            id: `step_${stepCounter}`,
-            label: "Analyzing request",
-            status: "running",
-          });
+          console.log(`[endpoint] Classifying intent...`);
+          const triageResult: TriageResult = await classifyIntent(query, previousMessages);
+          console.log(`[endpoint] Triage result: intent=${triageResult.intent}, company=${triageResult.company}, role=${triageResult.role}`);
 
-          console.log(`[endpoint] Running triage agent...`);
-          const triageResult = await runTriageAgent(query, env);
-          
-          send({
-            type: "step",
-            id: `step_${stepCounter}`,
-            label: "Analyzing request",
-            status: "done",
-          });
-          console.log(`[endpoint] Triage result: action=${triageResult.action}`);
+          if (triageResult.intent !== "search") {
+            console.log(`[endpoint] Responding with ${triageResult.intent}`);
 
-          // Handle non-search actions (greeting, clarification)
-          if (triageResult.action !== "search") {
-            console.log(`[endpoint] Responding with ${triageResult.action}`);
-            
-            stepCounter++;
-            send({
-              type: "step",
-              id: `step_${stepCounter}`,
-              label: triageResult.action === "greeting" ? "Greeting" : "Asking for clarification",
-              status: "done",
-            });
+            const greetingMessage =
+              triageResult.intent === "greeting"
+                ? "Hello! I help you find recruiters and hiring managers at companies. Which company are you targeting?"
+                : triageResult.intent === "clarify_company"
+                  ? "Which company would you like to find people at?"
+                  : "What type of people are you looking for? (e.g., recruiters, hiring managers, engineers)";
 
-            // Return greeting/clarification as output
-            const output = {
-              status: triageResult.action === "greeting" ? "greeting" : "clarification_needed",
-              message: triageResult.message,
-              people: [],
-            };
-
-            send({ type: "output", data: output });
+            send({ type: "output", data: { message: greetingMessage } });
             send({ done: true, conversationId: sessionId, chatId });
             controller.close();
             return;
           }
 
-          // Step 2: Run research agent for search queries
-          console.log(`[endpoint] Handing off to research agent...`);
-          stepCounter++;
-          send({
-            type: "step",
-            id: `step_${stepCounter}`,
-            label: "Starting research",
-            status: "done",
-          });
+          const searchQuery = triageResult.company && triageResult.role
+            ? `${triageResult.company} ${triageResult.role}`
+            : query;
 
           const researchStream = await runResearchAgent(
-            triageResult.searchQuery || query,
+            searchQuery,
             env,
-            { conversationId: sessionId }
+            { conversationId: sessionId, previousMessages }
           );
 
-          // Stream research results
           for await (const part of researchStream.fullStream) {
-            if (part.type === "tool-call") {
+            if (part.type !== "text-delta" && part.type !== "tool-call" && part.type !== "tool-result") {
+              console.log(`[endpoint] Stream part:`, part.type, part);
+            }
+
+            if (part.type === "text-delta") {
+              const textDelta = (part as unknown as { text: string }).text || "";
+              if (textDelta && textDelta.trim()) {
+                console.log(`[endpoint] Text delta:`, textDelta.substring(0, 100));
+                send({
+                  type: "text-delta",
+                  delta: textDelta,
+                });
+              }
+            } else if (part.type === "tool-call") {
               const toolName = part.toolName;
               const label = TOOL_LABELS[toolName] || toolName.replace(/_/g, " ");
               console.log(`[endpoint] 🔧 Tool called: ${toolName} → "${label}"`);
@@ -162,33 +167,9 @@ export class ResearchAgentRoute extends OpenAPIRoute {
             }
           }
 
-          // Get final result
-          const finalResponse = await researchStream.response;
+          await researchStream.response;
           console.log(`[endpoint] Final response received`);
 
-          // Parse the final output
-          let finalOutput: any;
-          try {
-            // Try to parse as JSON if it's a tool result
-            const lastMessage = finalResponse.messages[finalResponse.messages.length - 1];
-            const contentStr = typeof lastMessage?.content === 'string' 
-              ? lastMessage.content 
-              : JSON.stringify(lastMessage?.content);
-            finalOutput = JSON.parse(contentStr || '{}');
-          } catch {
-            // Fallback to text content
-            const lastMessage = finalResponse.messages[finalResponse.messages.length - 1];
-            const contentStr = typeof lastMessage?.content === 'string' 
-              ? lastMessage.content 
-              : JSON.stringify(lastMessage?.content);
-            finalOutput = {
-              status: "people_found",
-              message: contentStr || "Research completed",
-              people: [],
-            };
-          }
-
-          send({ type: "output", data: finalOutput });
           console.log(`[endpoint] Done. Session ID: ${sessionId}`);
           send({ done: true, conversationId: sessionId, chatId });
           controller.close();
