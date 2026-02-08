@@ -58,7 +58,7 @@ export async function runTriageAgent(
   }
 ): Promise<TriageOutput> {
   const { object } = await generateObject({
-    model: anthropic("claude-sonnet-4"),
+    model: anthropic("claude-sonnet-4-0"),
     schema: TriageOutputSchema,
     system: TRIAGE_INSTRUCTIONS,
     prompt: `User query: "${query}"

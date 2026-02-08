@@ -18,7 +18,7 @@ export async function runResearchAgent(
   const tools = createTools(env);
 
   const result = streamText({
-    model: anthropic("claude-sonnet-4"),
+    model: anthropic("claude-sonnet-4-0"),
     system: researchAgentPrompt,
     prompt: query,
     tools: {
