@@ -76,10 +76,23 @@ export class ResearchAgentRoute extends OpenAPIRoute {
         let stepCounter = 0;
 
         try {
+          stepCounter++;
+          send({
+            type: "step",
+            id: `step_${stepCounter}`,
+            label: "Analyzing request",
+            status: "running",
+          });
+
           console.log(`[endpoint] Running triage agent...`);
-          
-          // Step 1: Run triage to determine intent
           const triageResult = await runTriageAgent(query, env);
+          
+          send({
+            type: "step",
+            id: `step_${stepCounter}`,
+            label: "Analyzing request",
+            status: "done",
+          });
           console.log(`[endpoint] Triage result: action=${triageResult.action}`);
 
           // Handle non-search actions (greeting, clarification)
