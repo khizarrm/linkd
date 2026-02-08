@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { Square } from "lucide-react";
 import { motion } from "framer-motion";
 import { MessageContent } from "@/components/chat/message-content";
+import { MessageLoading } from "@/components/ui/message-loading";
+import { ToolCallAccordion } from "./tool-call-accordion";
 import { useProtectedApi } from "@/hooks/use-protected-api";
 import { useChatContext } from "@/contexts/chat-context";
 import { AIInput } from "@/components/ui/ai-input";
@@ -364,10 +366,10 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
                 }`}
               >
                 <div
-                  className={`max-w-[80%] text-[15px] leading-relaxed whitespace-pre-wrap ${
+                  className={`text-[15px] leading-relaxed whitespace-pre-wrap ${
                     message.role === "user"
-                      ? "rounded-3xl rounded-br-lg bg-primary text-primary-foreground px-5 py-3"
-                      : "rounded-3xl rounded-bl-lg bg-muted text-foreground px-5 py-4 border border-border shadow-sm"
+                      ? "max-w-[80%] rounded-3xl rounded-br-lg bg-primary text-primary-foreground px-5 py-3"
+                      : "text-foreground w-full"
                   }`}
                 >
                   {message.content ? (
@@ -379,46 +381,17 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
                   ) : message.role === "assistant" && isLoading ? (
                     message.steps && message.steps.length > 0 ? (
                       <div className="space-y-2">
-                        {message.steps.map((step) => (
-                          <div
-                            key={step.id}
-                            className={`text-[13px] font-medium ${
-                              step.status === "running"
-                                ? "text-foreground animate-pulse"
-                                : "text-muted-foreground/40"
-                            }`}
-                          >
-                            {step.label}
-                            {step.status === "running" && (
-                              <span className="text-muted-foreground/50">
-                                ...
-                              </span>
-                            )}
-                          </div>
-                        ))}
+                        <ToolCallAccordion
+                          steps={message.steps}
+                          isLoading={isLoading}
+                        />
                       </div>
                     ) : (
-                      <div className="flex items-center gap-1 h-6 px-2">
-                        {[0, 1, 2].map((i) => (
-                          <motion.div
-                            key={i}
-                            className="h-1.5 w-1.5 rounded-full bg-foreground/60"
-                            animate={{
-                              y: ["0%", "-30%", "0%"],
-                              opacity: [0.5, 1, 0.5],
-                            }}
-                            transition={{
-                              duration: 1.2,
-                              repeat: Infinity,
-                              ease: "easeInOut",
-                              delay: i * 0.2,
-                            }}
-                          />
-                        ))}
-                      </div>
+                      <MessageLoading />
                     )
                   ) : null}
                 </div>
+
               </div>
             ))}
           </div>
