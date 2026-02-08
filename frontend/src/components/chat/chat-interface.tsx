@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { ArrowUp, Square } from "lucide-react";
+import { Square } from "lucide-react";
 import { motion } from "framer-motion";
 import { MessageContent } from "@/components/chat/message-content";
 import { useProtectedApi } from "@/hooks/use-protected-api";
 import { useChatContext } from "@/contexts/chat-context";
+import { AIInput } from "@/components/ui/ai-input";
 
 interface Step {
   id: string;
@@ -63,8 +64,6 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
   const { addChat } = useChatContext();
 
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [isFocused, setIsFocused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [chatId, setChatId] = useState<string | null>(initialChatId || null);
 
@@ -80,7 +79,6 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -141,18 +139,16 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
     return truncated.length < content.length ? `${truncated}...` : truncated;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
-
+  const handleSubmit = async (value: string) => {
+    if (!value.trim() || isLoading) return;
+    
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
-      content: input.trim(),
+      content: value.trim(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
-    setInput("");
     setIsLoading(true);
 
     let currentChatId = chatId;
@@ -327,23 +323,7 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
     abortControllerRef.current?.abort();
   };
 
-  const autoResize = useCallback(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = Math.min(el.scrollHeight, 200) + "px";
-  }, []);
-
-  useEffect(() => {
-    autoResize();
-  }, [input, autoResize]);
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit(e);
-    }
-  };
+  
 
   if (isInitializing) {
     return (
@@ -387,7 +367,7 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
                   className={`max-w-[80%] text-[15px] leading-relaxed whitespace-pre-wrap ${
                     message.role === "user"
                       ? "rounded-3xl rounded-br-lg bg-primary text-primary-foreground px-5 py-3"
-                      : "rounded-3xl rounded-bl-lg glass-chat-bubble text-foreground px-5 py-4 ring-1 ring-black/[0.08] shadow-sm"
+                      : "rounded-3xl rounded-bl-lg bg-muted text-foreground px-5 py-4 border border-border shadow-sm"
                   }`}
                 >
                   {message.content ? (
@@ -447,73 +427,25 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
       </div>
 
       <div className="p-4 pb-8 bg-gradient-to-t from-background via-background to-transparent">
-        <div className="flex items-end gap-3 max-w-2xl mx-auto">
-          <motion.form
-            layout
-            onSubmit={handleSubmit}
-            className={`relative flex-1 rounded-2xl bg-muted ring-1 shadow-sm transition-all ${
-              isFocused ? "ring-ring shadow-md" : "ring-border"
-            }`}
-          >
-            {!input && (
-              <span className="absolute left-4 top-3.5 text-muted-foreground pointer-events-none text-[15px]">
-                Ask anything...
-              </span>
-            )}
-
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
-              disabled={isLoading}
-              rows={1}
-              className="block w-full resize-none bg-transparent text-[15px] text-foreground px-4 py-3.5 pr-14 outline-none disabled:opacity-50"
-              style={{ minHeight: "52px", maxHeight: "200px" }}
-            />
-            <div className="absolute right-2.5 bottom-2.5">
-              {isLoading ? (
-                <motion.button
-                  type="button"
-                  onClick={handleStop}
-                  whileTap={{ scale: 0.95 }}
-                  className="flex items-center justify-center h-9 w-9 rounded-xl bg-muted-foreground/10 hover:bg-muted-foreground/20 transition-colors"
-                >
-                  <Square className="h-3.5 w-3.5 text-muted-foreground fill-muted-foreground" />
-                </motion.button>
-              ) : (
-                <motion.button
-                  type="submit"
-                  disabled={!input.trim()}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="flex items-center justify-center h-9 w-9 rounded-xl bg-primary hover:bg-primary/90 disabled:opacity-20 disabled:hover:bg-primary transition-all"
-                >
-                  <motion.div
-                    animate={
-                      input.trim()
-                        ? {
-                            rotate: [0, -10, 10, -10, 10, 0],
-                            transition: {
-                              duration: 0.5,
-                              repeat: Infinity,
-                              repeatDelay: 2,
-                            },
-                          }
-                        : {}
-                    }
-                  >
-                    <ArrowUp
-                      className="h-4 w-4 text-primary-foreground"
-                      strokeWidth={2.5}
-                    />
-                  </motion.div>
-                </motion.button>
-              )}
+        <div className="max-w-2xl mx-auto">
+          {isLoading && (
+            <div className="flex justify-center mb-3">
+              <motion.button
+                type="button"
+                onClick={handleStop}
+                whileTap={{ scale: 0.95 }}
+                className="flex items-center gap-2 h-9 px-4 rounded-xl bg-muted-foreground/10 hover:bg-muted-foreground/20 transition-colors text-sm text-muted-foreground"
+              >
+                <Square className="h-3.5 w-3.5 fill-muted-foreground" />
+                Stop generating
+              </motion.button>
             </div>
-          </motion.form>
+          )}
+          <AIInput
+            onSubmit={handleSubmit}
+            placeholder="What can I help you find?"
+            disabled={isLoading}
+          />
         </div>
       </div>
     </div>
