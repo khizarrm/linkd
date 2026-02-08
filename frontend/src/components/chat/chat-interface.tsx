@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { Square } from "lucide-react";
 import { motion } from "framer-motion";
 import { MessageContent } from "@/components/chat/message-content";
 import { MessageLoading } from "@/components/ui/message-loading";
@@ -401,21 +400,9 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
 
       <div className="p-4 pb-8 bg-gradient-to-t from-background via-background to-transparent">
         <div className="max-w-2xl mx-auto">
-          {isLoading && (
-            <div className="flex justify-center mb-3">
-              <motion.button
-                type="button"
-                onClick={handleStop}
-                whileTap={{ scale: 0.95 }}
-                className="flex items-center gap-2 h-9 px-4 rounded-xl bg-muted-foreground/10 hover:bg-muted-foreground/20 transition-colors text-sm text-muted-foreground"
-              >
-                <Square className="h-3.5 w-3.5 fill-muted-foreground" />
-                Stop generating
-              </motion.button>
-            </div>
-          )}
           <AIInput
             onSubmit={handleSubmit}
+            onStop={handleStop}
             placeholder="What can I help you find?"
             disabled={isLoading}
           />
