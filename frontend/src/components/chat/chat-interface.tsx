@@ -101,7 +101,7 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
       const response = await api.getChat(id);
       if (response.success) {
         setChatId(id);
-        setConversationId(response.chat.openaiConversationId || null);
+        setConversationId(response.chat.claudeConversationId || null);
         setMessages(
           response.messages.map(
             (msg: { id: string; role: string; content: string }) => ({
@@ -270,7 +270,7 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
               setConversationId(data.conversationId);
               if (currentChatId) {
                 await api.updateChat(currentChatId, {
-                  openaiConversationId: data.conversationId,
+                  claudeConversationId: data.conversationId,
                 });
               }
             }

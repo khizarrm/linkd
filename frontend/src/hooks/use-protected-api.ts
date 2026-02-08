@@ -141,7 +141,7 @@ export function useProtectedApi() {
       return response.json();
     },
 
-    updateChat: async (id: string, data: { title?: string; openaiConversationId?: string }) => {
+    updateChat: async (id: string, data: { title?: string; claudeConversationId?: string }) => {
       const token = await getToken();
       const response = await apiFetch(`/api/protected/chats/${id}`, {
         method: 'PUT',
