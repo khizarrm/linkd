@@ -3,13 +3,13 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
-import { MessageContent } from "@/components/chat/message-content";
 import { MessageLoading } from "@/components/ui/message-loading";
 import { ToolCallAccordion } from "./tool-call-accordion";
 import { useProtectedApi } from "@/hooks/use-protected-api";
 import { useChatContext } from "@/contexts/chat-context";
 import { AIInput } from "@/components/ui/ai-input";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface Step {
   id: string;
@@ -29,32 +29,12 @@ interface ChatInterfaceProps {
 }
 
 function StreamingText({ content }: { content: string }) {
-  if (content.trimStart().startsWith("{")) {
-    return <MessageContent content={content} />;
-  }
-
   return (
-    <motion.div>
-      {content.split(/(\s+)/).map((segment, i) => {
-        if (segment.match(/^\s+$/)) {
-          return <span key={i}>{segment}</span>;
-        }
-        return (
-          <motion.span
-            key={i}
-            initial={{ opacity: 0, filter: "blur(4px)" }}
-            animate={{ opacity: 1, filter: "blur(0px)" }}
-            transition={{
-              duration: 0.4,
-              ease: "easeOut",
-            }}
-            className="inline-block"
-          >
-            {segment}
-          </motion.span>
-        );
-      })}
-    </motion.div>
+    <div className="prose prose-sm max-w-none dark:prose-invert">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+        {content}
+      </ReactMarkdown>
+    </div>
   );
 }
 
@@ -374,25 +354,24 @@ let buffer = "";
               return (
                 <div
                   key={message.id}
-                  className={`flex flex-col ${
-                    message.role === "user" ? "items-end" : "items-start"
+                  className={`flex ${
+                    message.role === "user" ? "justify-end" : "justify-start"
                   }`}
                 >
-                  {message.content ? (
-                    <div
-                      className={`text-[15px] leading-relaxed whitespace-pre-wrap ${
-                        message.role === "user"
-                          ? "max-w-[80%] rounded-3xl rounded-br-lg bg-primary text-primary-foreground px-5 py-3"
-                          : "text-foreground w-full"
-                      }`}
-                    >
-                      {message.role === "assistant" ? (
-                        <StreamingText content={message.content} />
-                      ) : (
-                        message.content
-                      )}
-                    </div>
-                  ) : shouldShowAccordion ? (
+                  <div
+                    className={`text-[15px] leading-relaxed whitespace-pre-wrap ${
+                      message.role === "user"
+                        ? "max-w-[80%] rounded-3xl rounded-br-lg bg-primary text-primary-foreground px-5 py-3"
+                        : "text-foreground w-full"
+                    }`}
+                  >
+{message.content ? (
+                    message.role === "assistant" ? (
+                      <StreamingText content={message.content} />
+                    ) : (
+                      message.content
+                    )
+                  ) : shouldShowAccordion && message.steps && message.steps.length > 0 ? (
                     <div className="space-y-2">
                       <ToolCallAccordion
                         steps={message.steps}
@@ -402,6 +381,8 @@ let buffer = "";
                   ) : message.role === "assistant" && isLoading ? (
                     <MessageLoading />
                   ) : null}
+                  </div>
+
                 </div>
               );
             })}

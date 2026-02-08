@@ -23,10 +23,10 @@ export function ToolCallAccordion({ steps, isLoading }: ToolCallAccordionProps) 
     <Collapsible.Root
       open={isOpen}
       onOpenChange={setIsOpen}
-      className="w-full"
+      className="w-full rounded-md border bg-card text-card-foreground shadow-sm"
     >
       <Collapsible.Trigger asChild>
-        <button className="flex w-full items-center justify-between p-3 text-sm font-medium hover:bg-muted/50 transition-colors rounded-md">
+        <button className="flex w-full items-center justify-between p-3 text-sm font-medium hover:bg-muted/50 transition-colors">
           <div className="flex items-center gap-2">
             {isOpen ? (
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -47,7 +47,7 @@ export function ToolCallAccordion({ steps, isLoading }: ToolCallAccordionProps) 
       </Collapsible.Trigger>
 
       <Collapsible.Content className="overflow-hidden">
-        <div className="border-t bg-muted/20 px-3 py-2 space-y-1 rounded-md">
+        <div className="border-t bg-muted/20 px-3 py-2 space-y-1">
           {steps.map((step) => (
             <div
               key={step.id}
