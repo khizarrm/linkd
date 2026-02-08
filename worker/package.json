@@ -12,7 +12,6 @@
     "@ai-sdk/anthropic": "^2.0.56",
     "@ai-sdk/openai": "^2.0.71",
     "@clerk/backend": "^2.27.0",
-    "@openai/agents": "^0.3.9",
     "@opennextjs/cloudflare": "^1.10.1",
     "@tavily/core": "^0.7.1",
     "agents": "^0.2.13",
