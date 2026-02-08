@@ -13,6 +13,7 @@ export async function runResearchAgent(
   options?: {
     conversationId?: string;
     previousMessages?: any[];
+    abortSignal?: AbortSignal;
   }
 ) {
   const tools = createTools(env);
@@ -41,7 +42,7 @@ export async function runResearchAgent(
       web_search: tools.searchWebTool,
       find_and_verify_email: tools.emailFinderTool,
     },
-    // @ts-expect-error - stopWhen is valid in AI SDK 5.x
+    abortSignal: options?.abortSignal,
     stopWhen: stepCountIs(10),
     temperature: 0.7,
   });

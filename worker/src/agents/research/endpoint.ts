@@ -52,6 +52,10 @@ export class ResearchAgentRoute extends OpenAPIRoute {
                 .string()
                 .optional()
                 .describe("Optional chat ID for database persistence"),
+              requestId: z
+                .string()
+                .optional()
+                .describe("Request ID for cancellation tracking"),
             }),
           },
         },
@@ -78,9 +82,9 @@ export class ResearchAgentRoute extends OpenAPIRoute {
     const env: CloudflareBindings = c.env;
     const reqData = await this.getValidatedData<typeof this.schema>();
     const body = reqData.body!;
-    const { query, conversationId, chatId } = body;
+    const { query, conversationId, chatId, requestId } = body;
 
-    console.log(`[endpoint] Incoming request: query="${query}" conversationId="${conversationId}" chatId="${chatId}"`);
+    console.log(`[endpoint] Incoming request: query="${query}" conversationId="${conversationId}" chatId="${chatId}" requestId="${requestId}"`);
 
     const sessionId = conversationId || crypto.randomUUID();
 
@@ -90,13 +94,20 @@ export class ResearchAgentRoute extends OpenAPIRoute {
       console.log(`[endpoint] Loaded ${previousMessages.length} previous messages from chatId="${chatId}"`);
     }
 
+    // Create abort controller for cancellation
+    const abortController = new AbortController();
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
         const send = (data: Record<string, unknown>) => {
-          controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify(data)}\n\n`),
-          );
+          try {
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify(data)}\n\n`),
+            );
+          } catch (e) {
+            // Stream closed, abort the AI
+            abortController.abort();
+          }
         };
 
         let stepCounter = 0;
@@ -105,6 +116,12 @@ export class ResearchAgentRoute extends OpenAPIRoute {
           console.log(`[endpoint] Classifying intent...`);
           const triageResult: TriageResult = await classifyIntent(query, previousMessages);
           console.log(`[endpoint] Triage result: intent=${triageResult.intent}, company=${triageResult.company}, role=${triageResult.role}`);
+
+          if (abortController.signal.aborted) {
+            console.log(`[endpoint] Request ${requestId} aborted before processing`);
+            controller.close();
+            return;
+          }
 
           if (triageResult.intent === "email_finder") {
             console.log(`[endpoint] Routing to email finder agent`);
@@ -128,10 +145,15 @@ export class ResearchAgentRoute extends OpenAPIRoute {
                 role: triageResult.role || undefined
               },
               env,
-              { conversationId: sessionId }
+              { conversationId: sessionId, abortSignal: abortController.signal }
             );
 
             for await (const part of emailFinderStream.fullStream) {
+              if (abortController.signal.aborted) {
+                console.log(`[endpoint] Request ${requestId} aborted during email finder`);
+                break;
+              }
+              
               if (part.type === "text-delta") {
                 const textDelta = (part as unknown as { text: string }).text || "";
                 if (textDelta && textDelta.trim()) {
@@ -149,16 +171,7 @@ export class ResearchAgentRoute extends OpenAPIRoute {
                   id: `step_${stepCounter}`,
                   label,
                   status: "running",
-                });
-              } else if (part.type === "tool-result") {
-                const toolName = part.toolName;
-                const label = TOOL_LABELS[toolName] || toolName.replace(/_/g, " ");
-                send({
-                  type: "step",
-                  id: `step_${stepCounter}`,
-                  label,
-                  status: "done",
-                });
+});
               }
             }
 
@@ -191,14 +204,15 @@ export class ResearchAgentRoute extends OpenAPIRoute {
           const researchStream = await runResearchAgent(
             searchQuery,
             env,
-            { conversationId: sessionId, previousMessages }
+            { conversationId: sessionId, previousMessages, abortSignal: abortController.signal }
           );
 
           for await (const part of researchStream.fullStream) {
-            if (part.type !== "text-delta" && part.type !== "tool-call" && part.type !== "tool-result") {
-              console.log(`[endpoint] Stream part:`, part.type, part);
+            if (abortController.signal.aborted) {
+              console.log(`[endpoint] Request ${requestId} aborted during research`);
+              break;
             }
-
+            
             if (part.type === "text-delta") {
               const textDelta = (part as unknown as { text: string }).text || "";
               if (textDelta && textDelta.trim()) {
@@ -239,6 +253,11 @@ export class ResearchAgentRoute extends OpenAPIRoute {
           send({ done: true, conversationId: sessionId, chatId });
           controller.close();
         } catch (error) {
+          if (error instanceof Error && error.name === "AbortError") {
+            console.log(`[endpoint] Request ${requestId} aborted`);
+            controller.close();
+            return;
+          }
           const errorMessage =
             error instanceof Error ? error.message : "Unknown error";
           console.error(`[endpoint] ❌ Error:`, errorMessage);
@@ -246,8 +265,11 @@ export class ResearchAgentRoute extends OpenAPIRoute {
           controller.close();
         }
       },
+      cancel(reason) {
+        console.log(`[endpoint] Stream cancelled: ${reason}`);
+        abortController.abort();
+      }
     });
-
     return new Response(stream, {
       headers: {
         "Content-Type": "text/event-stream",

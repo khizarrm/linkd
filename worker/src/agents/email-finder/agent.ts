@@ -57,6 +57,7 @@ export async function runEmailFinderAgent(
   env: CloudflareBindings,
   options?: {
     conversationId?: string;
+    abortSignal?: AbortSignal;
   }
 ) {
   const tools = createEmailFinderTools(env);
@@ -82,6 +83,7 @@ Start with pattern matching, then research if needed. Maximum 3 research attempt
       pattern_email_finder: tools.patternEmailFinder,
       research_email_finder: tools.researchEmailFinder,
     },
+    abortSignal: options?.abortSignal,
     stopWhen: stepCountIs(5),
     temperature: 0.3,
   });
