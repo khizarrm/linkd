@@ -1,11 +1,7 @@
 import { OpenAPIRoute } from "chanfana";
 import { z } from "zod";
-import {
-  OpenAIConversationsSession,
-  run,
-} from "@openai/agents";
-import { createTriageAgent } from "./triage";
-import { createResearchAgent } from "./research";
+import { runTriageAgent } from "./triage";
+import { runResearchAgent, PeopleFinderOutput } from "./research";
 import type { CloudflareBindings } from "../../env.d";
 
 const TOOL_LABELS: Record<string, string> = {
@@ -17,9 +13,9 @@ const TOOL_LABELS: Record<string, string> = {
 export class ResearchAgentRoute extends OpenAPIRoute {
   schema = {
     tags: ["Agents"],
-    summary: "Research Agent with OpenAI Agents SDK",
+    summary: "Research Agent with Claude",
     description:
-      "A research assistant that helps find professionals and leads using the OpenAI Agents SDK with streaming support.",
+      "A research assistant that helps find professionals and leads using Claude with streaming support.",
     request: {
       body: {
         content: {
@@ -32,7 +28,7 @@ export class ResearchAgentRoute extends OpenAPIRoute {
               conversationId: z
                 .string()
                 .optional()
-                .describe("Optional OpenAI conversation ID for session continuity"),
+                .describe("Optional conversation ID for session continuity"),
               chatId: z
                 .string()
                 .optional()
@@ -67,20 +63,7 @@ export class ResearchAgentRoute extends OpenAPIRoute {
 
     console.log(`[endpoint] Incoming request: query="${query}" conversationId="${conversationId}" chatId="${chatId}"`);
 
-    // create research agent first (triage will hand off to it)
-    const researchAgent = createResearchAgent(env);
-    console.log(`[endpoint] Research agent created`);
-
-    // create triage agent with research as handoff target
-    // @ts-expect-error - Agent type inference with handoffs is complex but runtime works
-    const triageAgent = createTriageAgent(researchAgent);
-    console.log(`[endpoint] Triage agent created`);
-
-    const session = conversationId
-      ? new OpenAIConversationsSession({ conversationId })
-      : new OpenAIConversationsSession();
-    console.log(`[endpoint] Session: ${conversationId ? "resuming " + conversationId : "new session"}`);
-
+    const sessionId = conversationId || crypto.randomUUID();
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
@@ -93,78 +76,114 @@ export class ResearchAgentRoute extends OpenAPIRoute {
         let stepCounter = 0;
 
         try {
-          console.log(`[endpoint] Running triage agent with stream=true...`);
-          // run triage agent - it will handoff to research if needed
-          const result = await run(triageAgent, query, {
-            session,
-            stream: true,
+          console.log(`[endpoint] Running triage agent...`);
+          
+          // Step 1: Run triage to determine intent
+          const triageResult = await runTriageAgent(query, env);
+          console.log(`[endpoint] Triage result: action=${triageResult.action}`);
+
+          // Handle non-search actions (greeting, clarification)
+          if (triageResult.action !== "search") {
+            console.log(`[endpoint] Responding with ${triageResult.action}`);
+            
+            stepCounter++;
+            send({
+              type: "step",
+              id: `step_${stepCounter}`,
+              label: triageResult.action === "greeting" ? "Greeting" : "Asking for clarification",
+              status: "done",
+            });
+
+            // Return greeting/clarification as output
+            const output = {
+              status: triageResult.action === "greeting" ? "greeting" : "clarification_needed",
+              message: triageResult.message,
+              people: [],
+            };
+
+            send({ type: "output", data: output });
+            send({ done: true, conversationId: sessionId, chatId });
+            controller.close();
+            return;
+          }
+
+          // Step 2: Run research agent for search queries
+          console.log(`[endpoint] Handing off to research agent...`);
+          stepCounter++;
+          send({
+            type: "step",
+            id: `step_${stepCounter}`,
+            label: "Starting research",
+            status: "done",
           });
 
-          for await (const event of result) {
-            if (event.type === "agent_updated_stream_event") {
-              const agentName = (event as any).agent?.name ?? "research";
-              console.log(`[endpoint] 🔀 Agent updated: ${agentName}`);
+          const researchStream = await runResearchAgent(
+            triageResult.searchQuery || query,
+            env,
+            { conversationId: sessionId }
+          );
+
+          // Stream research results
+          for await (const part of researchStream.fullStream) {
+            if (part.type === "tool-call") {
+              const toolName = part.toolName;
+              const label = TOOL_LABELS[toolName] || toolName.replace(/_/g, " ");
+              console.log(`[endpoint] 🔧 Tool called: ${toolName} → "${label}"`);
               stepCounter++;
               send({
                 type: "step",
                 id: `step_${stepCounter}`,
-                label: agentName === "research" ? "Starting research" : `Switching to ${agentName}`,
+                label,
+                status: "running",
+              });
+            } else if (part.type === "tool-result") {
+              const toolName = part.toolName;
+              const label = TOOL_LABELS[toolName] || toolName.replace(/_/g, " ");
+              console.log(`[endpoint] ✅ Tool completed: ${toolName} → "${label}"`);
+              send({
+                type: "step",
+                id: `step_${stepCounter}`,
+                label,
                 status: "done",
               });
             }
-
-            if (event.type === "run_item_stream_event") {
-              const eventName = (event as any).name;
-
-              if (eventName === "tool_called") {
-                const toolName = (event.item as any).rawItem?.name ?? "unknown";
-                const label = TOOL_LABELS[toolName] || toolName.replace(/_/g, " ");
-                console.log(`[endpoint] 🔧 Tool called: ${toolName} → "${label}"`);
-                stepCounter++;
-                send({
-                  type: "step",
-                  id: `step_${stepCounter}`,
-                  label,
-                  status: "running",
-                });
-              } else if (eventName === "tool_output") {
-                const toolName = (event.item as any).rawItem?.name ?? "unknown";
-                const label = TOOL_LABELS[toolName] || toolName.replace(/_/g, " ");
-                console.log(`[endpoint] ✅ Tool completed: ${toolName} → "${label}"`);
-                send({
-                  type: "step",
-                  id: `step_${stepCounter}`,
-                  label,
-                  status: "done",
-                });
-              } else if (eventName === "handoff_occurred") {
-                console.log(`[endpoint] 🔀 Handoff to research agent`);
-                stepCounter++;
-                send({
-                  type: "step",
-                  id: `step_${stepCounter}`,
-                  label: "Handing off to research",
-                  status: "done",
-                });
-              }
-            }
           }
 
-          const finalOutput = result.finalOutput;
-          console.log(`[endpoint] Final output:`, JSON.stringify(finalOutput, null, 2));
-          send({ type: "output", data: finalOutput });
+          // Get final result
+          const finalResponse = await researchStream.response;
+          console.log(`[endpoint] Final response received`);
 
-          const finalSessionId = await session.getSessionId();
-          console.log(`[endpoint] Done. Session ID: ${finalSessionId}`);
-          send({ done: true, conversationId: finalSessionId, chatId });
+          // Parse the final output
+          let finalOutput: any;
+          try {
+            // Try to parse as JSON if it's a tool result
+            const lastMessage = finalResponse.messages[finalResponse.messages.length - 1];
+            const contentStr = typeof lastMessage?.content === 'string' 
+              ? lastMessage.content 
+              : JSON.stringify(lastMessage?.content);
+            finalOutput = JSON.parse(contentStr || '{}');
+          } catch {
+            // Fallback to text content
+            const lastMessage = finalResponse.messages[finalResponse.messages.length - 1];
+            const contentStr = typeof lastMessage?.content === 'string' 
+              ? lastMessage.content 
+              : JSON.stringify(lastMessage?.content);
+            finalOutput = {
+              status: "people_found",
+              message: contentStr || "Research completed",
+              people: [],
+            };
+          }
+
+          send({ type: "output", data: finalOutput });
+          console.log(`[endpoint] Done. Session ID: ${sessionId}`);
+          send({ done: true, conversationId: sessionId, chatId });
           controller.close();
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : "Unknown error";
           console.error(`[endpoint] ❌ Error:`, errorMessage);
-          const finalSessionId =
-            session.sessionId || conversationId || "unknown";
-          send({ error: errorMessage, conversationId: finalSessionId, chatId });
+          send({ error: errorMessage, conversationId: sessionId, chatId });
           controller.close();
         }
       },
@@ -174,10 +193,10 @@ export class ResearchAgentRoute extends OpenAPIRoute {
       headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache, no-store, must-revalidate",
-        "X-Accel-Buffering": "no",  // disable nginx/cdn buffering
+        "X-Accel-Buffering": "no",
         "Transfer-Encoding": "chunked",
         Connection: "keep-alive",
-        "X-Conversation-Id": conversationId || session.sessionId || "",
+        "X-Conversation-Id": conversationId || sessionId,
       },
     });
   }
