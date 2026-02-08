@@ -42,6 +42,7 @@ import { PublicWaitlistRoute } from "./endpoints/waitlist";
 import { PublicFeedbackRoute } from "./endpoints/feedback";
 import { ClerkWebhookRoute } from "./endpoints/clerkWebhook";
 import { ResearchAgentRoute } from "./agents/research/endpoint";
+import { EmailFinderAgentRoute } from "./agents/email-finder/endpoint";
 import { findExistingCompanyAndEmployees } from "./db/companies";
 
 interface Env {
@@ -245,6 +246,7 @@ openapi.post("/api/protected/chats/:id/messages", ProtectedMessagesCreateRoute);
 
 // Research Agent Route (OpenAI Agents SDK)
 openapi.post("/api/agents/research", ResearchAgentRoute);
+openapi.post("/api/agents/email-finder", EmailFinderAgentRoute);
 
 // Vectorize Routes
 openapi.post(

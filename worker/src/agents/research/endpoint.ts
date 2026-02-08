@@ -2,6 +2,7 @@ import { OpenAPIRoute } from "chanfana";
 import { z } from "zod";
 import { classifyIntent, type TriageResult } from "./triage-classifier";
 import { runResearchAgent } from "./research";
+import { runEmailFinderAgent } from "../email-finder/agent";
 import type { CloudflareBindings } from "../../env.d";
 import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
@@ -12,6 +13,8 @@ const TOOL_LABELS: Record<string, string> = {
   linkedin_xray_search: "Generating search query",
   web_search: "Searching LinkedIn",
   find_and_verify_email: "Finding & verifying email",
+  pattern_email_finder: "Trying email patterns",
+  research_email_finder: "Researching web for email",
 };
 
 async function loadChatHistory(chatId: string, env: CloudflareBindings): Promise<any[]> {
@@ -102,6 +105,68 @@ export class ResearchAgentRoute extends OpenAPIRoute {
           console.log(`[endpoint] Classifying intent...`);
           const triageResult: TriageResult = await classifyIntent(query, previousMessages);
           console.log(`[endpoint] Triage result: intent=${triageResult.intent}, company=${triageResult.company}, role=${triageResult.role}`);
+
+          if (triageResult.intent === "email_finder") {
+            console.log(`[endpoint] Routing to email finder agent`);
+            
+            if (!triageResult.personName || !triageResult.company) {
+              send({ type: "output", data: { message: "I need both a person's name and company to find their email. Could you provide those details?" } });
+              send({ done: true, conversationId: sessionId, chatId });
+              controller.close();
+              return;
+            }
+
+            const domain = triageResult.company.includes(".") 
+              ? triageResult.company 
+              : `${triageResult.company}.com`;
+
+            const emailFinderStream = await runEmailFinderAgent(
+              { 
+                name: triageResult.personName, 
+                company: triageResult.company, 
+                domain,
+                role: triageResult.role || undefined
+              },
+              env,
+              { conversationId: sessionId }
+            );
+
+            for await (const part of emailFinderStream.fullStream) {
+              if (part.type === "text-delta") {
+                const textDelta = (part as unknown as { text: string }).text || "";
+                if (textDelta && textDelta.trim()) {
+                  send({
+                    type: "text-delta",
+                    delta: textDelta,
+                  });
+                }
+              } else if (part.type === "tool-call") {
+                const toolName = part.toolName;
+                const label = TOOL_LABELS[toolName] || toolName.replace(/_/g, " ");
+                stepCounter++;
+                send({
+                  type: "step",
+                  id: `step_${stepCounter}`,
+                  label,
+                  status: "running",
+                });
+              } else if (part.type === "tool-result") {
+                const toolName = part.toolName;
+                const label = TOOL_LABELS[toolName] || toolName.replace(/_/g, " ");
+                send({
+                  type: "step",
+                  id: `step_${stepCounter}`,
+                  label,
+                  status: "done",
+                });
+              }
+            }
+
+            await emailFinderStream.response;
+            send({ done: true, conversationId: sessionId, chatId });
+            controller.close();
+            return;
+          }
 
           if (triageResult.intent !== "search") {
             console.log(`[endpoint] Responding with ${triageResult.intent}`);
