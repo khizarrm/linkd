@@ -1,4 +1,4 @@
-import { tool } from "@openai/agents";
+import { tool } from "ai";
 import { z } from "zod";
 import { tavily } from "@tavily/core";
 import type { CloudflareBindings } from "../../env.d";
@@ -54,7 +54,6 @@ const ROLE_EXPANSIONS: Record<string, string> = {
 
 export function createTools(env: CloudflareBindings) {
   const companyLookupTool = tool({
-    name: "company_lookup",
     description: `Look up company information to verify the company name and check for ambiguity (multiple companies with same name).
 
 Use this when:
@@ -69,11 +68,10 @@ This tool:
 4. Returns company LinkedIn page URL if found
 
 If ambiguity is detected (multiple companies with same name), you should ask the user to clarify which one they mean.`,
-parameters: z.object({
+    inputSchema: z.object({
       companyName: z.string().describe("company name as provided by the user"),
       userContext: z.string().nullable().describe("any additional context from user that might help identify the correct company (industry, location, etc.)"),
     }),
-    strict: true,
     execute: async ({ companyName, userContext }) => {
       console.log(`[companyLookup] Input: companyName="${companyName}" userContext="${userContext}"`);
 
@@ -86,7 +84,7 @@ parameters: z.object({
         const response = await tvly.search(searchQuery, {
           searchDepth: "basic",
           maxResults: 10,
-          includeRawContent: true,
+          includeRawContent: false,
         });
 
         console.log(`[companyLookup] Tavily returned ${response.results.length} results`);
@@ -151,7 +149,6 @@ parameters: z.object({
   });
 
   const linkedinXrayTool = tool({
-    name: "linkedin_xray_search",
     description: `generate a linkedin x-ray boolean search query for finding people at a specific company.
     
 examples:
@@ -159,13 +156,12 @@ examples:
 - "talent acquisition at google in nyc" -> company: "google", role: "talent_acquisition", location: "new york"
 - "engineering managers at airbnb" -> company: "airbnb", role: "engineering_manager"
 - "campus recruiters at meta" -> company: "meta", role: "university_recruiter"`,
-    parameters: z.object({
+    inputSchema: z.object({
       company: z.string().describe("company name exactly as mentioned"),
       role: RoleType.describe("type of person to find"),
       customRole: z.string().nullable().describe("for 'other' role type: specify custom role, otherwise null"),
       location: z.string().nullable().describe("city, state, country, or region, otherwise null"),
     }),
-    strict: true,
     execute: async ({ company, role, customRole, location }) => {
       console.log(`[linkedinXray] Input: company="${company}" role="${role}" customRole="${customRole}" location="${location}"`);
 
@@ -203,15 +199,13 @@ examples:
   }
 
   const emailFinderTool = tool({
-    name: "find_and_verify_email",
     description: "generate and verify email patterns for a person at a company",
-    parameters: z.object({
+    inputSchema: z.object({
       name: z.string().describe("person's full name"),
       company: z.string().describe("company name"),
       domain: z.string().describe("company domain (e.g., 'stripe.com')"),
       knownPattern: z.string().nullable().describe("known email to infer pattern, otherwise null"),
     }),
-    strict: true,
     execute: async ({ name, company, domain, knownPattern }) => {
       console.log(`[emailFinder] Input: name="${name}" company="${company}" domain="${domain}" knownPattern="${knownPattern}"`);
       const cleanDomain = domain.replace(/^www\./, "").toLowerCase();
@@ -266,9 +260,8 @@ examples:
   });
 
   const searchWebTool = tool({
-    name: "web_search",
     description: `Search the web for LinkedIn profiles. Takes a search query (typically from linkedin_xray_search) and returns real LinkedIn profile URLs with snippets. Only returns results from linkedin.com.`,
-    parameters: z.object({
+    inputSchema: z.object({
       query: z.string().describe("The search query to execute (e.g. site:linkedin.com/in \"stripe\" (recruiter OR \"technical recruiter\"))"),
     }),
     execute: async ({ query }) => {
