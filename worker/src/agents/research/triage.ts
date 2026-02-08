@@ -1,5 +1,7 @@
-import { Agent } from "@openai/agents";
-import { PeopleFinderOutput } from "./types";
+import { anthropic } from "@ai-sdk/anthropic";
+import { generateObject } from "ai";
+import { z } from "zod";
+import type { CloudflareBindings } from "../../env.d";
 
 const TRIAGE_INSTRUCTIONS = `front-desk assistant for linkd, helping students find recruiters and hiring managers.
 
@@ -40,12 +42,29 @@ greeting response:
 - message: brief explanation that you help find recruiters/hiring managers
 - ask what company they are targeting`;
 
-export function createTriageAgent(researchAgent: Agent) {
-  return Agent.create({
-    name: "triage",
-    model: "gpt-4o-mini",
-    instructions: TRIAGE_INSTRUCTIONS,
-    handoffs: [researchAgent as any],
-    outputType: PeopleFinderOutput,
+const TriageOutputSchema = z.object({
+  action: z.enum(["search", "greeting", "clarify_company", "clarify_role"]),
+  message: z.string().describe("Response message to the user"),
+  searchQuery: z.string().optional().describe("If action is search, the complete search query to pass to research agent"),
+});
+
+export type TriageOutput = z.infer<typeof TriageOutputSchema>;
+
+export async function runTriageAgent(
+  query: string,
+  env: CloudflareBindings,
+  context?: {
+    previousMessages?: any[];
+  }
+): Promise<TriageOutput> {
+  const { object } = await generateObject({
+    model: anthropic("claude-sonnet-4"),
+    schema: TriageOutputSchema,
+    system: TRIAGE_INSTRUCTIONS,
+    prompt: `User query: "${query}"
+
+Analyze the intent and respond with the appropriate action.`,
   });
+
+  return object;
 }
