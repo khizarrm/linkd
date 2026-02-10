@@ -86,7 +86,6 @@ function ChatSession({
   );
 
   const { messages, sendMessage, status, stop } = useChat({
-    id: chatId || undefined,
     messages: initialMessages,
     transport,
   });

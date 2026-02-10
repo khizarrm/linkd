@@ -134,6 +134,31 @@ export class ResearchAgentRoute extends OpenAPIRoute {
       return Response.json({ error: "Messages or query required" }, { status: 400 });
     }
 
+    let userMessageId: string | null = null;
+    if (chatId && authResult && userMessageText) {
+      const db = drizzle(env.DB, { schema });
+      const chat = await db.query.chats.findFirst({
+        where: eq(chats.id, chatId),
+      });
+
+      if (chat && chat.clerkUserId === authResult.clerkUserId) {
+        const now = new Date().toISOString();
+        userMessageId = crypto.randomUUID();
+        await db.insert(messages).values({
+          id: userMessageId,
+          chatId,
+          role: "user",
+          content: userMessageText,
+          createdAt: now,
+        });
+
+        await db
+          .update(chats)
+          .set({ updatedAt: now })
+          .where(eq(chats.id, chatId));
+      }
+    }
+
     let stepCounter = 0;
     const stream = createUIMessageStream({
       execute: async ({ writer }) => {
@@ -169,7 +194,7 @@ export class ResearchAgentRoute extends OpenAPIRoute {
           onFinish: async ({ text, isAborted }) => {
             if (!chatId || !authResult) return;
             const assistantText = typeof text === "string" ? text.trim() : "";
-            if (!userMessageText && !assistantText) return;
+            if (!assistantText || isAborted) return;
 
             const db = drizzle(env.DB, { schema });
             const chat = await db.query.chats.findFirst({
@@ -182,25 +207,13 @@ export class ResearchAgentRoute extends OpenAPIRoute {
 
             const now = new Date().toISOString();
 
-            if (userMessageText) {
-              await db.insert(messages).values({
-                id: crypto.randomUUID(),
-                chatId,
-                role: "user",
-                content: userMessageText,
-                createdAt: now,
-              });
-            }
-
-            if (assistantText && !isAborted) {
-              await db.insert(messages).values({
-                id: crypto.randomUUID(),
-                chatId,
-                role: "assistant",
-                content: assistantText,
-                createdAt: now,
-              });
-            }
+            await db.insert(messages).values({
+              id: crypto.randomUUID(),
+              chatId,
+              role: "assistant",
+              content: assistantText,
+              createdAt: now,
+            });
 
             await db
               .update(chats)
