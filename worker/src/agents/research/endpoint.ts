@@ -1,32 +1,55 @@
 import { OpenAPIRoute } from "chanfana";
 import { z } from "zod";
-import { classifyIntent, type TriageResult } from "./triage-classifier";
 import { runResearchAgent } from "./research";
-import { runEmailFinderAgent } from "../email-finder/agent";
 import type { CloudflareBindings } from "../../env.d";
 import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
 import { schema } from "../../db";
 import { messages } from "../../db/messages.schema";
+import { chats } from "../../db/chats.schema";
+import { verifyClerkToken } from "../../lib/clerk-auth";
+import {
+  convertToModelMessages,
+  consumeStream,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
+  type ModelMessage,
+  type UIMessage,
+} from "ai";
 
 const TOOL_LABELS: Record<string, string> = {
-  linkedin_xray_search: "Generating search query",
-  web_search: "Searching LinkedIn",
+  linkedin_search: "Searching LinkedIn",
+  web_search: "Searching web",
+  company_lookup: "Looking up company",
   find_and_verify_email: "Finding & verifying email",
-  pattern_email_finder: "Trying email patterns",
-  research_email_finder: "Researching web for email",
 };
 
-async function loadChatHistory(chatId: string, env: CloudflareBindings): Promise<any[]> {
+async function loadChatHistory(chatId: string, env: CloudflareBindings): Promise<ModelMessage[]> {
   const dbClient = drizzle(env.DB, { schema });
   const chatMessages = await dbClient.query.messages.findMany({
     where: eq(messages.chatId, chatId),
     orderBy: [messages.createdAt],
   });
   return chatMessages.map((msg) => ({
-    role: msg.role || "user",
+    role: msg.role === "assistant" ? "assistant" : "user",
     content: msg.content || "",
   }));
+}
+
+function extractMessageText(message?: UIMessage): string {
+  if (!message) return "";
+  if (Array.isArray(message.parts)) {
+    const textParts = message.parts.filter(
+      (part): part is { type: "text"; text: string } =>
+        part.type === "text" &&
+        "text" in part &&
+        typeof (part as { text?: string }).text === "string",
+    );
+    return textParts.map((part) => part.text).join("");
+  }
+  return typeof (message as { content?: string }).content === "string"
+    ? (message as { content?: string }).content || ""
+    : "";
 }
 
 export class ResearchAgentRoute extends OpenAPIRoute {
@@ -40,22 +63,19 @@ export class ResearchAgentRoute extends OpenAPIRoute {
         content: {
           "application/json": {
             schema: z.object({
+              messages: z
+                .array(z.any())
+                .optional()
+                .describe("Chat messages in AI SDK UI format"),
               query: z
                 .string()
                 .min(1)
-                .describe("The user's query about finding people at a company"),
-              conversationId: z
-                .string()
                 .optional()
-                .describe("Optional conversation ID for session continuity"),
+                .describe("Fallback user query when messages not provided"),
               chatId: z
                 .string()
                 .optional()
                 .describe("Optional chat ID for database persistence"),
-              requestId: z
-                .string()
-                .optional()
-                .describe("Request ID for cancellation tracking"),
             }),
           },
         },
@@ -82,203 +102,121 @@ export class ResearchAgentRoute extends OpenAPIRoute {
     const env: CloudflareBindings = c.env;
     const reqData = await this.getValidatedData<typeof this.schema>();
     const body = reqData.body!;
-    const { query, conversationId, chatId, requestId } = body;
+    const { messages: uiMessages, query, chatId } = body;
+    const request = c.req.raw;
 
-    console.log(`[endpoint] Incoming request: query="${query}" conversationId="${conversationId}" chatId="${chatId}" requestId="${requestId}"`);
+    console.log(
+      `[endpoint] Incoming request: chatId="${chatId}" hasMessages=${Array.isArray(uiMessages)}`,
+    );
 
-    const sessionId = conversationId || crypto.randomUUID();
-
-    let previousMessages: any[] = [];
-    if (chatId) {
-      previousMessages = await loadChatHistory(chatId, env);
-      console.log(`[endpoint] Loaded ${previousMessages.length} previous messages from chatId="${chatId}"`);
+    const authResult = chatId
+      ? await verifyClerkToken(request, env.CLERK_SECRET_KEY)
+      : null;
+    if (chatId && !authResult) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Create abort controller for cancellation
-    const abortController = new AbortController();
-    const encoder = new TextEncoder();
-    const stream = new ReadableStream({
-      async start(controller) {
-        const send = (data: Record<string, unknown>) => {
-          try {
-            controller.enqueue(
-              encoder.encode(`data: ${JSON.stringify(data)}\n\n`),
-            );
-          } catch (e) {
-            // Stream closed, abort the AI
-            abortController.abort();
-          }
+    let coreMessages: ModelMessage[] = [];
+    let userMessageText = "";
+    if (Array.isArray(uiMessages) && uiMessages.length > 0) {
+      const lastUserMessage = [...uiMessages].reverse().find((message) => message.role === "user");
+      userMessageText = extractMessageText(lastUserMessage as UIMessage);
+      coreMessages = await convertToModelMessages(uiMessages as UIMessage[]);
+    } else if (query) {
+      if (chatId) {
+        const previousMessages = await loadChatHistory(chatId, env);
+        coreMessages = [...previousMessages, { role: "user", content: query }];
+      } else {
+        coreMessages = [{ role: "user", content: query }];
+      }
+      userMessageText = query;
+    } else {
+      return Response.json({ error: "Messages or query required" }, { status: 400 });
+    }
+
+    let stepCounter = 0;
+    const stream = createUIMessageStream({
+      execute: async ({ writer }) => {
+        const onToolStart = (toolName: string) => {
+          const label = TOOL_LABELS[toolName] || toolName.replace(/_/g, " ");
+          const stepId = `step_${++stepCounter}`;
+          console.log(`[endpoint] Tool called: ${toolName} → "${label}"`);
+          writer.write({
+            type: "data-step",
+            id: stepId,
+            data: { id: stepId, label, status: "running" },
+          });
+          return stepId;
+        };
+        const onToolEnd = (toolName: string, stepId?: string) => {
+          const label = TOOL_LABELS[toolName] || toolName.replace(/_/g, " ");
+          if (!stepId) return;
+          console.log(`[endpoint] Tool completed: ${toolName} → "${label}"`);
+          writer.write({
+            type: "data-step",
+            id: stepId,
+            data: { id: stepId, label, status: "done" },
+          });
         };
 
-        let stepCounter = 0;
+        console.log(`[endpoint] Starting research agent`);
+        const researchStream = await runResearchAgent({
+          env,
+          messages: coreMessages,
+          abortSignal: request.signal,
+          onToolStart,
+          onToolEnd,
+          onFinish: async ({ text, isAborted }) => {
+            if (!chatId || !authResult) return;
+            const assistantText = typeof text === "string" ? text.trim() : "";
+            if (!userMessageText && !assistantText) return;
 
-        try {
-          console.log(`[endpoint] Classifying intent...`);
-          const triageResult: TriageResult = await classifyIntent(query, previousMessages);
-          console.log(`[endpoint] Triage result: intent=${triageResult.intent}, company=${triageResult.company}, role=${triageResult.role}`);
+            const db = drizzle(env.DB, { schema });
+            const chat = await db.query.chats.findFirst({
+              where: eq(chats.id, chatId),
+            });
 
-          if (abortController.signal.aborted) {
-            console.log(`[endpoint] Request ${requestId} aborted before processing`);
-            controller.close();
-            return;
-          }
-
-          if (triageResult.intent === "email_finder") {
-            console.log(`[endpoint] Routing to email finder agent`);
-            
-            if (!triageResult.personName || !triageResult.company) {
-              send({ type: "output", data: { message: "I need both a person's name and company to find their email. Could you provide those details?" } });
-              send({ done: true, conversationId: sessionId, chatId });
-              controller.close();
+            if (!chat || chat.clerkUserId !== authResult.clerkUserId) {
               return;
             }
 
-            const domain = triageResult.company.includes(".") 
-              ? triageResult.company 
-              : `${triageResult.company}.com`;
+            const now = new Date().toISOString();
 
-            const emailFinderStream = await runEmailFinderAgent(
-              { 
-                name: triageResult.personName, 
-                company: triageResult.company, 
-                domain,
-                role: triageResult.role || undefined
-              },
-              env,
-              { conversationId: sessionId, abortSignal: abortController.signal }
-            );
-
-            for await (const part of emailFinderStream.fullStream) {
-              if (abortController.signal.aborted) {
-                console.log(`[endpoint] Request ${requestId} aborted during email finder`);
-                break;
-              }
-              
-              if (part.type === "text-delta") {
-                const textDelta = (part as unknown as { text: string }).text || "";
-                if (textDelta && textDelta.trim()) {
-                  send({
-                    type: "text-delta",
-                    delta: textDelta,
-                  });
-                }
-              } else if (part.type === "tool-call") {
-                const toolName = part.toolName;
-                const label = TOOL_LABELS[toolName] || toolName.replace(/_/g, " ");
-                stepCounter++;
-                send({
-                  type: "step",
-                  id: `step_${stepCounter}`,
-                  label,
-                  status: "running",
-});
-              }
-            }
-
-            await emailFinderStream.response;
-            send({ done: true, conversationId: sessionId, chatId });
-            controller.close();
-            return;
-          }
-
-          if (triageResult.intent !== "search") {
-            console.log(`[endpoint] Responding with ${triageResult.intent}`);
-
-            const greetingMessage =
-              triageResult.intent === "greeting"
-                ? "Hello! I help you find recruiters and hiring managers at companies. Which company are you targeting?"
-                : triageResult.intent === "clarify_company"
-                  ? "Which company would you like to find people at?"
-                  : "What type of people are you looking for? (e.g., recruiters, hiring managers, engineers)";
-
-            send({ type: "output", data: { message: greetingMessage } });
-            send({ done: true, conversationId: sessionId, chatId });
-            controller.close();
-            return;
-          }
-
-          const searchQuery = triageResult.company && triageResult.role
-            ? `${triageResult.company} ${triageResult.role}`
-            : query;
-
-          const researchStream = await runResearchAgent(
-            searchQuery,
-            env,
-            { conversationId: sessionId, previousMessages, abortSignal: abortController.signal }
-          );
-
-          for await (const part of researchStream.fullStream) {
-            if (abortController.signal.aborted) {
-              console.log(`[endpoint] Request ${requestId} aborted during research`);
-              break;
-            }
-            
-            if (part.type === "text-delta") {
-              const textDelta = (part as unknown as { text: string }).text || "";
-              if (textDelta && textDelta.trim()) {
-                console.log(`[endpoint] Text delta:`, textDelta.substring(0, 100));
-                send({
-                  type: "text-delta",
-                  delta: textDelta,
-                });
-              }
-            } else if (part.type === "tool-call") {
-              const toolName = part.toolName;
-              const label = TOOL_LABELS[toolName] || toolName.replace(/_/g, " ");
-              console.log(`[endpoint] 🔧 Tool called: ${toolName} → "${label}"`);
-              stepCounter++;
-              send({
-                type: "step",
-                id: `step_${stepCounter}`,
-                label,
-                status: "running",
-              });
-            } else if (part.type === "tool-result") {
-              const toolName = part.toolName;
-              const label = TOOL_LABELS[toolName] || toolName.replace(/_/g, " ");
-              console.log(`[endpoint] ✅ Tool completed: ${toolName} → "${label}"`);
-              send({
-                type: "step",
-                id: `step_${stepCounter}`,
-                label,
-                status: "done",
+            if (userMessageText) {
+              await db.insert(messages).values({
+                id: crypto.randomUUID(),
+                chatId,
+                role: "user",
+                content: userMessageText,
+                createdAt: now,
               });
             }
-          }
 
-          await researchStream.response;
-          console.log(`[endpoint] Final response received`);
+            if (assistantText && !isAborted) {
+              await db.insert(messages).values({
+                id: crypto.randomUUID(),
+                chatId,
+                role: "assistant",
+                content: assistantText,
+                createdAt: now,
+              });
+            }
 
-          console.log(`[endpoint] Done. Session ID: ${sessionId}`);
-          send({ done: true, conversationId: sessionId, chatId });
-          controller.close();
-        } catch (error) {
-          if (error instanceof Error && error.name === "AbortError") {
-            console.log(`[endpoint] Request ${requestId} aborted`);
-            controller.close();
-            return;
-          }
-          const errorMessage =
-            error instanceof Error ? error.message : "Unknown error";
-          console.error(`[endpoint] ❌ Error:`, errorMessage);
-          send({ error: errorMessage, conversationId: sessionId, chatId });
-          controller.close();
-        }
+            await db
+              .update(chats)
+              .set({ updatedAt: now })
+              .where(eq(chats.id, chatId));
+          },
+        });
+
+        researchStream.consumeStream();
+        writer.merge(researchStream.toUIMessageStream());
       },
-      cancel(reason) {
-        console.log(`[endpoint] Stream cancelled: ${reason}`);
-        abortController.abort();
-      }
     });
-    return new Response(stream, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache, no-store, must-revalidate",
-        "X-Accel-Buffering": "no",
-        "Transfer-Encoding": "chunked",
-        Connection: "keep-alive",
-        "X-Conversation-Id": conversationId || sessionId,
-      },
+
+    return createUIMessageStreamResponse({
+      stream,
+      consumeSseStream: consumeStream,
     });
   }
 }

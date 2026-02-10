@@ -15,7 +15,7 @@
     "@opennextjs/cloudflare": "^1.10.1",
     "@tavily/core": "^0.7.1",
     "agents": "^0.2.13",
-    "ai": "^5.0.98",
+    "ai": "^6.0.59",
     "chanfana": "^2.6.3",
     "exa-js": "^1.10.2",
     "hono": "^4.6.20",

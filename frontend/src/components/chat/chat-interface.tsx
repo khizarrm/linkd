@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { MessageLoading } from "@/components/ui/message-loading";
@@ -10,18 +10,13 @@ import { useChatContext } from "@/contexts/chat-context";
 import { AIInput } from "@/components/ui/ai-input";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useChat, type UIMessage } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
 
 interface Step {
   id: string;
   label: string;
   status: "running" | "done";
-}
-
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  steps?: Step[];
 }
 
 interface ChatInterfaceProps {
@@ -38,28 +33,66 @@ function StreamingText({ content }: { content: string }) {
   );
 }
 
-export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
+function extractStepsFromParts(parts: UIMessage["parts"]): Step[] {
+  const stepMap = new Map<string, Step>();
+  for (const part of parts) {
+    if (part.type === "data-step" && typeof part.data === "object" && part.data) {
+      const data = part.data as Step;
+      if (data.id && data.label && data.status) {
+        stepMap.set(data.id, data);
+      }
+    }
+  }
+  return Array.from(stepMap.values());
+}
+
+function extractTextFromParts(parts: UIMessage["parts"]): string {
+  return parts
+    .filter((part): part is Extract<UIMessage["parts"][number], { type: "text" }> => part.type === "text")
+    .map((part) => part.text)
+    .join("");
+}
+
+function toUiMessages(messages: Array<{ id: string; role: string; content: string }>): UIMessage[] {
+  return messages.map((message) => ({
+    id: message.id,
+    role: message.role as "user" | "assistant",
+    parts: [{ type: "text", text: message.content || "" }],
+  }));
+}
+
+function ChatSession({
+  chatId,
+  initialMessages,
+  onChatIdChange,
+  onTitleUpdate,
+}: {
+  chatId: string | null;
+  initialMessages: UIMessage[];
+  onChatIdChange: (nextChatId: string) => void;
+  onTitleUpdate: (chatId: string, title: string) => Promise<void>;
+}) {
   const { getToken } = useAuth();
-  const router = useRouter();
   const api = useProtectedApi();
   const { addChat } = useChatContext();
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
 
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [chatId, setChatId] = useState<string | null>(initialChatId || null);
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: `${apiBase}/api/agents/research`,
+      }),
+    [apiBase],
+  );
 
-  useEffect(() => {
-    if (initialChatId !== chatId) {
-      setChatId(initialChatId || null);
-      setMessages([]);
-      setConversationId(null);
-    }
-  }, [initialChatId]);
-  const [conversationId, setConversationId] = useState<string | null>(null);
-  const [isInitializing, setIsInitializing] = useState(!!initialChatId);
+  const { messages, sendMessage, status, stop } = useChat({
+    id: chatId || undefined,
+    messages: initialMessages,
+    transport,
+  });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const isLoading = status === "submitted" || status === "streaming";
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -68,37 +101,6 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
-
-  useEffect(() => {
-    if (initialChatId) {
-      loadExistingChat(initialChatId);
-    }
-  }, [initialChatId]);
-
-  const loadExistingChat = async (id: string) => {
-    try {
-      setIsInitializing(true);
-      const response = await api.getChat(id);
-      if (response.success) {
-        setChatId(id);
-        setConversationId(response.chat.claudeConversationId || null);
-        setMessages(
-          response.messages.map(
-            (msg: { id: string; role: string; content: string }) => ({
-              id: msg.id,
-              role: msg.role as "user" | "assistant",
-              content: msg.content,
-            }),
-          ),
-        );
-      }
-    } catch (error) {
-      console.error("Failed to load chat:", error);
-      router.push("/chat");
-    } finally {
-      setIsInitializing(false);
-    }
-  };
 
   const createNewChat = async (): Promise<string> => {
     const response = await api.createChat();
@@ -122,212 +124,30 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
 
   const handleSubmit = async (value: string) => {
     if (!value.trim() || isLoading) return;
-    
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      content: value.trim(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setIsLoading(true);
-
-    let currentChatId = chatId;
 
     try {
+      let currentChatId = chatId;
       if (!currentChatId) {
         currentChatId = await createNewChat();
-        setChatId(currentChatId);
+        onChatIdChange(currentChatId);
         window.history.replaceState(null, "", `/chat/${currentChatId}`);
-
-        await api.updateChat(currentChatId, {
-          title: generateTitle(userMessage.content),
-        });
+        await onTitleUpdate(currentChatId, generateTitle(value.trim()));
       }
-
-      await api.addMessage(currentChatId, {
-        role: "user",
-        content: userMessage.content,
-      });
-
-      const assistantMessageId = (Date.now() + 1).toString();
-      setMessages((prev) => [
-        ...prev,
-        { id: assistantMessageId, role: "assistant", content: "" },
-      ]);
 
       const token = await getToken();
-      abortControllerRef.current = new AbortController();
-
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
-      const response = await fetch(`${apiBase}/api/agents/research`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token && { Authorization: `Bearer ${token}` }),
+      await sendMessage(
+        { text: value.trim() },
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          body: {
+            chatId: currentChatId,
+          },
         },
-        body: JSON.stringify({
-          query: userMessage.content,
-          ...(conversationId && { conversationId }),
-          chatId: currentChatId,
-        }),
-        signal: abortControllerRef.current.signal,
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to send message");
-      }
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-
-      if (!reader) {
-        throw new Error("No response body");
-      }
-
-let buffer = "";
-          let finalContent = "";
-
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split("\n");
-            buffer = lines.pop() || "";
-
-            for (const line of lines) {
-              const trimmed = line.trim();
-              if (!trimmed.startsWith("data: ")) continue;
-
-              const dataStr = trimmed.slice(6);
-              if (!dataStr) continue;
-
-              try {
-                const data = JSON.parse(dataStr);
-
-                if (data.type === "step") {
-                  setMessages((prev) =>
-                    prev.map((msg) => {
-                      if (msg.id !== assistantMessageId) return msg;
-                      const steps = msg.steps ?? [];
-                      const existing = steps.find((s) => s.id === data.id);
-                      if (existing) {
-                        return {
-                          ...msg,
-                          steps: steps.map((s) =>
-                            s.id === data.id ? { ...s, status: data.status } : s,
-                          ),
-                        };
-                      }
-                      return {
-                        ...msg,
-                        steps: [
-                          ...steps,
-                          { id: data.id, label: data.label, status: data.status },
-                        ],
-                      };
-                    }),
-                  );
-                }
-
-                if (data.type === "text-delta") {
-                  setMessages((prev) =>
-                    prev.map((msg) =>
-                      msg.id === assistantMessageId
-                        ? { ...msg, content: (msg.content || "") + data.delta }
-                        : msg,
-                    ),
-                  );
-                }
-
-            if (data.type === "output") {
-              finalContent = data.data.message || "";
-              setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === assistantMessageId
-                    ? {
-                        ...msg,
-                        content: finalContent,
-                        steps: undefined,
-                      }
-                    : msg,
-                ),
-              );
-            }
-
-            if (data.done && data.conversationId) {
-              setConversationId(data.conversationId);
-              if (currentChatId) {
-                await api.updateChat(currentChatId, {
-                  claudeConversationId: data.conversationId,
-                });
-              }
-            }
-
-            if (data.error) {
-              finalContent = "Error: " + data.error;
-              setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === assistantMessageId
-                    ? { ...msg, content: finalContent, steps: undefined }
-                    : msg,
-                ),
-              );
-            }
-          } catch {}
-        }
-      }
-
-      if (finalContent && currentChatId) {
-        await api.addMessage(currentChatId, {
-          role: "assistant",
-          content: finalContent,
-        });
-      }
-    } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") {
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === (Date.now() + 1).toString()
-              ? { ...msg, content: msg.content + " (stopped)" }
-              : msg,
-          ),
-        );
-      } else {
-        const errorMsgId = (Date.now() + 1).toString();
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === errorMsgId
-              ? { ...msg, content: "Error: Failed to get response" }
-              : msg,
-          ),
-        );
-      }
-    } finally {
-      setIsLoading(false);
-      abortControllerRef.current = null;
+      );
+    } catch (error) {
+      console.error("Failed to send message:", error);
     }
   };
-
-  const handleStop = () => {
-    abortControllerRef.current?.abort();
-  };
-
-  
-
-  if (isInitializing) {
-    return (
-      <div className="flex flex-col h-full bg-background">
-        <div className="flex-1 flex items-center justify-center">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <div className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-pulse" />
-            <span>Loading chat...</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -348,8 +168,10 @@ let buffer = "";
 
           <div className="space-y-8">
             {messages.map((message) => {
-              const hasResponseContent = message.content && message.content.trim().length > 0;
-              const shouldShowAccordion = message.steps && message.steps.length > 0 && !hasResponseContent && message.role === "assistant" && isLoading;
+              const steps = message.role === "assistant" ? extractStepsFromParts(message.parts) : [];
+              const textContent = extractTextFromParts(message.parts);
+              const hasSteps = steps.length > 0;
+              const hasContent = textContent.trim().length > 0;
 
               return (
                 <div
@@ -365,24 +187,21 @@ let buffer = "";
                         : "text-foreground w-full"
                     }`}
                   >
-{message.content ? (
-                    message.role === "assistant" ? (
-                      <StreamingText content={message.content} />
+                    {message.role === "user" ? (
+                      textContent
                     ) : (
-                      message.content
-                    )
-                  ) : shouldShowAccordion && message.steps && message.steps.length > 0 ? (
-                    <div className="space-y-2">
-                      <ToolCallAccordion
-                        steps={message.steps}
-                        isLoading={isLoading}
-                      />
-                    </div>
-                  ) : message.role === "assistant" && isLoading ? (
-                    <MessageLoading />
-                  ) : null}
+                      <div className="space-y-3">
+                        {hasSteps && (
+                          <ToolCallAccordion steps={steps} isLoading={isLoading} />
+                        )}
+                        {hasContent ? (
+                          <StreamingText content={textContent} />
+                        ) : !hasSteps && isLoading ? (
+                          <MessageLoading />
+                        ) : null}
+                      </div>
+                    )}
                   </div>
-
                 </div>
               );
             })}
@@ -395,12 +214,82 @@ let buffer = "";
         <div className="max-w-2xl mx-auto">
           <AIInput
             onSubmit={handleSubmit}
-            onStop={handleStop}
+            onStop={stop}
             placeholder="What can I help you find?"
             disabled={isLoading}
           />
         </div>
       </div>
     </div>
+  );
+}
+
+export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
+  const router = useRouter();
+  const api = useProtectedApi();
+
+  const [chatId, setChatId] = useState<string | null>(initialChatId || null);
+  const [initialMessages, setInitialMessages] = useState<UIMessage[]>([]);
+  const [isInitializing, setIsInitializing] = useState(!!initialChatId);
+  const [sessionKey, setSessionKey] = useState(initialChatId || "new");
+
+  useEffect(() => {
+    if (initialChatId !== chatId) {
+      setChatId(initialChatId || null);
+      setInitialMessages([]);
+      setSessionKey(initialChatId || "new");
+    }
+  }, [initialChatId]);
+
+  useEffect(() => {
+    if (initialChatId) {
+      loadExistingChat(initialChatId);
+    } else {
+      setInitialMessages([]);
+      setIsInitializing(false);
+    }
+  }, [initialChatId]);
+
+  const loadExistingChat = async (id: string) => {
+    try {
+      setIsInitializing(true);
+      const response = await api.getChat(id);
+      if (response.success) {
+        setChatId(id);
+        setInitialMessages(
+          toUiMessages(
+            response.messages as Array<{ id: string; role: string; content: string }>,
+          ),
+        );
+      }
+    } catch (error) {
+      console.error("Failed to load chat:", error);
+      router.push("/chat");
+    } finally {
+      setIsInitializing(false);
+    }
+  };
+
+  if (isInitializing) {
+    return (
+      <div className="flex flex-col h-full bg-background">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <div className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-pulse" />
+            <span>Loading chat...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <ChatSession
+      key={sessionKey}
+      chatId={chatId}
+      initialMessages={initialMessages}
+      onChatIdChange={setChatId}
+      onTitleUpdate={async (id, title) => api.updateChat(id, { title })}
+    />
   );
 }

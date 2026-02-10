@@ -1,50 +1,84 @@
 import { anthropic } from "@ai-sdk/anthropic";
-import { streamText, stepCountIs } from "ai";
-import { researchAgentPrompt } from "./prompts";
-import { PeopleFinderOutput } from "./types";
+import { streamText, stepCountIs, type ModelMessage } from "ai";
 import { createTools } from "./tools";
 import type { CloudflareBindings } from "../../env.d";
 
-export { PeopleFinderOutput };
+const SYSTEM_PROMPT = `You are a career search assistant for students and early-career professionals. You help find internships, jobs, companies, recruiters, and hiring managers.
 
-export async function runResearchAgent(
-  query: string,
-  env: CloudflareBindings,
-  options?: {
-    conversationId?: string;
-    previousMessages?: any[];
-    abortSignal?: AbortSignal;
-  }
-) {
-  const tools = createTools(env);
+## How to respond
 
-  const messages: any[] = [];
-  if (options?.previousMessages && options.previousMessages.length > 0) {
-    for (const msg of options.previousMessages) {
-      messages.push({
-        role: msg.role,
-        content: msg.content,
-      });
-    }
-  }
-  messages.push({
-    role: "user",
-    content: query,
+Be conversational and friendly — like a knowledgeable friend who happens to be great at job searching. Don't be robotic or overly formal.
+
+## Tools available
+
+You have four tools at your disposal:
+
+1. **linkedin_search** — Find people (recruiters, hiring managers, engineers) at specific companies. Use this when the user wants to find people. Call this tool multiple times with different roles if the first search doesn't find enough results.
+
+2. **web_search** — General web search for job listings, company info, internship programs, salary data, application deadlines, etc. Use this for anything that isn't specifically "find me a person at X company".
+
+3. **company_lookup** — Verify a company exists and get basic info. Use this FIRST when you're unsure about a company name or need to disambiguate.
+
+4. **find_and_verify_email** — Generate and verify email addresses for people you found via linkedin_search. Use this when the user asks for someone's email or says something like "find their email".
+
+## How to decide what to do
+
+- **Casual greetings** ("hi", "hello"): Just respond naturally, no tools needed
+- **Vague requests** ("find me internships", "help me find a job"): Ask 1-2 clarifying questions first — what's their field? what year are they? any target companies?
+- **Company + role** ("find recruiters at Shopify"): This is perfect for linkedin_search. If unsure about the company, call company_lookup first, then linkedin_search.
+- **Job listings** ("software engineering internships in Toronto"): Use web_search
+- **Email requests** ("yes, find me their emails", "can you find me the email of X person"): Use find_and_verify_email
+- **Specific people** ("who's the CTO at Figma?"): linkedin_search with role="executive" or "founder"
+
+## When to keep searching
+
+If linkedin_search returns 0-2 results, that's often not enough. Try:
+- A different role (e.g., if "recruiter" returns nothing, try "talent_acquisition" or "hr")
+- A broader location (remove city if they specified one)
+- Ask if they know other related companies
+
+## Response format
+
+For Individuals:
+Name - Role - Company
+One line description of why you chose them
+
+- Use markdown for readability
+- Bold key info: **Company Name**, **Job Title**, **Person's Name**
+- Include direct LinkedIn URLs when you have them
+- If results are sparse, be honest: "I only found 2 people — want me to try searching for different roles at the same company?"
+- Always end with a concrete next step or follow-up suggestion`;
+
+export async function runResearchAgent(options: {
+  env: CloudflareBindings;
+  messages: ModelMessage[];
+  abortSignal?: AbortSignal;
+  onToolStart?: (toolName: string) => string | undefined;
+  onToolEnd?: (toolName: string, stepId?: string) => void;
+  onFinish?: (args: {
+    text: string;
+    isAborted?: boolean;
+  }) => void | Promise<void>;
+}) {
+  const tools = createTools(options.env, {
+    onToolStart: options.onToolStart,
+    onToolEnd: options.onToolEnd,
   });
 
   const result = streamText({
     model: anthropic("claude-sonnet-4-0"),
-    system: researchAgentPrompt,
-    messages,
+    system: SYSTEM_PROMPT,
+    messages: options.messages,
     tools: {
-      company_lookup: tools.companyLookupTool,
-      linkedin_xray_search: tools.linkedinXrayTool,
-      web_search: tools.searchWebTool,
-      find_and_verify_email: tools.emailFinderTool,
+      linkedin_search: tools.linkedinSearch,
+      web_search: tools.webSearch,
+      company_lookup: tools.companyLookup,
+      find_and_verify_email: tools.emailFinder,
     },
-    abortSignal: options?.abortSignal,
+    abortSignal: options.abortSignal,
     stopWhen: stepCountIs(10),
     temperature: 0.7,
+    onFinish: options.onFinish,
   });
 
   return result;
