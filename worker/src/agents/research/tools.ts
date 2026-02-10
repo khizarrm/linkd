@@ -57,6 +57,17 @@ export function createTools(
   options?: {
     onToolStart?: (toolName: string) => string | undefined;
     onToolEnd?: (toolName: string, stepId?: string) => void;
+    onEmailFound?: (data: {
+      name: string;
+      email: string;
+      domain: string;
+      verificationStatus: "verified" | "possible";
+    }) => void;
+    onPeopleFound?: (profiles: Array<{
+      name: string;
+      url: string;
+      snippet: string;
+    }>) => void;
   },
 ) {
   const tvly = tavily({ apiKey: env.TAVILY_API_KEY });
@@ -93,6 +104,10 @@ export function createTools(
             url: r.url,
             snippet: r.content.substring(0, 300),
           }));
+
+        if (profiles.length > 0) {
+          options?.onPeopleFound?.(profiles);
+        }
 
         return { query, resultCount: profiles.length, profiles };
       } catch (error) {
@@ -219,8 +234,10 @@ export function createTools(
           try {
             const status = await verifyEmail(email);
             if (status === "valid") {
+              options?.onEmailFound?.({ name, email, domain: cleanDomain, verificationStatus: "verified" });
               return { email, pattern: email.split("@")[0], verificationStatus: "verified" };
             } else if (status === "catch-all" || status === "catch_all" || status === "acceptable") {
+              options?.onEmailFound?.({ name, email, domain: cleanDomain, verificationStatus: "possible" });
               return { email, pattern: email.split("@")[0], verificationStatus: "possible" };
             }
           } catch {

@@ -160,6 +160,8 @@ export class ResearchAgentRoute extends OpenAPIRoute {
     }
 
     let stepCounter = 0;
+    let emailCounter = 0;
+    let personCounter = 0;
     const stream = createUIMessageStream({
       execute: async ({ writer }) => {
         const onToolStart = (toolName: string) => {
@@ -183,6 +185,47 @@ export class ResearchAgentRoute extends OpenAPIRoute {
             data: { id: stepId, label, status: "done" },
           });
         };
+        const onEmailFound = (data: {
+          name: string;
+          email: string;
+          domain: string;
+          verificationStatus: "verified" | "possible";
+        }) => {
+          const emailId = `email_${++emailCounter}`;
+          console.log(`[endpoint] Email found: ${data.email} (${data.verificationStatus})`);
+          writer.write({
+            type: "data-email",
+            id: emailId,
+            data: {
+              id: emailId,
+              name: data.name,
+              email: data.email,
+              domain: data.domain,
+              verificationStatus: data.verificationStatus,
+            },
+          });
+        };
+
+        const onPeopleFound = (profiles: Array<{
+          name: string;
+          url: string;
+          snippet: string;
+        }>) => {
+          console.log(`[endpoint] People found: ${profiles.length} profiles`);
+          for (const profile of profiles) {
+            const personId = `person_${++personCounter}`;
+            writer.write({
+              type: "data-person",
+              id: personId,
+              data: {
+                id: personId,
+                name: profile.name,
+                linkedinUrl: profile.url,
+                snippet: profile.snippet,
+              },
+            });
+          }
+        };
 
         console.log(`[endpoint] Starting research agent`);
         const researchStream = await runResearchAgent({
@@ -191,6 +234,8 @@ export class ResearchAgentRoute extends OpenAPIRoute {
           abortSignal: request.signal,
           onToolStart,
           onToolEnd,
+          onEmailFound,
+          onPeopleFound,
           onFinish: async ({ text, isAborted }) => {
             if (!chatId || !authResult) return;
             const assistantText = typeof text === "string" ? text.trim() : "";

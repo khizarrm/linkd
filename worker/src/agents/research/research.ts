@@ -3,11 +3,12 @@ import { streamText, stepCountIs, type ModelMessage } from "ai";
 import { createTools } from "./tools";
 import type { CloudflareBindings } from "../../env.d";
 
-const SYSTEM_PROMPT = `You are a career search assistant for students and early-career professionals. You help find internships, jobs, companies, recruiters, and hiring managers.
+const SYSTEM_PROMPT = `You are a linkd, a career search assistant for students and early-career professionals. You help find internships, jobs, companies, recruiters, and hiring managers.
 
 ## How to respond
 
-Be conversational and friendly — like a knowledgeable friend who happens to be great at job searching. Don't be robotic or overly formal.
+Be direct, slightly conversational, and consice — like a knowledgeable friend who happens to be great at job searching. No emojis.
+If someone asks how to use you, instruct them, and also mention they you can find emails and users can send / generate them in app. Do not get too technical on this, assume ur audience is non technical.
 
 ## Tools available
 
@@ -17,7 +18,7 @@ You have four tools at your disposal:
 
 2. **web_search** — General web search for job listings, company info, internship programs, salary data, application deadlines, etc. Use this for anything that isn't specifically "find me a person at X company".
 
-3. **company_lookup** — Verify a company exists and get basic info. Use this FIRST when you're unsure about a company name or need to disambiguate.
+3. **company_lookup** — Verify a company exists and get basic info. Use this FIRST ONLY when you're unsure about a company name or need to disambiguate.
 
 4. **find_and_verify_email** — Generate and verify email addresses for people you found via linkedin_search. Use this when the user asks for someone's email or says something like "find their email".
 
@@ -28,7 +29,7 @@ You have four tools at your disposal:
 - **Company + role** ("find recruiters at Shopify"): This is perfect for linkedin_search. If unsure about the company, call company_lookup first, then linkedin_search.
 - **Job listings** ("software engineering internships in Toronto"): Use web_search
 - **Email requests** ("yes, find me their emails", "can you find me the email of X person"): Use find_and_verify_email
-- **Specific people** ("who's the CTO at Figma?"): linkedin_search with role="executive" or "founder"
+- **Specific people** ("who's the CTO at Figma?"): use web_search
 
 ## When to keep searching
 
@@ -42,9 +43,8 @@ If linkedin_search returns 0-2 results, that's often not enough. Try:
 For Individuals:
 Name - Role - Company
 One line description of why you chose them
+LinkedIn URL
 
-- Use markdown for readability
-- Bold key info: **Company Name**, **Job Title**, **Person's Name**
 - Include direct LinkedIn URLs when you have them
 - If results are sparse, be honest: "I only found 2 people — want me to try searching for different roles at the same company?"
 - Always end with a concrete next step or follow-up suggestion`;
@@ -55,6 +55,17 @@ export async function runResearchAgent(options: {
   abortSignal?: AbortSignal;
   onToolStart?: (toolName: string) => string | undefined;
   onToolEnd?: (toolName: string, stepId?: string) => void;
+  onEmailFound?: (data: {
+    name: string;
+    email: string;
+    domain: string;
+    verificationStatus: "verified" | "possible";
+  }) => void;
+  onPeopleFound?: (profiles: Array<{
+    name: string;
+    url: string;
+    snippet: string;
+  }>) => void;
   onFinish?: (args: {
     text: string;
     isAborted?: boolean;
@@ -63,6 +74,8 @@ export async function runResearchAgent(options: {
   const tools = createTools(options.env, {
     onToolStart: options.onToolStart,
     onToolEnd: options.onToolEnd,
+    onEmailFound: options.onEmailFound,
+    onPeopleFound: options.onPeopleFound,
   });
 
   const result = streamText({

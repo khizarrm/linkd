@@ -5,6 +5,9 @@ import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { MessageLoading } from "@/components/ui/message-loading";
 import { ToolCallAccordion } from "./tool-call-accordion";
+import { EmailComposeCard, type EmailData } from "./email-compose-card";
+import { ChatComposeModal } from "./chat-compose-modal";
+import { ChatPersonCard, type PersonData } from "./person-card";
 import { useProtectedApi } from "@/hooks/use-protected-api";
 import { useChatContext } from "@/contexts/chat-context";
 import { AIInput } from "@/components/ui/ai-input";
@@ -53,6 +56,32 @@ function extractTextFromParts(parts: UIMessage["parts"]): string {
     .join("");
 }
 
+function extractEmailsFromParts(parts: UIMessage["parts"]): EmailData[] {
+  const emailMap = new Map<string, EmailData>();
+  for (const part of parts) {
+    if (part.type === "data-email" && typeof part.data === "object" && part.data) {
+      const data = part.data as EmailData;
+      if (data.id && data.email) {
+        emailMap.set(data.id, data);
+      }
+    }
+  }
+  return Array.from(emailMap.values());
+}
+
+function extractPeopleFromParts(parts: UIMessage["parts"]): PersonData[] {
+  const personMap = new Map<string, PersonData>();
+  for (const part of parts) {
+    if (part.type === "data-person" && typeof part.data === "object" && part.data) {
+      const data = part.data as PersonData;
+      if (data.id && data.name) {
+        personMap.set(data.id, data);
+      }
+    }
+  }
+  return Array.from(personMap.values());
+}
+
 function toUiMessages(messages: Array<{ id: string; role: string; content: string }>): UIMessage[] {
   return messages.map((message) => ({
     id: message.id,
@@ -92,6 +121,7 @@ function ChatSession({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isLoading = status === "submitted" || status === "streaming";
+  const [composeEmail, setComposeEmail] = useState<EmailData | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -169,8 +199,12 @@ function ChatSession({
             {messages.map((message) => {
               const steps = message.role === "assistant" ? extractStepsFromParts(message.parts) : [];
               const textContent = extractTextFromParts(message.parts);
+              const emails = message.role === "assistant" ? extractEmailsFromParts(message.parts) : [];
+              const people = message.role === "assistant" ? extractPeopleFromParts(message.parts) : [];
               const hasSteps = steps.length > 0;
               const hasContent = textContent.trim().length > 0;
+              const hasEmails = emails.length > 0;
+              const hasPeople = people.length > 0;
 
               return (
                 <div
@@ -193,11 +227,29 @@ function ChatSession({
                         {hasSteps && (
                           <ToolCallAccordion steps={steps} isLoading={isLoading} />
                         )}
+                        {hasPeople && (
+                          <div className="grid gap-3 mt-3">
+                            {people.map((person) => (
+                              <ChatPersonCard key={person.id} person={person} />
+                            ))}
+                          </div>
+                        )}
                         {hasContent ? (
                           <StreamingText content={textContent} />
-                        ) : !hasSteps && isLoading ? (
+                        ) : !hasSteps && !hasPeople && !hasEmails && isLoading ? (
                           <MessageLoading />
                         ) : null}
+                        {hasEmails && (
+                          <div className="space-y-2 mt-3">
+                            {emails.map((email) => (
+                              <EmailComposeCard
+                                key={email.id}
+                                email={email}
+                                onCompose={setComposeEmail}
+                              />
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -219,6 +271,16 @@ function ChatSession({
           />
         </div>
       </div>
+
+      {composeEmail && (
+        <ChatComposeModal
+          open={!!composeEmail}
+          onOpenChange={(open) => {
+            if (!open) setComposeEmail(null);
+          }}
+          emailData={composeEmail}
+        />
+      )}
     </div>
   );
 }
