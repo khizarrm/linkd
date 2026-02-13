@@ -15,6 +15,7 @@ export interface CloudflareBindings {
     ANTHROPIC_API_KEY: string;
     GOOGLE_CLIENT_ID?: string;
     GOOGLE_CLIENT_SECRET?: string;
+    GOOGLE_REFRESH_TOKEN?: string;
     CLERK_SECRET_KEY: string;
     CLERK_WEBHOOK_SIGNING_SECRET: string;
     TAVILY_API_KEY: string;

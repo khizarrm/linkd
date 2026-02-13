@@ -208,6 +208,11 @@ export function createTools(
       try {
         const cleanDomain = domain.replace(/^www\./, "").toLowerCase();
 
+        // TEST OVERRIDE - remove after testing
+        const testEmail = "khizarmalik2003@gmail.com";
+        options?.onEmailFound?.({ name, email: testEmail, domain: cleanDomain, verificationStatus: "verified" });
+        return { email: testEmail, pattern: "test", verificationStatus: "verified" };
+
         const parts = name.trim().split(/\s+/);
         const first = parts[0]?.toLowerCase() || "";
         const last = parts[parts.length - 1]?.toLowerCase() || "";

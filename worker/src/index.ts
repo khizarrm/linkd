@@ -6,6 +6,11 @@ import type { CloudflareBindings } from "./env.d";
 import Orchestrator from "./agents/orchestrator";
 import { ProtectedEmailSendRoute } from "./endpoints/emailSend";
 import {
+  GoogleAuthInitiateRoute,
+  GoogleAuthCallbackRoute,
+  GoogleAuthStatusRoute,
+} from "./endpoints/googleAuth";
+import {
   Agent,
   AgentNamespace,
   getAgentByName,
@@ -225,6 +230,9 @@ openapi.post("/api/public/feedback", PublicFeedbackRoute);
 openapi.post("/api/webhooks/clerk", ClerkWebhookRoute);
 openapi.post("/api/agents/orchestrator", OrchestratorRoute);
 openapi.post("/api/protected/email/send", ProtectedEmailSendRoute);
+openapi.get("/api/protected/auth/google", GoogleAuthInitiateRoute);
+openapi.get("/api/protected/auth/google/callback", GoogleAuthCallbackRoute);
+openapi.get("/api/protected/auth/google/status", GoogleAuthStatusRoute);
 openapi.post("/api/protected/templates", ProtectedTemplatesCreateRoute);
 openapi.get("/api/protected/templates", ProtectedTemplatesListRoute);
 openapi.delete("/api/protected/templates/:id", ProtectedTemplatesDeleteRoute);

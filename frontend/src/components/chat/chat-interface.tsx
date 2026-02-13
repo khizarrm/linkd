@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { MessageLoading } from "@/components/ui/message-loading";
-import { ToolCallAccordion } from "./tool-call-accordion";
+import { StepItem, type Step } from "./step-item";
 import { EmailComposeCard, type EmailData } from "./email-compose-card";
 import { ChatComposeModal } from "./chat-compose-modal";
 import { ChatPersonCard, type PersonData } from "./person-card";
@@ -34,52 +34,6 @@ function StreamingText({ content }: { content: string }) {
       </ReactMarkdown>
     </div>
   );
-}
-
-function extractStepsFromParts(parts: UIMessage["parts"]): Step[] {
-  const stepMap = new Map<string, Step>();
-  for (const part of parts) {
-    if (part.type === "data-step" && typeof part.data === "object" && part.data) {
-      const data = part.data as Step;
-      if (data.id && data.label && data.status) {
-        stepMap.set(data.id, data);
-      }
-    }
-  }
-  return Array.from(stepMap.values());
-}
-
-function extractTextFromParts(parts: UIMessage["parts"]): string {
-  return parts
-    .filter((part): part is Extract<UIMessage["parts"][number], { type: "text" }> => part.type === "text")
-    .map((part) => part.text)
-    .join("");
-}
-
-function extractEmailsFromParts(parts: UIMessage["parts"]): EmailData[] {
-  const emailMap = new Map<string, EmailData>();
-  for (const part of parts) {
-    if (part.type === "data-email" && typeof part.data === "object" && part.data) {
-      const data = part.data as EmailData;
-      if (data.id && data.email) {
-        emailMap.set(data.id, data);
-      }
-    }
-  }
-  return Array.from(emailMap.values());
-}
-
-function extractPeopleFromParts(parts: UIMessage["parts"]): PersonData[] {
-  const personMap = new Map<string, PersonData>();
-  for (const part of parts) {
-    if (part.type === "data-person" && typeof part.data === "object" && part.data) {
-      const data = part.data as PersonData;
-      if (data.id && data.name) {
-        personMap.set(data.id, data);
-      }
-    }
-  }
-  return Array.from(personMap.values());
 }
 
 function toUiMessages(messages: Array<{ id: string; role: string; content: string }>): UIMessage[] {
@@ -197,14 +151,7 @@ function ChatSession({
 
           <div className="space-y-8">
             {messages.map((message) => {
-              const steps = message.role === "assistant" ? extractStepsFromParts(message.parts) : [];
-              const textContent = extractTextFromParts(message.parts);
-              const emails = message.role === "assistant" ? extractEmailsFromParts(message.parts) : [];
-              const people = message.role === "assistant" ? extractPeopleFromParts(message.parts) : [];
-              const hasSteps = steps.length > 0;
-              const hasContent = textContent.trim().length > 0;
-              const hasEmails = emails.length > 0;
-              const hasPeople = people.length > 0;
+              const renderedPartIds = new Set<string>();
 
               return (
                 <div
@@ -221,35 +168,53 @@ function ChatSession({
                     }`}
                   >
                     {message.role === "user" ? (
-                      textContent
+                      message.parts
+                        .filter((part): part is Extract<UIMessage["parts"][number], { type: "text" }> => part.type === "text")
+                        .map((part) => part.text)
+                        .join("")
                     ) : (
                       <div className="space-y-3">
-                        {hasSteps && (
-                          <ToolCallAccordion steps={steps} isLoading={isLoading} />
-                        )}
-                        {hasPeople && (
-                          <div className="grid gap-3 mt-3">
-                            {people.map((person) => (
-                              <ChatPersonCard key={person.id} person={person} />
-                            ))}
-                          </div>
-                        )}
-                        {hasContent ? (
-                          <StreamingText content={textContent} />
-                        ) : !hasSteps && !hasPeople && !hasEmails && isLoading ? (
-                          <MessageLoading />
-                        ) : null}
-                        {hasEmails && (
-                          <div className="space-y-2 mt-3">
-                            {emails.map((email) => (
-                              <EmailComposeCard
-                                key={email.id}
+                        {message.parts.map((part, index) => {
+                          if (
+                            ("id" in part && typeof part.id === "string") &&
+                            renderedPartIds.has(part.id)
+                          ) {
+                            return null;
+                          }
+
+                          if ("id" in part && typeof part.id === "string") {
+                            renderedPartIds.add(part.id);
+                          }
+
+                          switch (part.type) {
+                            case "text":
+                              return <StreamingText key={index} content={part.text} />;
+
+                            case "data-step": {
+                              const step = part.data as Step;
+                              return <StepItem key={part.id} step={step} />;
+                            }
+
+                            case "data-person": {
+                              const person = part.data as PersonData;
+                              return <ChatPersonCard key={part.id} person={person} />;
+                            }
+
+                            case "data-email": {
+                              const email = part.data as EmailData;
+                              return <EmailComposeCard
+                                key={part.id}
                                 email={email}
                                 onCompose={setComposeEmail}
-                              />
-                            ))}
-                          </div>
-                        )}
+                              />;
+                            }
+
+                            default:
+                              return null;
+                          }
+                        })}
+
+                        {message.parts.length === 0 && isLoading && <MessageLoading />}
                       </div>
                     )}
                   </div>

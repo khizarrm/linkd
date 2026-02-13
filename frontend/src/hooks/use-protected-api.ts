@@ -84,6 +84,25 @@ export function useProtectedApi() {
       return response.json();
     },
 
+    // Google OAuth
+    getGoogleAuthUrl: async () => {
+      const token = await getToken();
+      const response = await apiFetch('/api/protected/auth/google', {
+        method: 'GET',
+      }, token);
+      if (!response.ok) throw new Error('Failed to get Google auth URL');
+      return response.json() as Promise<{ url: string }>;
+    },
+
+    getGmailStatus: async () => {
+      const token = await getToken();
+      const response = await apiFetch('/api/protected/auth/google/status', {
+        method: 'GET',
+      }, token);
+      if (!response.ok) throw new Error('Failed to check Gmail status');
+      return response.json() as Promise<{ connected: boolean }>;
+    },
+
     // Email
     sendEmail: async (data: { to: string; subject: string; body: string }) => {
       const token = await getToken();
