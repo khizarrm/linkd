@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth, useSignIn } from "@clerk/nextjs";
-import { Mail, X, Search, Send, ArrowRight, Users } from "lucide-react";
+import { X, ArrowRight } from "lucide-react";
 
 function SignInModal({
   isOpen,
@@ -56,31 +56,38 @@ function SignInModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md bg-black border border-white/10 rounded-lg p-8 animate-bounce-in"
+        className="w-full max-w-md rounded-2xl border border-border/60 bg-card/95 p-8 shadow-2xl backdrop-blur animate-bounce-in"
         onClick={(e) => e.stopPropagation()}
-        style={{ fontFamily: "var(--font-fira-mono)" }}
       >
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-medium text-white">sign in</h2>
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+              Linkd
+            </p>
+            <h2 className="text-2xl font-semibold text-foreground">
+              Sign in
+            </h2>
+          </div>
           <button
             onClick={onClose}
-            className="text-white/60 hover:text-white transition-colors"
+            className="text-muted-foreground hover:text-foreground transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="space-y-4">
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && (
+            <p className="text-sm text-destructive-foreground/90">{error}</p>
+          )}
           <button
             onClick={handleGoogleSignIn}
             disabled={isLoading}
-            className="w-full px-4 py-3 bg-white text-black rounded hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-3"
-            style={{ fontFamily: "var(--font-fira-mono)" }}
+            className="w-full rounded-full bg-primary px-5 py-3 text-primary-foreground transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 font-medium flex items-center justify-center gap-3"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
@@ -100,8 +107,11 @@ function SignInModal({
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
               />
             </svg>
-            {isLoading ? "Loading..." : "continue with google"}
+            {isLoading ? "Loading..." : "Continue with Google"}
           </button>
+          <p className="text-xs text-muted-foreground text-center">
+            We only use your Google account to create your workspace.
+          </p>
         </div>
       </div>
     </div>
@@ -130,139 +140,58 @@ export default function LoginPage() {
   return (
     <>
       <SignInModal isOpen={showSignIn} onClose={() => setShowSignIn(false)} />
-      <div
-        className="bg-black min-h-screen relative overflow-x-hidden"
-        style={{ fontFamily: "var(--font-fira-mono)" }}
-      >
-        <div className="grain-overlay" />
-
-        <nav className="fixed top-0 left-0 right-0 p-6 flex justify-between items-center z-20">
-          <div className="text-white font-bold text-xl tracking-tight">linkd</div>
-          <button
-            onClick={handleSignIn}
-            className="px-4 py-2 border border-white/20 text-white hover:bg-white/10 transition-all duration-200 lowercase rounded text-sm"
-          >
-            sign in
-          </button>
-        </nav>
-
-        <div className="relative pt-32 pb-20 px-6 flex flex-col items-center justify-center min-h-[80vh] w-full max-w-5xl mx-auto text-center z-10">
-          <h1
-            className="text-5xl md:text-7xl lg:text-8xl font-bold mb-6 text-white opacity-0 animate-fade-in-up tracking-tighter"
-            style={{ animationDelay: "0ms" }}
-          >
-            stop applying<br />into the void.
-          </h1>
-
-          <p
-            className="text-lg md:text-xl text-white/60 mb-10 max-w-2xl opacity-0 animate-fade-in-up leading-relaxed"
-            style={{ animationDelay: "150ms" }}
-          >
-            automate your outreach with AI. find decision-makers, get verified emails, and send personalized messages in seconds.
-          </p>
-
-          <div
-            className="flex flex-col sm:flex-row gap-4 opacity-0 animate-fade-in-up"
-            style={{ animationDelay: "300ms" }}
-          >
-            <button
-              onClick={handleSignIn}
-              className="px-8 py-4 bg-white text-black hover:bg-white/90 transition-all duration-200 rounded font-medium flex items-center gap-2 group"
-            >
-              start for free
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </button>
-            <button
-              onClick={() => {
-                document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' });
-              }}
-              className="px-8 py-4 border border-white/20 text-white hover:bg-white/10 transition-all duration-200 rounded"
-            >
-              how it works
-            </button>
-          </div>
-        </div>
-
-        <div id="how-it-works" className="py-24 px-6 bg-[#050505] border-t border-white/5 relative z-10">
-          <div className="max-w-6xl mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-              <div className="opacity-0 animate-fade-in-up" style={{ animationDelay: "400ms" }}>
-                <div className="w-12 h-12 bg-white/5 border border-white/10 rounded flex items-center justify-center mb-6 text-white">
-                  <Search className="w-6 h-6" />
-                </div>
-                <h3 className="text-xl font-medium text-white mb-3">1. find people</h3>
-                <p className="text-white/50 leading-relaxed">
-                  skip the gatekeepers. instantly find recruiters, founders, and decision-makers at your target companies.
+      <div className="min-h-screen bg-background text-foreground">
+        <main className="mx-auto flex min-h-screen w-full max-w-5xl items-center px-6 py-12">
+          <div className="grid w-full gap-10 lg:grid-cols-[1.1fr_0.9fr]">
+            <div className="space-y-6">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                  Linkd
                 </p>
+                <h1 className="text-4xl md:text-5xl font-semibold tracking-tight">
+                  Find the right people. Send the right email.
+                </h1>
               </div>
+              <p className="text-base text-muted-foreground max-w-lg">
+                A simple outreach agent for students looking for internships.
+              </p>
+              <ul className="space-y-4">
+                {["Ask for recruiters or hiring managers at any company.", "Get verified emails you can actually reach.", "Send a clean intro directly from Linkd."].map(
+                  (item) => (
+                    <li key={item} className="flex gap-3 text-sm text-muted-foreground">
+                      <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
+                      <span className="text-foreground/90">{item}</span>
+                    </li>
+                  ),
+                )}
+              </ul>
+            </div>
 
-              <div className="opacity-0 animate-fade-in-up" style={{ animationDelay: "550ms" }}>
-                <div className="w-12 h-12 bg-white/5 border border-white/10 rounded flex items-center justify-center mb-6 text-white">
-                  <Mail className="w-6 h-6" />
-                </div>
-                <h3 className="text-xl font-medium text-white mb-3">2. get emails</h3>
-                <p className="text-white/50 leading-relaxed">
-                  access verified professional email addresses. no more guessing patterns or bouncing emails.
+            <div className="rounded-3xl border border-border/60 bg-card/90 p-8 shadow-xl">
+              <div className="space-y-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                  Sign in
                 </p>
-              </div>
-
-              <div className="opacity-0 animate-fade-in-up" style={{ animationDelay: "700ms" }}>
-                <div className="w-12 h-12 bg-white/5 border border-white/10 rounded flex items-center justify-center mb-6 text-white">
-                  <Send className="w-6 h-6" />
-                </div>
-                <h3 className="text-xl font-medium text-white mb-3">3. send outreach</h3>
-                <p className="text-white/50 leading-relaxed">
-                  generate personalized cold emails with AI and send them directly from the app. track opens and replies.
+                <h2 className="text-2xl font-semibold">
+                  Continue with Google
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Use your school or personal Gmail account.
+                </p>
+                <button
+                  onClick={handleSignIn}
+                  className="w-full rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 inline-flex items-center justify-center gap-2"
+                >
+                  Sign in with Google
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+                <p className="text-xs text-muted-foreground">
+                  We only use Google for authentication.
                 </p>
               </div>
             </div>
           </div>
-        </div>
-
-        <div className="py-24 px-6 relative z-10">
-          <div className="max-w-4xl mx-auto text-center">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-12 opacity-0 animate-fade-in-up" style={{ animationDelay: "800ms" }}>
-              why linkd?
-            </h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
-              <div className="p-8 bg-[#0a0a0a] border border-white/10 rounded hover:border-white/20 transition-colors opacity-0 animate-fade-in-up" style={{ animationDelay: "900ms" }}>
-                <div className="flex items-center gap-3 mb-4">
-                  <Users className="w-5 h-5 text-white/80" />
-                  <h3 className="text-lg font-medium text-white">for students</h3>
-                </div>
-                <p className="text-white/50 leading-relaxed">
-                  land your dream internship by reaching out directly to hiring managers and founders. stand out from the pile of resumes.
-                </p>
-              </div>
-
-              <div className="p-8 bg-[#0a0a0a] border border-white/10 rounded hover:border-white/20 transition-colors opacity-0 animate-fade-in-up" style={{ animationDelay: "1000ms" }}>
-                <div className="flex items-center gap-3 mb-4">
-                  <Send className="w-5 h-5 text-white/80" />
-                  <h3 className="text-lg font-medium text-white">for creators</h3>
-                </div>
-                <p className="text-white/50 leading-relaxed">
-                  secure brand deals by contacting marketing directors directly. stop waiting for inbound leads and take control.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-16 opacity-0 animate-fade-in-up" style={{ animationDelay: "1100ms" }}>
-              <button
-                onClick={handleSignIn}
-                className="px-8 py-4 bg-white text-black hover:bg-white/90 transition-all duration-200 rounded font-medium inline-flex items-center gap-2 hover:scale-105 transform"
-              >
-                get started now
-                <ArrowRight className="w-4 h-4" />
-              </button>
-              <p className="mt-4 text-white/30 text-sm">no credit card required</p>
-            </div>
-          </div>
-        </div>
-
-        <footer className="py-8 px-6 border-t border-white/5 text-center text-white/20 text-sm relative z-10">
-          <p>&copy; {new Date().getFullYear()} linkd. all rights reserved.</p>
-        </footer>
+        </main>
       </div>
     </>
   );
