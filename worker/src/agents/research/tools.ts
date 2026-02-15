@@ -1,7 +1,46 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { tavily } from "@tavily/core";
 import type { CloudflareBindings } from "../../env.d";
+
+interface TavilyResult {
+  title: string;
+  url: string;
+  content: string;
+  score: number;
+}
+
+interface TavilyResponse {
+  results: TavilyResult[];
+}
+
+async function tavilySearch(
+  apiKey: string,
+  query: string,
+  options?: {
+    searchDepth?: "basic" | "advanced";
+    maxResults?: number;
+    includeDomains?: string[];
+  },
+): Promise<TavilyResponse> {
+  const res = await fetch("https://api.tavily.com/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      api_key: apiKey,
+      query,
+      search_depth: options?.searchDepth ?? "basic",
+      max_results: options?.maxResults ?? 5,
+      include_domains: options?.includeDomains,
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Tavily API error (${res.status}): ${text}`);
+  }
+
+  return res.json() as Promise<TavilyResponse>;
+}
 
 const RoleType = z.enum([
   "recruiter",
@@ -72,8 +111,6 @@ export function createTools(
     ) => void;
   },
 ) {
-  const tvly = tavily({ apiKey: env.TAVILY_API_KEY });
-
   const linkedinSearch = tool({
     description: "Search LinkedIn for people at a specific company",
     inputSchema: z.object({
@@ -109,7 +146,7 @@ export function createTools(
       }
 
       try {
-        const response = await tvly.search(query, {
+        const response = await tavilySearch(env.TAVILY_API_KEY, query, {
           searchDepth: "advanced",
           includeDomains: ["linkedin.com"],
           maxResults: 10,
@@ -150,7 +187,7 @@ export function createTools(
     execute: async ({ query }) => {
       const resolvedStepId = options?.onToolStart?.("web_search");
       try {
-        const response = await tvly.search(query, {
+        const response = await tavilySearch(env.TAVILY_API_KEY, query, {
           searchDepth: "advanced",
           maxResults: 10,
         });
@@ -183,7 +220,7 @@ export function createTools(
         `"${companyName}" company official website ${context || ""}`.trim();
 
       try {
-        const response = await tvly.search(query, {
+        const response = await tavilySearch(env.TAVILY_API_KEY, query, {
           searchDepth: "basic",
           maxResults: 5,
         });

@@ -235,7 +235,7 @@ export function ChatComposeModal({
                   placeholder="Write your message..."
                   value={emailBody}
                   onChange={(e) => setEmailBody(e.target.value)}
-                  className="min-h-[350px] border-0 bg-transparent text-[#e8e8e8] focus-visible:ring-0 resize-none p-4 placeholder:text-[#4a4a4a]"
+                  className="min-h-[350px] border-0 bg-transparent text-sm text-[#e8e8e8] focus-visible:ring-0 resize-none p-4 placeholder:text-[#4a4a4a]"
                 />
               </div>
 

@@ -115,7 +115,7 @@ export function EmployeeComposeModal({ open, onOpenChange, employee, companyName
                   value={emailBody}
                   onChange={(e) => setEmailBody(e.target.value)}
                   disabled={!hasEmail}
-                  className="min-h-[250px] border-0 bg-transparent text-[#e8e8e8] focus-visible:ring-0 resize-none p-4 placeholder:text-[#4a4a4a] leading-relaxed disabled:opacity-50"
+                  className="min-h-[250px] border-0 bg-transparent text-sm text-[#e8e8e8] focus-visible:ring-0 resize-none p-4 placeholder:text-[#4a4a4a] leading-relaxed disabled:opacity-50"
                 />
               </div>
 
