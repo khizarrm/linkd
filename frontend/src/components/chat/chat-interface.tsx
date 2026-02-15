@@ -16,12 +16,6 @@ import remarkGfm from "remark-gfm";
 import { useChat, type UIMessage } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 
-interface Step {
-  id: string;
-  label: string;
-  status: "running" | "done";
-}
-
 interface ChatInterfaceProps {
   chatId?: string;
 }
@@ -48,14 +42,13 @@ function ChatSession({
   chatId,
   initialMessages,
   onChatIdChange,
-  onTitleUpdate,
 }: {
   chatId: string | null;
   initialMessages: UIMessage[];
   onChatIdChange: (nextChatId: string) => void;
-  onTitleUpdate: (chatId: string, title: string) => Promise<void>;
 }) {
   const { getToken } = useAuth();
+  const router = useRouter();
   const api = useProtectedApi();
   const { addChat } = useChatContext();
   const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
@@ -113,8 +106,16 @@ function ChatSession({
       if (!currentChatId) {
         currentChatId = await createNewChat();
         onChatIdChange(currentChatId);
-        window.history.replaceState(null, "", `/chat/${currentChatId}`);
-        await onTitleUpdate(currentChatId, generateTitle(value.trim()));
+        router.replace(`/chat/${currentChatId}`);
+
+        const title = generateTitle(value.trim());
+        await api.updateChat(currentChatId, { title });
+        addChat({
+          id: currentChatId,
+          title,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
       }
 
       const token = await getToken();
@@ -311,7 +312,6 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
       chatId={chatId}
       initialMessages={initialMessages}
       onChatIdChange={setChatId}
-      onTitleUpdate={async (id, title) => api.updateChat(id, { title })}
     />
   );
 }

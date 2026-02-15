@@ -50,6 +50,14 @@ export function ChatProvider({
     }
   }, [hasInitialized, refreshChats]);
 
+  useEffect(() => {
+    const onFocus = () => {
+      if (hasInitialized) refreshChats();
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [hasInitialized, refreshChats]);
+
   const addChat = useCallback((chat: Chat) => {
     setChats((prev) => {
       const exists = prev.find((c) => c.id === chat.id);
