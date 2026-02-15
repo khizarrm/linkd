@@ -79,8 +79,9 @@ export function createTools(
       role: RoleType,
       customRole: z.string().nullable(),
       location: z.string().nullable(),
+      maxResults: z.number().min(1).max(5).default(3).optional(),
     }),
-    execute: async ({ company, role, customRole, location }) => {
+    execute: async ({ company, role, customRole, location, maxResults = 3 }) => {
       const resolvedStepId = options?.onToolStart?.("linkedin_search");
       const roleClause =
         role === "other" && customRole
@@ -89,6 +90,12 @@ export function createTools(
 
       let query = `site:linkedin.com/in "${company}" ${roleClause}`;
       if (location) query += ` "${location}"`;
+
+      // Validate maxResults silently, fallback to 3 for invalid values
+      let validatedMaxResults = 3;
+      if (typeof maxResults === "number" && maxResults >= 1 && maxResults <= 5) {
+        validatedMaxResults = maxResults;
+      }
 
       try {
         const response = await tvly.search(query, {
@@ -99,11 +106,18 @@ export function createTools(
 
         const profiles = response.results
           .filter((r) => r.url.includes("linkedin.com/in/"))
-          .map((r) => ({
-            name: r.title.replace(/ [-\u2013\u2014|].*$/, "").trim(),
-            url: r.url,
-            snippet: r.content.substring(0, 300),
-          }));
+          .slice(0, validatedMaxResults)
+          .map((r) => {
+            // Extract role/title from r.title using regex to split on various dash types
+            const roleMatch = r.title.match(/[-\u2013\u2014|](.+?)(?:at|$)/);
+            const snippet = roleMatch ? roleMatch[1].trim() : "";
+
+            return {
+              name: r.title.replace(/ [-\u2013\u2014|].*$/, "").trim(),
+              url: r.url,
+              snippet,
+            };
+          });
 
         if (profiles.length > 0) {
           options?.onPeopleFound?.(profiles);
