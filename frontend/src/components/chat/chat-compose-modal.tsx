@@ -1,13 +1,31 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Send, Check, Mail, Loader2, ChevronDown } from "lucide-react";
+import { Send, Check, Mail, Loader2, ChevronDown, Sparkles } from "lucide-react";
 import { useProtectedApi } from "@/hooks/use-protected-api";
 import { useTemplates } from "@/hooks/use-templates";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { EmailData } from "./email-compose-card";
+
+interface Template {
+  id: string;
+  name: string;
+}
 
 interface ChatComposeModalProps {
   open: boolean;
@@ -21,7 +39,7 @@ export function ChatComposeModal({
   emailData,
 }: ChatComposeModalProps) {
   const protectedApi = useProtectedApi();
-  const { templates, isLoading: isLoadingTemplates } = useTemplates();
+  const { templates, isLoading: isLoadingTemplates } = useTemplates() as { templates: Template[]; isLoading: boolean; isError: Error | null; mutateTemplates: () => void; };
   const [isSending, setIsSending] = useState(false);
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
@@ -29,18 +47,22 @@ export function ChatComposeModal({
   const [sendError, setSendError] = useState<string | null>(null);
   const [gmailConnected, setGmailConnected] = useState<boolean | null>(null);
   const [isCheckingGmail, setIsCheckingGmail] = useState(false);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("none");
   const [isProcessingTemplate, setIsProcessingTemplate] = useState(false);
   const [templateError, setTemplateError] = useState<string | null>(null);
+
+  const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
 
   useEffect(() => {
     if (open) {
       setIsCheckingGmail(true);
-      protectedApi.getGmailStatus()
+      protectedApi
+        .getGmailStatus()
         .then((data) => setGmailConnected(data.connected))
         .catch(() => setGmailConnected(false))
         .finally(() => setIsCheckingGmail(false));
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   useEffect(() => {
@@ -50,7 +72,7 @@ export function ChatComposeModal({
       setSendSuccess(false);
       setSendError(null);
       setGmailConnected(null);
-      setSelectedTemplateId("");
+      setSelectedTemplateId("none");
       setTemplateError(null);
       setIsProcessingTemplate(false);
     }
@@ -69,7 +91,7 @@ export function ChatComposeModal({
     setSelectedTemplateId(templateId);
     setTemplateError(null);
 
-    if (!templateId) {
+    if (templateId === "none") {
       return;
     }
 
@@ -106,10 +128,7 @@ export function ChatComposeModal({
       setSendSuccess(true);
       setTimeout(() => {
         onOpenChange(false);
-        setSendSuccess(false);
-        setEmailSubject("");
-        setEmailBody("");
-      }, 2000);
+      }, 1500);
     } catch (error) {
       setSendError((error as Error).message);
     } finally {
@@ -117,39 +136,22 @@ export function ChatComposeModal({
     }
   };
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
-        onClick={() => onOpenChange(false)}
-      />
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[600px] p-0 gap-0 bg-[#0a0a0a] border-[#2a2a2a] text-[#e8e8e8]">
+        <DialogHeader className="p-6 pb-4 border-b border-[#2a2a2a]">
+          <DialogTitle className="text-lg font-medium tracking-tight">
+            Compose
+          </DialogTitle>
+          <p className="text-sm text-[#8a8a8a] mt-1">
+            To: {emailData.name} &lt;{emailData.email}&gt;
+          </p>
+        </DialogHeader>
 
-      <div className="relative w-full max-w-2xl bg-[#151515] border border-[#2a2a2a] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-[#2a2a2a]">
-          <div className="min-w-0">
-            <h3 className="text-lg font-medium text-white font-sans font-light tracking-wide">
-              Compose Email
-            </h3>
-            <p className="text-sm text-gray-400 truncate mt-0.5">
-              To: {emailData.name} &lt;{emailData.email}&gt;
-            </p>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-gray-400 hover:text-white"
-            onClick={() => onOpenChange(false)}
-          >
-            <X className="w-5 h-5" />
-          </Button>
-        </div>
-
-        <div className="p-4 sm:p-6 space-y-4">
+        <div className="p-6 space-y-4 overflow-y-auto max-h-[60vh]">
           {isCheckingGmail ? (
-            <div className="flex items-center justify-center py-12 text-gray-400">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-400 mr-3" />
+            <div className="flex items-center justify-center py-12 text-[#8a8a8a]">
+              <Loader2 className="w-6 h-6 animate-spin mr-3" />
               Checking Gmail connection...
             </div>
           ) : gmailConnected === false ? (
@@ -158,14 +160,17 @@ export function ChatComposeModal({
                 <Mail className="w-8 h-8 text-blue-500" />
               </div>
               <div className="space-y-2">
-                <h4 className="text-lg font-medium text-white">Connect Gmail</h4>
-                <p className="text-sm text-gray-400 max-w-sm mx-auto">
-                  To send emails, you need to connect your Gmail account. Your emails will be sent from your own address.
+                <h4 className="text-lg font-medium text-[#e8e8e8]">
+                  Connect Gmail
+                </h4>
+                <p className="text-sm text-[#8a8a8a] max-w-sm mx-auto">
+                  Connect your Gmail account to send emails. Your emails will be
+                  sent from your own address.
                 </p>
               </div>
               <Button
                 onClick={handleConnectGmail}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                className="bg-[#e8e8e8] text-black hover:bg-white"
               >
                 <Mail className="w-4 h-4 mr-2" />
                 Connect Gmail
@@ -173,88 +178,94 @@ export function ChatComposeModal({
             </div>
           ) : (
             <>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-400 font-sans font-light tracking-wide">
-                  Template
-                </label>
-                <div className="relative">
-                  <select
-                    value={selectedTemplateId}
-                    onChange={(e) => handleTemplateChange(e.target.value)}
-                    disabled={isProcessingTemplate || isLoadingTemplates}
-                    className="w-full h-9 rounded-md border border-[#2a2a2a] bg-[#0a0a0a] px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 text-white font-sans font-light tracking-wide appearance-none pr-8"
-                  >
-                    <option value="">No template</option>
-                    {templates.map((template: any) => (
-                      <option key={template.id} value={template.id}>
+              <div className="flex items-center gap-3">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      disabled={isProcessingTemplate || isLoadingTemplates}
+                      className="h-9 px-3 bg-transparent border-[#2a2a2a] hover:bg-[#1a1a1a] hover:border-[#3a3a3a] text-[#8a8a8a] hover:text-[#e8e8e8] font-normal justify-between min-w-[180px]"
+                    >
+                      <span className="flex items-center gap-2">
+                        {isProcessingTemplate ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Sparkles className="w-4 h-4" />
+                        )}
+                        {selectedTemplateId === "none"
+                          ? "Template"
+                          : selectedTemplate?.name || "Template"}
+                      </span>
+                      <ChevronDown className="w-4 h-4 opacity-50" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="bg-[#151515] border-[#2a2a2a] min-w-[180px]">
+                    <DropdownMenuItem
+                      onClick={() => handleTemplateChange("none")}
+                      className="text-[#e8e8e8] focus:bg-[#252525] focus:text-[#e8e8e8] cursor-pointer"
+                    >
+                      No template
+                    </DropdownMenuItem>
+                    {templates.map((template: Template) => (
+                      <DropdownMenuItem
+                        key={template.id}
+                        onClick={() => handleTemplateChange(template.id)}
+                        className="text-[#e8e8e8] focus:bg-[#252525] focus:text-[#e8e8e8] cursor-pointer"
+                      >
                         {template.name}
-                      </option>
+                      </DropdownMenuItem>
                     ))}
-                  </select>
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                    {isProcessingTemplate ? (
-                      <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4 text-gray-400" />
-                    )}
-                  </div>
-                </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
                 {templateError && (
-                  <p className="text-xs text-red-400 font-sans font-light tracking-wide">
-                    {templateError}
-                  </p>
+                  <p className="text-xs text-red-400">{templateError}</p>
                 )}
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-400 font-sans font-light tracking-wide">
-                  Subject
-                </label>
+              <div className="border border-[#2a2a2a] rounded-lg bg-[#151515] overflow-hidden">
                 <Input
-                  placeholder="Enter subject..."
+                  placeholder="Subject..."
                   value={emailSubject}
                   onChange={(e) => setEmailSubject(e.target.value)}
-                  className="bg-[#0a0a0a] border-[#2a2a2a] text-white focus:border-[#3a3a3a] focus:ring-0 font-sans font-light tracking-wide"
+                  className="border-0 bg-transparent text-[#e8e8e8] focus-visible:ring-0 px-4 py-3 h-auto placeholder:text-[#4a4a4a]"
                 />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-400 font-sans font-light tracking-wide">
-                  Message
-                </label>
+                <Separator className="bg-[#2a2a2a]" />
                 <Textarea
                   placeholder="Write your message..."
                   value={emailBody}
                   onChange={(e) => setEmailBody(e.target.value)}
-                  className="min-h-[200px] bg-[#0a0a0a] border-[#2a2a2a] text-white focus:border-[#3a3a3a] focus:ring-0 resize-none font-sans font-light tracking-wide"
+                  className="min-h-[350px] border-0 bg-transparent text-[#e8e8e8] focus-visible:ring-0 resize-none p-4 placeholder:text-[#4a4a4a]"
                 />
               </div>
-            </>
-          )}
 
-          {sendError && (
-            <p className="text-sm text-red-400 bg-red-400/10 p-3 rounded-lg font-sans font-light tracking-wide">
-              {sendError}
-            </p>
+              {sendError && (
+                <p className="text-sm text-red-400 bg-red-400/10 p-3 rounded-lg">
+                  {sendError}
+                </p>
+              )}
+            </>
           )}
         </div>
 
-        <div className="p-4 sm:p-6 pt-0 flex justify-end gap-3">
-          <Button
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
-            className="text-gray-400 hover:text-white hover:bg-[#2a2a2a] font-sans font-light tracking-wide"
-          >
-            Cancel
-          </Button>
-          {gmailConnected && (
+        {gmailConnected && (
+          <div className="p-6 pt-0 flex justify-end gap-3">
+            <Button
+              variant="ghost"
+              onClick={() => onOpenChange(false)}
+              className="text-[#8a8a8a] hover:text-[#e8e8e8] hover:bg-[#1a1a1a]"
+            >
+              Cancel
+            </Button>
             <Button
               onClick={handleSendEmail}
-              disabled={isSending || !emailSubject || !emailBody}
-              className="bg-blue-600 hover:bg-blue-700 text-white min-w-[100px] font-sans font-light tracking-wide"
+              disabled={
+                isSending || !emailSubject || !emailBody || isProcessingTemplate
+              }
+              className="bg-[#e8e8e8] text-black hover:bg-white min-w-[100px]"
             >
               {isSending ? (
-                "Sending..."
+                <Loader2 className="w-4 h-4 animate-spin" />
               ) : sendSuccess ? (
                 <span className="flex items-center gap-2">
                   <Check className="w-4 h-4" /> Sent
@@ -265,9 +276,9 @@ export function ChatComposeModal({
                 </span>
               )}
             </Button>
-          )}
-        </div>
-      </div>
-    </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

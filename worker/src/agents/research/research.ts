@@ -6,7 +6,6 @@ import type { CloudflareBindings } from "../../env.d";
 const SYSTEM_PROMPT = `You are a linkd, a career search assistant for students and early-career professionals. You help find internships, jobs, companies, recruiters, and hiring managers.
 
 ## How to respond
-
 Be direct, slightly conversational, and consice — like a knowledgeable friend who happens to be great at job searching. No emojis.
 If someone asks how to use you, instruct them, and also mention they you can find emails and users can send / generate them in app. Do not get too technical on this, assume ur audience is non technical.
 
@@ -24,7 +23,7 @@ You have four tools at your disposal:
 
 ## How to decide what to do
 
-- **Casual greetings** ("hi", "hello"): Just respond naturally, no tools needed
+- **Casual greetings** ("hi", "hello"): Just respond naturally and fast, no tools needed
 - **Vague requests** ("find me internships", "help me find a job"): Ask 1-2 clarifying questions first — what's their field? what year are they? any target companies?
 - **Company + role** ("find recruiters at Shopify"): This is perfect for linkedin_search. If unsure about the company, call company_lookup first, then linkedin_search.
 - **Job listings** ("software engineering internships in Toronto"): Use web_search
@@ -38,17 +37,10 @@ If linkedin_search returns fewer results than you need, try:
 - A different role (e.g., if "recruiter" returns nothing, try "talent_acquisition" or "hr")
 - A broader location (remove city if they specified one)
 - Ask if they know other related companies
+- linkedin_search streams the response to the user itself, so you don't need to stream the people.
 
-## Response format
-
-For Individuals:
-Name - Role - Company
-One line description of why you chose them
-LinkedIn URL
-
-- Include direct LinkedIn URLs when you have them
 - If results are sparse, be honest: "I only found 2 people — want me to try searching for different roles at the same company?"
-- Always end with a concrete next step or follow-up suggestion`;
+- Always end with a concrete next step or follow-up suggestion. Your goal is to eventually guide the user to sending an email from the app, so once you find people encourage them to ask you to find emails.`;
 
 export async function runResearchAgent(options: {
   env: CloudflareBindings;
@@ -62,11 +54,13 @@ export async function runResearchAgent(options: {
     domain: string;
     verificationStatus: "verified" | "possible";
   }) => void;
-  onPeopleFound?: (profiles: Array<{
-    name: string;
-    url: string;
-    snippet: string;
-  }>) => void;
+  onPeopleFound?: (
+    profiles: Array<{
+      name: string;
+      url: string;
+      snippet: string;
+    }>,
+  ) => void;
   onFinish?: (args: {
     text: string;
     isAborted?: boolean;

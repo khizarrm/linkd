@@ -1,6 +1,6 @@
 'use client';
 
-import { User, LogOut, FileText, Info, Plus } from "lucide-react"
+import { User, LogOut, FileText, Info, Plus, LayoutTemplate } from "lucide-react"
 import { useRouter, usePathname } from "next/navigation"
 import Image from "next/image"
 import { useState } from "react"
@@ -8,7 +8,7 @@ import { useUser, useClerk } from "@clerk/nextjs"
 import { FeedbackDialog } from "./feedback-dialog"
 import { InfoDialog } from "./info-dialog"
 import { ChatHistoryList } from "./chat/chat-history-list"
-import { SidebarTemplates } from "./chat/sidebar-templates"
+import { TemplateManagementModal } from "./templates/template-management-modal"
 
 import {
   Sidebar,
@@ -32,6 +32,7 @@ export function AppSidebar() {
   const [showSignOut, setShowSignOut] = useState(false);
   const [isFeedbackDialogOpen, setIsFeedbackDialogOpen] = useState(false);
   const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
+  const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
   // const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
 
   const { user } = useUser();
@@ -88,12 +89,18 @@ export function AppSidebar() {
                   <span>New chat</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => setIsTemplatesModalOpen(true)}
+                  tooltip="Templates"
+                >
+                  <LayoutTemplate className="size-4" />
+                  <span>Templates</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        <div className="group-data-[collapsible=icon]:hidden">
-          <SidebarTemplates />
-        </div>
         <div className="group-data-[collapsible=icon]:hidden">
           <ChatHistoryList />
         </div>
@@ -172,6 +179,10 @@ export function AppSidebar() {
       <InfoDialog
         open={isInfoDialogOpen}
         onOpenChange={setIsInfoDialogOpen}
+      />
+      <TemplateManagementModal
+        open={isTemplatesModalOpen}
+        onOpenChange={setIsTemplatesModalOpen}
       />
       <SidebarRail />
     </Sidebar>

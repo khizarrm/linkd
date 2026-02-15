@@ -3,174 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth, useSignIn } from "@clerk/nextjs";
-import { Check, Copy, Loader2, Mail, X } from "lucide-react";
-import type { OrchestratorResponse } from "@/lib/api";
-import { apiFetch } from "@/lib/api";
-import { triggerHaptic } from "@/lib/haptics";
-import { SearchForm } from "@/components/search/search-form";
-
-const DEMO_TRIES_KEY = "linkd_demo_tries";
-
-interface QuestionSectionProps {
-  title: string;
-  delay: number;
-  children?: React.ReactNode;
-}
-
-function QuestionSection({ title, delay, children }: QuestionSectionProps) {
-  return (
-    <div
-      className="opacity-0 animate-fade-in-up"
-      style={{
-        animationDelay: `${delay}ms`,
-        fontFamily: "var(--font-fira-mono)",
-      }}
-    >
-      <h3 className="text-lg md:text-xl font-medium mb-3 text-white">
-        {title}
-      </h3>
-      <div className="text-sm md:text-base text-white/60 leading-relaxed">
-        {children || (
-          <>
-            <p className="mb-3">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
-              eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut
-              enim ad minim veniam, quis nostrud exercitation ullamco laboris.
-            </p>
-            <p>
-              Duis aute irure dolor in reprehenderit in voluptate velit esse
-              cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat
-              cupidatat non proident, sunt in culpa qui officia deserunt mollit
-              anim id est laborum.
-            </p>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ResultsCard({ result }: { result: OrchestratorResponse }) {
-  const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
-  const [faviconError, setFaviconError] = useState(false);
-  const person = result.people?.[0];
-  const email = person?.emails?.[0];
-  const faviconUrl =
-    result.favicon ||
-    (result.website
-      ? `https://www.google.com/s2/favicons?domain=${result.website}&sz=128`
-      : null);
-
-  // Handle maintenance message
-  if (result.message === "currently undergoing maintenance :(") {
-    return (
-      <div className="mt-8 w-full max-w-2xl mx-auto p-6 bg-[#0a0a0a] border border-white/10 rounded-lg animate-slide-up-fade">
-        <p
-          className="text-center text-white/70"
-          style={{ fontFamily: "var(--font-fira-mono)" }}
-        >
-          currently undergoing maintenance :(
-        </p>
-      </div>
-    );
-  }
-
-  if (!person || !email) {
-    return (
-      <div className="mt-8 w-full max-w-2xl mx-auto p-6 bg-[#0a0a0a] border border-white/10 rounded-lg animate-slide-up-fade">
-        <p
-          className="text-center text-white/70"
-          style={{ fontFamily: "var(--font-fira-mono)" }}
-        >
-          No verified email found
-        </p>
-      </div>
-    );
-  }
-
-  const handleCopy = async () => {
-    try {
-      const emailStr = typeof email === "string" ? email : email?.email;
-      if (!emailStr) return;
-
-      await navigator.clipboard.writeText(emailStr);
-      triggerHaptic("medium");
-      setCopiedEmail(emailStr);
-      setTimeout(() => setCopiedEmail(null), 2000);
-    } catch (error) {
-      console.error("Failed to copy:", error);
-      triggerHaptic("error");
-    }
-  };
-
-  return (
-    <div className="mt-8 w-full max-w-2xl mx-auto p-6 bg-[#0a0a0a] border border-white/10 rounded-lg animate-bounce-in">
-      <div className="space-y-4">
-        <div className="flex items-start gap-3">
-          {faviconUrl && !faviconError && (
-            <img
-              src={faviconUrl}
-              alt={`${result.company} favicon`}
-              className="w-6 h-6 rounded shrink-0 mt-1"
-              onError={() => setFaviconError(true)}
-            />
-          )}
-          <div className="flex-1">
-            <h3
-              className="text-xl font-medium mb-1"
-              style={{ fontFamily: "var(--font-fira-mono)" }}
-            >
-              {person.name}
-            </h3>
-            {person.role && (
-              <p
-                className="text-sm text-white/70"
-                style={{ fontFamily: "var(--font-fira-mono)" }}
-              >
-                {person.role}
-              </p>
-            )}
-          </div>
-        </div>
-         <div className="flex items-center gap-3 p-3 bg-[#141414] border border-white/5 rounded">
-          <Mail className="w-4 h-4 text-white/50 shrink-0" />
-          <code
-            className="flex-1 text-sm text-white/90 truncate"
-            style={{ fontFamily: "var(--font-fira-mono)" }}
-          >
-            {typeof email === "string" ? email : email?.email || ""}
-          </code>
-          <button
-            onClick={handleCopy}
-            className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded text-sm transition-all duration-[150ms] hover:scale-[1.02] will-change-transform"
-            style={{
-              fontFamily: "var(--font-fira-mono)",
-              transform: "translateZ(0)",
-            }}
-          >
-            {copiedEmail === email ? (
-              <span className="flex items-center gap-2">
-                <Check className="w-3 h-3" />
-                Copied
-              </span>
-            ) : (
-              <span className="flex items-center gap-2">
-                <Copy className="w-3 h-3" />
-                Copy
-              </span>
-            )}
-          </button>
-        </div>
-        <p
-          className="text-sm text-white/50 text-center pt-2"
-          style={{ fontFamily: "var(--font-fira-mono)" }}
-        >
-          scroll below to find out more
-        </p>
-      </div>
-    </div>
-  );
-}
+import { Mail, X, Search, Send, ArrowRight, Users } from "lucide-react";
 
 function SignInModal({
   isOpen,
@@ -278,12 +111,6 @@ function SignInModal({
 export default function LoginPage() {
   const { isSignedIn, isLoaded } = useAuth();
   const router = useRouter();
-  const [demoLoading, setDemoLoading] = useState(false);
-  const [demoResult, setDemoResult] = useState<OrchestratorResponse | null>(
-    null,
-  );
-  const [demoError, setDemoError] = useState<string | null>(null);
-  const [triesRemaining, setTriesRemaining] = useState(3);
   const [showSignIn, setShowSignIn] = useState(false);
 
   useEffect(() => {
@@ -292,283 +119,150 @@ export default function LoginPage() {
     }
   }, [isLoaded, isSignedIn, router]);
 
-  useEffect(() => {
-    const savedTries = localStorage.getItem(DEMO_TRIES_KEY);
-    if (savedTries) {
-      const remaining = parseInt(savedTries, 10);
-      setTriesRemaining(Math.max(0, remaining));
-    }
-  }, []);
-
   if (isLoaded && isSignedIn) {
     return null;
   }
 
-  const cleanUrl = (url: string): string => {
-    let cleaned = url.trim();
-    cleaned = cleaned.replace(/^https?:\/\//, "");
-    cleaned = cleaned.replace(/^www\./, "");
-    cleaned = cleaned.split("/")[0];
-    cleaned = cleaned.split("?")[0];
-    return cleaned;
-  };
-
-  const handleDemoSearch = async (
-    query: string,
-  ): Promise<OrchestratorResponse | Error> => {
-    if (triesRemaining <= 0) {
-      const errorMessage =
-        "You've used all 3 free tries. Sign in to continue searching.";
-      setDemoError(errorMessage);
-      return new Error(errorMessage);
-    }
-
-    setDemoError(null);
-    setDemoResult(null);
-    setDemoLoading(true);
-
-    const trimmedQuery = cleanUrl(query);
-
-    try {
-      const params = { query: trimmedQuery };
-      const response = await apiFetch(
-        "/api/agents/orchestrator",
-        {
-          method: "POST",
-          body: JSON.stringify(params),
-        },
-        null,
-      );
-
-      if (!response.ok) {
-        const error = await response
-          .json()
-          .catch(() => ({ error: "An unexpected error occurred" }));
-        const errorMessage = error.error || "Failed to run orchestrator";
-        setDemoError(errorMessage);
-        return new Error(errorMessage);
-      }
-
-      const data: OrchestratorResponse = await response.json();
-      setDemoResult(data);
-
-      const newTriesRemaining = triesRemaining - 1;
-      setTriesRemaining(newTriesRemaining);
-      localStorage.setItem(DEMO_TRIES_KEY, newTriesRemaining.toString());
-
-      return data;
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Failed to run orchestrator";
-      setDemoError(errorMessage);
-      return new Error(errorMessage);
-    } finally {
-      setDemoLoading(false);
-    }
-  };
-
   const handleSignIn = () => {
     setShowSignIn(true);
-  };
-
-  const handleSearchSubmit = async (
-    query: string,
-  ): Promise<OrchestratorResponse | Error> => {
-    if (triesRemaining > 0) {
-      return await handleDemoSearch(query);
-    } else {
-      handleSignIn();
-      return new Error("No tries remaining");
-    }
   };
 
   return (
     <>
       <SignInModal isOpen={showSignIn} onClose={() => setShowSignIn(false)} />
       <div
-        className="bg-black relative"
+        className="bg-black min-h-screen relative overflow-x-hidden"
         style={{ fontFamily: "var(--font-fira-mono)" }}
       >
-        {/* Top Left Guide Button */}
-        <div className="fixed top-6 left-6 z-10">
-          <button
-            onClick={() => router.push("/guide")}
-            className="px-4 py-2 bg-white text-black hover:bg-white/90 transition-all duration-200 lowercase rounded"
-            style={{ fontFamily: "var(--font-fira-mono)" }}
-          >
-            guide
-          </button>
-        </div>
+        <div className="grain-overlay" />
 
-        {/* Top Right Buttons */}
-        <div className="fixed top-6 right-6 flex items-center gap-4 z-10">
+        <nav className="fixed top-0 left-0 right-0 p-6 flex justify-between items-center z-20">
+          <div className="text-white font-bold text-xl tracking-tight">linkd</div>
           <button
             onClick={handleSignIn}
-            className="px-4 py-2 border border-white text-white hover:bg-white/10 transition-all duration-200 lowercase rounded"
-            style={{ fontFamily: "var(--font-fira-mono)" }}
+            className="px-4 py-2 border border-white/20 text-white hover:bg-white/10 transition-all duration-200 lowercase rounded text-sm"
           >
             sign in
           </button>
-        </div>
+        </nav>
 
-        {/* Main Centered Section */}
-        <div className="min-h-screen flex flex-col items-center justify-center p-6 w-full max-w-4xl mx-auto">
-          {/* Title */}
+        <div className="relative pt-32 pb-20 px-6 flex flex-col items-center justify-center min-h-[80vh] w-full max-w-5xl mx-auto text-center z-10">
           <h1
-            className="text-6xl md:text-7xl font-bold mb-4 text-white opacity-0 animate-fade-in-up"
-            style={{ fontFamily: "var(--font-fira-mono)" }}
+            className="text-5xl md:text-7xl lg:text-8xl font-bold mb-6 text-white opacity-0 animate-fade-in-up tracking-tighter"
+            style={{ animationDelay: "0ms" }}
           >
-            linkd
+            stop applying<br />into the void.
           </h1>
 
-          {/* Subtitle */}
           <p
-            className="text-lg md:text-xl text-white/60 mb-2 opacity-0 animate-fade-in-up"
-            style={{
-              animationDelay: "100ms",
-              fontFamily: "var(--font-fira-mono)",
-            }}
+            className="text-lg md:text-xl text-white/60 mb-10 max-w-2xl opacity-0 animate-fade-in-up leading-relaxed"
+            style={{ animationDelay: "150ms" }}
           >
-            an easier way to outreach
+            automate your outreach with AI. find decision-makers, get verified emails, and send personalized messages in seconds.
           </p>
 
-          <p
-            className="text-xs md:text-sm text-white/40 mb-8 opacity-0 animate-fade-in-up"
-            style={{
-              animationDelay: "150ms",
-              fontFamily: "var(--font-fira-mono)",
-            }}
-          >
-            works best for tech companies
-          </p>
-
-          {/* Input Bar */}
           <div
-            className="w-full max-w-2xl mb-6 opacity-0 animate-fade-in-up"
-            style={{ animationDelay: "200ms" }}
+            className="flex flex-col sm:flex-row gap-4 opacity-0 animate-fade-in-up"
+            style={{ animationDelay: "300ms" }}
           >
-            <SearchForm
-              onSearch={handleSearchSubmit}
-              isLoading={demoLoading}
-              icon="arrow"
-              placeholder={
-                triesRemaining <= 0
-                  ? "sign in to continue searching"
-                  : "type a company website here"
-              }
-            />
-            {triesRemaining <= 0 && (
-              <div
-                className="mt-4 p-4 bg-white/5 border border-white/10 rounded text-white/70 text-sm text-center animate-fade-in-up"
-                style={{ fontFamily: "var(--font-fira-mono)" }}
-              >
-                <p className="mb-2">You've used all 3 free tries.</p>
-                <button
-                  onClick={handleSignIn}
-                  className="text-white underline hover:text-white/80 transition-colors"
-                  style={{ fontFamily: "var(--font-fira-mono)" }}
-                >
-                  Sign in or create an account to continue
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Results Display */}
-          {demoResult && !demoLoading && <ResultsCard result={demoResult} />}
-
-          {/* Error Display */}
-          {demoError && !demoLoading && (
-            <div
-              className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded text-red-400 text-sm animate-bounce-in"
-              style={{ fontFamily: "var(--font-fira-mono)" }}
+            <button
+              onClick={handleSignIn}
+              className="px-8 py-4 bg-white text-black hover:bg-white/90 transition-all duration-200 rounded font-medium flex items-center gap-2 group"
             >
-              {demoError}
-            </div>
-          )}
-
-          {/* Try Another Button */}
-          {demoResult && !demoLoading && triesRemaining > 0 && (
+              start for free
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </button>
             <button
               onClick={() => {
-                setDemoResult(null);
-                setDemoError(null);
+                document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' });
               }}
-              className="mt-4 px-6 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded text-sm transition-all duration-[150ms] hover:scale-[1.02] will-change-transform animate-fade-in-up"
-              style={{
-                fontFamily: "var(--font-fira-mono)",
-                transform: "translateZ(0)",
-              }}
+              className="px-8 py-4 border border-white/20 text-white hover:bg-white/10 transition-all duration-200 rounded"
             >
-              Try another
+              how it works
             </button>
-          )}
-        </div>
-
-        {/* Bottom Section - Question Sections (Only visible on scroll) */}
-        <div className="w-full max-w-6xl pb-12 pt-32 px-6 mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12">
-            <QuestionSection title="what's linkd?" delay={400}>
-              <p className="mb-3">
-                linkd streamlines cold outreach by finding the right
-                decision-makers to contact. instead of reaching out to generic
-                emails that get ignored, linkd finds key people like ceos.
-                reaching out to the ppl at the top makes the process much
-                easier, and is much more effective for smaller to mid size
-                companies.
-              </p>
-              <p>
-                the vision is to automate your entire workflow. linkd will
-                research companies that match your criteria, find decision-maker
-                emails, write personalized messages, and queue them for
-                approval. the final flow: open the app, review 5 pre-written
-                emails daily to companies we found for you, and send with one
-                click.
-              </p>
-            </QuestionSection>
-            <QuestionSection title="who is linkd for?" delay={500}>
-              <p className="mb-3">
-                linkd was initially built for job seekers—cold outreach is
-                incredibly effective when looking for opportunities, especially
-                at startups. however, after early testing, i found it also works
-                really well for creators reaching out to brands, particularly
-                smaller ones.
-              </p>
-              <p>
-                if you're a student trying to land a job, linkd is ideal for
-                reaching out to startups where direct contact makes a real
-                difference. if you're a content creator looking for brand deals,
-                linkd works exceptionally well for small to mid-size companies
-                where reaching ceos directly significantly increases your
-                chances.
-              </p>
-            </QuestionSection>
-            <QuestionSection title="who am i?" delay={600}>
-              <p className="mb-3">
-                i'm a fourth-year cs student at carleton university. this past
-                winter, i was struggling to find a job. i would wake up and keep
-                applying, keep applying and get barely any responses. it felt
-                like throwing my applications into a void.
-              </p>
-              <p>
-                a friend told me to try emailing companies directly. within a
-                week, i got 7 interviews and even pitched mark cuban my startup.
-                that's when i realized how effective cold emailing is, and that
-                most people didn't know about this. so i built linkd to ease
-                that pain. here's my{" "}
-                <a
-                  href="https://khizarmalik.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline hover:text-white transition-colors"
-                >
-                  website
-                </a>
-                . hope this helps.
-              </p>
-            </QuestionSection>
           </div>
         </div>
+
+        <div id="how-it-works" className="py-24 px-6 bg-[#050505] border-t border-white/5 relative z-10">
+          <div className="max-w-6xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+              <div className="opacity-0 animate-fade-in-up" style={{ animationDelay: "400ms" }}>
+                <div className="w-12 h-12 bg-white/5 border border-white/10 rounded flex items-center justify-center mb-6 text-white">
+                  <Search className="w-6 h-6" />
+                </div>
+                <h3 className="text-xl font-medium text-white mb-3">1. find people</h3>
+                <p className="text-white/50 leading-relaxed">
+                  skip the gatekeepers. instantly find recruiters, founders, and decision-makers at your target companies.
+                </p>
+              </div>
+
+              <div className="opacity-0 animate-fade-in-up" style={{ animationDelay: "550ms" }}>
+                <div className="w-12 h-12 bg-white/5 border border-white/10 rounded flex items-center justify-center mb-6 text-white">
+                  <Mail className="w-6 h-6" />
+                </div>
+                <h3 className="text-xl font-medium text-white mb-3">2. get emails</h3>
+                <p className="text-white/50 leading-relaxed">
+                  access verified professional email addresses. no more guessing patterns or bouncing emails.
+                </p>
+              </div>
+
+              <div className="opacity-0 animate-fade-in-up" style={{ animationDelay: "700ms" }}>
+                <div className="w-12 h-12 bg-white/5 border border-white/10 rounded flex items-center justify-center mb-6 text-white">
+                  <Send className="w-6 h-6" />
+                </div>
+                <h3 className="text-xl font-medium text-white mb-3">3. send outreach</h3>
+                <p className="text-white/50 leading-relaxed">
+                  generate personalized cold emails with AI and send them directly from the app. track opens and replies.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="py-24 px-6 relative z-10">
+          <div className="max-w-4xl mx-auto text-center">
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-12 opacity-0 animate-fade-in-up" style={{ animationDelay: "800ms" }}>
+              why linkd?
+            </h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
+              <div className="p-8 bg-[#0a0a0a] border border-white/10 rounded hover:border-white/20 transition-colors opacity-0 animate-fade-in-up" style={{ animationDelay: "900ms" }}>
+                <div className="flex items-center gap-3 mb-4">
+                  <Users className="w-5 h-5 text-white/80" />
+                  <h3 className="text-lg font-medium text-white">for students</h3>
+                </div>
+                <p className="text-white/50 leading-relaxed">
+                  land your dream internship by reaching out directly to hiring managers and founders. stand out from the pile of resumes.
+                </p>
+              </div>
+
+              <div className="p-8 bg-[#0a0a0a] border border-white/10 rounded hover:border-white/20 transition-colors opacity-0 animate-fade-in-up" style={{ animationDelay: "1000ms" }}>
+                <div className="flex items-center gap-3 mb-4">
+                  <Send className="w-5 h-5 text-white/80" />
+                  <h3 className="text-lg font-medium text-white">for creators</h3>
+                </div>
+                <p className="text-white/50 leading-relaxed">
+                  secure brand deals by contacting marketing directors directly. stop waiting for inbound leads and take control.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-16 opacity-0 animate-fade-in-up" style={{ animationDelay: "1100ms" }}>
+              <button
+                onClick={handleSignIn}
+                className="px-8 py-4 bg-white text-black hover:bg-white/90 transition-all duration-200 rounded font-medium inline-flex items-center gap-2 hover:scale-105 transform"
+              >
+                get started now
+                <ArrowRight className="w-4 h-4" />
+              </button>
+              <p className="mt-4 text-white/30 text-sm">no credit card required</p>
+            </div>
+          </div>
+        </div>
+
+        <footer className="py-8 px-6 border-t border-white/5 text-center text-white/20 text-sm relative z-10">
+          <p>&copy; {new Date().getFullYear()} linkd. all rights reserved.</p>
+        </footer>
       </div>
     </>
   );
