@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Send, Check, Mail } from "lucide-react";
+import { X, Send, Check, Mail, Loader2, ChevronDown } from "lucide-react";
 import { useProtectedApi } from "@/hooks/use-protected-api";
+import { useTemplates } from "@/hooks/use-templates";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,6 +21,7 @@ export function ChatComposeModal({
   emailData,
 }: ChatComposeModalProps) {
   const protectedApi = useProtectedApi();
+  const { templates, isLoading: isLoadingTemplates } = useTemplates();
   const [isSending, setIsSending] = useState(false);
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
@@ -27,6 +29,9 @@ export function ChatComposeModal({
   const [sendError, setSendError] = useState<string | null>(null);
   const [gmailConnected, setGmailConnected] = useState<boolean | null>(null);
   const [isCheckingGmail, setIsCheckingGmail] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const [isProcessingTemplate, setIsProcessingTemplate] = useState(false);
+  const [templateError, setTemplateError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -45,6 +50,9 @@ export function ChatComposeModal({
       setSendSuccess(false);
       setSendError(null);
       setGmailConnected(null);
+      setSelectedTemplateId("");
+      setTemplateError(null);
+      setIsProcessingTemplate(false);
     }
   }, [open]);
 
@@ -54,6 +62,34 @@ export function ChatComposeModal({
       window.location.href = url;
     } catch (error) {
       setSendError("Failed to start Gmail connection");
+    }
+  };
+
+  const handleTemplateChange = async (templateId: string) => {
+    setSelectedTemplateId(templateId);
+    setTemplateError(null);
+
+    if (!templateId) {
+      return;
+    }
+
+    setIsProcessingTemplate(true);
+    try {
+      const result = await protectedApi.processTemplate({
+        templateId,
+        person: {
+          name: emailData.name,
+          email: emailData.email,
+        },
+        company: emailData.domain || "",
+      });
+      setEmailSubject(result.subject);
+      setEmailBody(result.body);
+    } catch (error) {
+      setTemplateError("Failed to process template");
+      console.error(error);
+    } finally {
+      setIsProcessingTemplate(false);
     }
   };
 
@@ -137,6 +173,39 @@ export function ChatComposeModal({
             </div>
           ) : (
             <>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-400 font-sans font-light tracking-wide">
+                  Template
+                </label>
+                <div className="relative">
+                  <select
+                    value={selectedTemplateId}
+                    onChange={(e) => handleTemplateChange(e.target.value)}
+                    disabled={isProcessingTemplate || isLoadingTemplates}
+                    className="w-full h-9 rounded-md border border-[#2a2a2a] bg-[#0a0a0a] px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 text-white font-sans font-light tracking-wide appearance-none pr-8"
+                  >
+                    <option value="">No template</option>
+                    {templates.map((template: any) => (
+                      <option key={template.id} value={template.id}>
+                        {template.name}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                    {isProcessingTemplate ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 text-gray-400" />
+                    )}
+                  </div>
+                </div>
+                {templateError && (
+                  <p className="text-xs text-red-400 font-sans font-light tracking-wide">
+                    {templateError}
+                  </p>
+                )}
+              </div>
+
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-400 font-sans font-light tracking-wide">
                   Subject

@@ -8,6 +8,7 @@ import { useUser, useClerk } from "@clerk/nextjs"
 import { FeedbackDialog } from "./feedback-dialog"
 import { InfoDialog } from "./info-dialog"
 import { ChatHistoryList } from "./chat/chat-history-list"
+import { SidebarTemplates } from "./chat/sidebar-templates"
 
 import {
   Sidebar,
@@ -90,6 +91,9 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        <div className="group-data-[collapsible=icon]:hidden">
+          <SidebarTemplates />
+        </div>
         <div className="group-data-[collapsible=icon]:hidden">
           <ChatHistoryList />
         </div>
