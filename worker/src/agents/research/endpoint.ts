@@ -13,6 +13,7 @@ import {
   consumeStream,
   createUIMessageStream,
   createUIMessageStreamResponse,
+  MissingToolResultsError,
   type ModelMessage,
   type UIMessage,
   type UIMessagePart,
