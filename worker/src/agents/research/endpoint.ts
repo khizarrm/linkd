@@ -15,6 +15,7 @@ import {
   createUIMessageStreamResponse,
   type ModelMessage,
   type UIMessage,
+  type UIMessagePart,
 } from "ai";
 
 const TOOL_LABELS: Record<string, string> = {
@@ -30,10 +31,24 @@ async function loadChatHistory(chatId: string, env: CloudflareBindings): Promise
     where: eq(messages.chatId, chatId),
     orderBy: [messages.createdAt],
   });
-  return chatMessages.map((msg) => ({
-    role: msg.role === "assistant" ? "assistant" : "user",
-    content: msg.content || "",
-  }));
+  return chatMessages.map((msg) => {
+    let parts: UIMessagePart[] = [];
+    if (msg.parts && msg.parts !== "null") {
+      try {
+        parts = JSON.parse(msg.parts);
+      } catch {
+        parts = [];
+      }
+    }
+    const textContent = parts
+      .filter((part) => part.type === "text")
+      .map((part) => (part as { text: string }).text)
+      .join("") || msg.content || "";
+    return {
+      role: msg.role === "assistant" ? "assistant" : "user",
+      content: textContent,
+    };
+  });
 }
 
 function extractMessageText(message?: UIMessage): string {
@@ -236,39 +251,47 @@ export class ResearchAgentRoute extends OpenAPIRoute {
           onToolEnd,
           onEmailFound,
           onPeopleFound,
-          onFinish: async ({ text, isAborted }) => {
-            if (!chatId || !authResult) return;
-            const assistantText = typeof text === "string" ? text.trim() : "";
-            if (!assistantText || isAborted) return;
-
-            const db = drizzle(env.DB, { schema });
-            const chat = await db.query.chats.findFirst({
-              where: eq(chats.id, chatId),
-            });
-
-            if (!chat || chat.clerkUserId !== authResult.clerkUserId) {
-              return;
-            }
-
-            const now = new Date().toISOString();
-
-            await db.insert(messages).values({
-              id: crypto.randomUUID(),
-              chatId,
-              role: "assistant",
-              content: assistantText,
-              createdAt: now,
-            });
-
-            await db
-              .update(chats)
-              .set({ updatedAt: now })
-              .where(eq(chats.id, chatId));
-          },
         });
 
         researchStream.consumeStream();
         writer.merge(researchStream.toUIMessageStream());
+      },
+      onFinish: async ({ responseMessage, isAborted }) => {
+        if (!chatId || !authResult || isAborted) return;
+        if (!responseMessage || responseMessage.role !== "assistant") return;
+
+        const db = drizzle(env.DB, { schema });
+        const chat = await db.query.chats.findFirst({
+          where: eq(chats.id, chatId),
+        });
+
+        if (!chat || chat.clerkUserId !== authResult.clerkUserId) {
+          return;
+        }
+
+        const now = new Date().toISOString();
+        const textContent = responseMessage.parts
+          .filter((part) => part.type === "text")
+          .map((part) => (part as { text: string }).text)
+          .join("");
+
+        const partsToStore = responseMessage.parts && responseMessage.parts.length > 0
+          ? JSON.stringify(responseMessage.parts)
+          : null;
+
+        await db.insert(messages).values({
+          id: responseMessage.id,
+          chatId,
+          role: responseMessage.role,
+          content: textContent,
+          parts: partsToStore,
+          createdAt: now,
+        });
+
+        await db
+          .update(chats)
+          .set({ updatedAt: now })
+          .where(eq(chats.id, chatId));
       },
     });
 

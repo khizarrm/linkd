@@ -282,11 +282,7 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
       const response = await api.getChat(id);
       if (response.success) {
         setChatId(id);
-        setInitialMessages(
-          toUiMessages(
-            response.messages as Array<{ id: string; role: string; content: string }>,
-          ),
-        );
+        setInitialMessages(response.messages);
       }
     } catch (error) {
       console.error("Failed to load chat:", error);

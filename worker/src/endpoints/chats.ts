@@ -214,12 +214,24 @@ export class ProtectedChatsGetRoute extends OpenAPIRoute {
         createdAt: chat.createdAt || new Date().toISOString(),
         updatedAt: chat.updatedAt || new Date().toISOString(),
       },
-      messages: chatMessages.map((msg) => ({
-        id: msg.id,
-        role: msg.role || "user",
-        content: msg.content || "",
-        createdAt: msg.createdAt || new Date().toISOString(),
-      })),
+      messages: chatMessages.map((msg) => {
+        let parsedParts = null;
+        if (msg.parts && msg.parts !== "null") {
+          try {
+            parsedParts = JSON.parse(msg.parts);
+          } catch {
+            parsedParts = null;
+          }
+        }
+
+        return {
+          id: msg.id,
+          role: msg.role || "user",
+          content: msg.content || "",
+          createdAt: msg.createdAt || new Date().toISOString(),
+          parts: parsedParts || [{ type: "text", text: msg.content || "" }],
+        };
+      }),
     };
   }
 }
