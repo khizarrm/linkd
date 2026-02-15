@@ -63,11 +63,13 @@ export function createTools(
       domain: string;
       verificationStatus: "verified" | "possible";
     }) => void;
-    onPeopleFound?: (profiles: Array<{
-      name: string;
-      url: string;
-      snippet: string;
-    }>) => void;
+    onPeopleFound?: (
+      profiles: Array<{
+        name: string;
+        url: string;
+        snippet: string;
+      }>,
+    ) => void;
   },
 ) {
   const tvly = tavily({ apiKey: env.TAVILY_API_KEY });
@@ -81,7 +83,13 @@ export function createTools(
       location: z.string().nullable(),
       maxResults: z.number().min(1).max(5).default(3).optional(),
     }),
-    execute: async ({ company, role, customRole, location, maxResults = 3 }) => {
+    execute: async ({
+      company,
+      role,
+      customRole,
+      location,
+      maxResults = 3,
+    }) => {
       const resolvedStepId = options?.onToolStart?.("linkedin_search");
       const roleClause =
         role === "other" && customRole
@@ -91,9 +99,12 @@ export function createTools(
       let query = `site:linkedin.com/in "${company}" ${roleClause}`;
       if (location) query += ` "${location}"`;
 
-      // Validate maxResults silently, fallback to 3 for invalid values
       let validatedMaxResults = 3;
-      if (typeof maxResults === "number" && maxResults >= 1 && maxResults <= 5) {
+      if (
+        typeof maxResults === "number" &&
+        maxResults >= 1 &&
+        maxResults <= 5
+      ) {
         validatedMaxResults = maxResults;
       }
 
@@ -108,7 +119,6 @@ export function createTools(
           .filter((r) => r.url.includes("linkedin.com/in/"))
           .slice(0, validatedMaxResults)
           .map((r) => {
-            // Extract role/title from r.title using regex to split on various dash types
             const roleMatch = r.title.match(/[-\u2013\u2014|](.+?)(?:at|$)/);
             const snippet = roleMatch ? roleMatch[1].trim() : "";
 
@@ -169,7 +179,8 @@ export function createTools(
     }),
     execute: async ({ companyName, context }) => {
       const resolvedStepId = options?.onToolStart?.("company_lookup");
-      const query = `"${companyName}" company official website ${context || ""}`.trim();
+      const query =
+        `"${companyName}" company official website ${context || ""}`.trim();
 
       try {
         const response = await tvly.search(query, {
@@ -224,8 +235,17 @@ export function createTools(
 
         // TEST OVERRIDE - remove after testing
         const testEmail = "khizarmalik2003@gmail.com";
-        options?.onEmailFound?.({ name, email: testEmail, domain: cleanDomain, verificationStatus: "verified" });
-        return { email: testEmail, pattern: "test", verificationStatus: "verified" };
+        options?.onEmailFound?.({
+          name,
+          email: testEmail,
+          domain: cleanDomain,
+          verificationStatus: "verified",
+        });
+        return {
+          email: testEmail,
+          pattern: "test",
+          verificationStatus: "verified",
+        };
 
         const parts = name.trim().split(/\s+/);
         const first = parts[0]?.toLowerCase() || "";
@@ -234,7 +254,11 @@ export function createTools(
 
         const patterns: string[] = [];
 
-        if (knownPattern && knownPattern.trim() !== "" && knownPattern !== null) {
+        if (
+          knownPattern &&
+          knownPattern.trim() !== "" &&
+          knownPattern !== null
+        ) {
           const knownLocal = knownPattern.split("@")[0];
           const knownDomain = knownPattern.split("@")[1] || cleanDomain;
           patterns.push(`${knownLocal}@${knownDomain}`);
@@ -253,11 +277,33 @@ export function createTools(
           try {
             const status = await verifyEmail(email);
             if (status === "valid") {
-              options?.onEmailFound?.({ name, email, domain: cleanDomain, verificationStatus: "verified" });
-              return { email, pattern: email.split("@")[0], verificationStatus: "verified" };
-            } else if (status === "catch-all" || status === "catch_all" || status === "acceptable") {
-              options?.onEmailFound?.({ name, email, domain: cleanDomain, verificationStatus: "possible" });
-              return { email, pattern: email.split("@")[0], verificationStatus: "possible" };
+              options?.onEmailFound?.({
+                name,
+                email,
+                domain: cleanDomain,
+                verificationStatus: "verified",
+              });
+              return {
+                email,
+                pattern: email.split("@")[0],
+                verificationStatus: "verified",
+              };
+            } else if (
+              status === "catch-all" ||
+              status === "catch_all" ||
+              status === "acceptable"
+            ) {
+              options?.onEmailFound?.({
+                name,
+                email,
+                domain: cleanDomain,
+                verificationStatus: "possible",
+              });
+              return {
+                email,
+                pattern: email.split("@")[0],
+                verificationStatus: "possible",
+              };
             }
           } catch {
             // Continue to next pattern

@@ -15,6 +15,7 @@ interface ChatContextType {
   removeChat: (id: string) => void;
   updateChats: (chats: Chat[]) => void;
   refreshChats: () => Promise<void>;
+  refreshChatsSilently: () => Promise<void>;
   isLoading: boolean;
 }
 
@@ -44,6 +45,16 @@ export function ChatProvider({
     }
   }, [fetchChatsFn]);
 
+  const refreshChatsSilently = useCallback(async () => {
+    try {
+      const response = await fetchChatsFn();
+      setChats(response.chats || []);
+      setHasInitialized(true);
+    } catch (error) {
+      console.error('Failed to fetch chats:', error);
+    }
+  }, [fetchChatsFn]);
+
   useEffect(() => {
     if (!hasInitialized) {
       refreshChats();
@@ -52,11 +63,11 @@ export function ChatProvider({
 
   useEffect(() => {
     const onFocus = () => {
-      if (hasInitialized) refreshChats();
+      if (hasInitialized) refreshChatsSilently();
     };
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
-  }, [hasInitialized, refreshChats]);
+  }, [hasInitialized, refreshChatsSilently]);
 
   const addChat = useCallback((chat: Chat) => {
     setChats((prev) => {
@@ -82,8 +93,9 @@ export function ChatProvider({
     removeChat,
     updateChats,
     refreshChats,
+    refreshChatsSilently,
     isLoading,
-  }), [chats, isLoading, addChat, removeChat, updateChats, refreshChats]);
+  }), [chats, isLoading, addChat, removeChat, updateChats, refreshChats, refreshChatsSilently]);
 
   return (
     <ChatContext.Provider value={value}>

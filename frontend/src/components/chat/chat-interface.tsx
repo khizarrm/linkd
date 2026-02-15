@@ -30,14 +30,6 @@ function StreamingText({ content }: { content: string }) {
   );
 }
 
-function toUiMessages(messages: Array<{ id: string; role: string; content: string }>): UIMessage[] {
-  return messages.map((message) => ({
-    id: message.id,
-    role: message.role as "user" | "assistant",
-    parts: [{ type: "text", text: message.content || "" }],
-  }));
-}
-
 function ChatSession({
   chatId,
   initialMessages,
@@ -48,7 +40,6 @@ function ChatSession({
   onChatIdChange: (nextChatId: string) => void;
 }) {
   const { getToken } = useAuth();
-  const router = useRouter();
   const api = useProtectedApi();
   const { addChat } = useChatContext();
   const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
@@ -106,7 +97,7 @@ function ChatSession({
       if (!currentChatId) {
         currentChatId = await createNewChat();
         onChatIdChange(currentChatId);
-        router.replace(`/chat/${currentChatId}`);
+        window.history.replaceState(null, "", `/chat/${currentChatId}`);
 
         const title = generateTitle(value.trim());
         await api.updateChat(currentChatId, { title });
@@ -260,6 +251,22 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
   const [isInitializing, setIsInitializing] = useState(!!initialChatId);
   const [sessionKey, setSessionKey] = useState(initialChatId || "new");
 
+  const loadExistingChat = async (id: string) => {
+    try {
+      setIsInitializing(true);
+      const response = await api.getChat(id);
+      if (response.success) {
+        setChatId(id);
+        setInitialMessages(response.messages);
+      }
+    } catch (error) {
+      console.error("Failed to load chat:", error);
+      router.push("/chat");
+    } finally {
+      setIsInitializing(false);
+    }
+  };
+
   useEffect(() => {
     if (initialChatId !== chatId) {
       setChatId(initialChatId || null);
@@ -276,22 +283,6 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
       setIsInitializing(false);
     }
   }, [initialChatId]);
-
-  const loadExistingChat = async (id: string) => {
-    try {
-      setIsInitializing(true);
-      const response = await api.getChat(id);
-      if (response.success) {
-        setChatId(id);
-        setInitialMessages(response.messages);
-      }
-    } catch (error) {
-      console.error("Failed to load chat:", error);
-      router.push("/chat");
-    } finally {
-      setIsInitializing(false);
-    }
-  };
 
   if (isInitializing) {
     return (

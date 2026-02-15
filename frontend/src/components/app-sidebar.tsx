@@ -1,7 +1,7 @@
 'use client';
 
 import { User, LogOut, FileText, Info, Plus } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import Image from "next/image"
 import { useState } from "react"
 import { useUser, useClerk } from "@clerk/nextjs"
@@ -26,6 +26,7 @@ import {
 
 export function AppSidebar() {
   const router = useRouter();
+  const pathname = usePathname();
   const [imageError, setImageError] = useState(false);
   const [showSignOut, setShowSignOut] = useState(false);
   const [isFeedbackDialogOpen, setIsFeedbackDialogOpen] = useState(false);
@@ -73,7 +74,13 @@ export function AppSidebar() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  onClick={() => router.push('/chat')}
+                  onClick={() => {
+                    if (pathname === '/chat') {
+                      window.location.href = '/chat';
+                    } else {
+                      router.push('/chat');
+                    }
+                  }}
                   tooltip="New chat"
                 >
                   <Plus className="size-4" />
