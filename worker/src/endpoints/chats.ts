@@ -10,7 +10,7 @@ import { verifyClerkToken } from "../lib/clerk-auth";
 const ChatSchema = z.object({
   id: z.string(),
   title: z.string().nullable(),
-  openaiConversationId: z.string().nullable(),
+  claudeConversationId: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -66,7 +66,7 @@ export class ProtectedChatsListRoute extends OpenAPIRoute {
       chats: userChats.map((chat) => ({
         id: chat.id,
         title: chat.title,
-        openaiConversationId: chat.openaiConversationId,
+        claudeConversationId: chat.claudeConversationId,
         createdAt: chat.createdAt || new Date().toISOString(),
         updatedAt: chat.updatedAt || new Date().toISOString(),
       })),
@@ -127,7 +127,7 @@ export class ProtectedChatsCreateRoute extends OpenAPIRoute {
       id: crypto.randomUUID(),
       clerkUserId,
       title,
-      openaiConversationId: null,
+      claudeConversationId: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -210,16 +210,28 @@ export class ProtectedChatsGetRoute extends OpenAPIRoute {
       chat: {
         id: chat.id,
         title: chat.title,
-        openaiConversationId: chat.openaiConversationId,
+        claudeConversationId: chat.claudeConversationId,
         createdAt: chat.createdAt || new Date().toISOString(),
         updatedAt: chat.updatedAt || new Date().toISOString(),
       },
-      messages: chatMessages.map((msg) => ({
-        id: msg.id,
-        role: msg.role || "user",
-        content: msg.content || "",
-        createdAt: msg.createdAt || new Date().toISOString(),
-      })),
+      messages: chatMessages.map((msg) => {
+        let parsedParts = null;
+        if (msg.parts && msg.parts !== "null") {
+          try {
+            parsedParts = JSON.parse(msg.parts);
+          } catch {
+            parsedParts = null;
+          }
+        }
+
+        return {
+          id: msg.id,
+          role: msg.role || "user",
+          content: msg.content || "",
+          createdAt: msg.createdAt || new Date().toISOString(),
+          parts: parsedParts || [{ type: "text", text: msg.content || "" }],
+        };
+      }),
     };
   }
 }
@@ -237,7 +249,7 @@ export class ProtectedChatsUpdateRoute extends OpenAPIRoute {
           "application/json": {
             schema: z.object({
               title: z.string().optional(),
-              openaiConversationId: z.string().optional(),
+              claudeConversationId: z.string().optional(),
             }),
           },
         },
@@ -278,7 +290,7 @@ export class ProtectedChatsUpdateRoute extends OpenAPIRoute {
 
     const { clerkUserId } = authResult;
     const { id } = await this.getValidatedData<typeof this.schema>().then(d => d.params);
-    const { title, openaiConversationId } = await this.getValidatedData<typeof this.schema>().then(d => d.body);
+    const { title, claudeConversationId } = await this.getValidatedData<typeof this.schema>().then(d => d.body);
     const db = drizzle(env.DB, { schema });
 
     const existingChat = await db.query.chats.findFirst({
@@ -296,7 +308,7 @@ export class ProtectedChatsUpdateRoute extends OpenAPIRoute {
     const now = new Date().toISOString();
     const updateData: Record<string, string> = { updatedAt: now };
     if (title !== undefined) updateData.title = title;
-    if (openaiConversationId !== undefined) updateData.openaiConversationId = openaiConversationId;
+    if (claudeConversationId !== undefined) updateData.claudeConversationId = claudeConversationId;
 
     await db.update(chats)
       .set(updateData)
@@ -311,7 +323,7 @@ export class ProtectedChatsUpdateRoute extends OpenAPIRoute {
       chat: {
         id: updatedChat!.id,
         title: updatedChat!.title,
-        openaiConversationId: updatedChat!.openaiConversationId,
+        claudeConversationId: updatedChat!.claudeConversationId,
         createdAt: updatedChat!.createdAt || new Date().toISOString(),
         updatedAt: updatedChat!.updatedAt || new Date().toISOString(),
       },

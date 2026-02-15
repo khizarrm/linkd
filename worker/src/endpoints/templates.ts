@@ -4,7 +4,7 @@ import { drizzle } from "drizzle-orm/d1";
 import { schema } from "../db";
 import { eq, desc, and } from "drizzle-orm";
 import { templates } from "../db/templates.schema";
-import { openai } from "@ai-sdk/openai";
+import { anthropic } from "@ai-sdk/anthropic";
 import { generateText } from "ai";
 import { verifyClerkToken } from "../lib/clerk-auth";
 
@@ -27,7 +27,7 @@ export class ProtectedTemplatesListRoute extends OpenAPIRoute {
                   body: z.string(),
                   createdAt: z.string(),
                   updatedAt: z.string(),
-                })
+                }),
               ),
             }),
           },
@@ -43,7 +43,6 @@ export class ProtectedTemplatesListRoute extends OpenAPIRoute {
     const env = c.env;
     const request = c.req.raw;
 
-    // Verify Clerk token
     const authResult = await verifyClerkToken(request, env.CLERK_SECRET_KEY);
     if (!authResult) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -112,16 +111,17 @@ export class ProtectedTemplatesCreateRoute extends OpenAPIRoute {
     const env = c.env;
     const request = c.req.raw;
 
-    // Verify Clerk token
     const authResult = await verifyClerkToken(request, env.CLERK_SECRET_KEY);
     if (!authResult) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { clerkUserId } = authResult;
-    const { name, subject, body } = await this.getValidatedData<typeof this.schema>().then(d => d.body);
+    const { name, subject, body } = await this.getValidatedData<
+      typeof this.schema
+    >().then((d) => d.body);
     const db = drizzle(env.DB, { schema });
-    
+
     const newTemplate = {
       id: crypto.randomUUID(),
       clerkUserId,
@@ -137,8 +137,8 @@ export class ProtectedTemplatesCreateRoute extends OpenAPIRoute {
     return {
       success: true,
       template: {
-          ...newTemplate,
-          createdAt: newTemplate.createdAt.toISOString(),
+        ...newTemplate,
+        createdAt: newTemplate.createdAt.toISOString(),
       },
     };
   }
@@ -204,11 +204,14 @@ export class ProtectedTemplatesUpdateRoute extends OpenAPIRoute {
     }
 
     const { clerkUserId } = authResult;
-    const { id } = await this.getValidatedData<typeof this.schema>().then(d => d.params);
-    const { name, subject, body } = await this.getValidatedData<typeof this.schema>().then(d => d.body);
+    const { id } = await this.getValidatedData<typeof this.schema>().then(
+      (d) => d.params,
+    );
+    const { name, subject, body } = await this.getValidatedData<
+      typeof this.schema
+    >().then((d) => d.body);
     const db = drizzle(env.DB, { schema });
-    
-    // Verify template ownership
+
     const existingTemplate = await db.query.templates.findFirst({
       where: eq(templates.id, id),
     });
@@ -220,13 +223,14 @@ export class ProtectedTemplatesUpdateRoute extends OpenAPIRoute {
     if (existingTemplate.clerkUserId !== clerkUserId) {
       return Response.json({ error: "Forbidden" }, { status: 403 });
     }
-    
-    const result = await db.update(templates)
-      .set({ 
-        name, 
-        subject, 
-        body, 
-        updatedAt: new Date() 
+
+    const result = await db
+      .update(templates)
+      .set({
+        name,
+        subject,
+        body,
+        updatedAt: new Date(),
       })
       .where(eq(templates.id, id))
       .returning();
@@ -286,9 +290,11 @@ export class ProtectedTemplatesDeleteRoute extends OpenAPIRoute {
     }
 
     const { clerkUserId } = authResult;
-    const { id } = await this.getValidatedData<typeof this.schema>().then(d => d.params);
+    const { id } = await this.getValidatedData<typeof this.schema>().then(
+      (d) => d.params,
+    );
     const db = drizzle(env.DB, { schema });
-    
+
     // Verify template ownership
     const existingTemplate = await db.query.templates.findFirst({
       where: eq(templates.id, id),
@@ -301,10 +307,11 @@ export class ProtectedTemplatesDeleteRoute extends OpenAPIRoute {
     if (existingTemplate.clerkUserId !== clerkUserId) {
       return Response.json({ error: "Forbidden" }, { status: 403 });
     }
-    
-    const result = await db.delete(templates).where(
-      eq(templates.id, id)
-    ).returning();
+
+    const result = await db
+      .delete(templates)
+      .where(eq(templates.id, id))
+      .returning();
 
     return { success: true };
   }
@@ -365,7 +372,9 @@ export class ProtectedTemplateProcessRoute extends OpenAPIRoute {
     }
 
     const { clerkUserId } = authResult;
-    const { templateId, person, company } = await this.getValidatedData<typeof this.schema>().then(d => d.body);
+    const { templateId, person, company } = await this.getValidatedData<
+      typeof this.schema
+    >().then((d) => d.body);
     const db = drizzle(env.DB, { schema });
 
     // Fetch template
@@ -382,94 +391,65 @@ export class ProtectedTemplateProcessRoute extends OpenAPIRoute {
       return Response.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Extract standard variables
-    const nameParts = person.name.split(' ');
-    const firstName = nameParts[0] || '';
-    const lastName = nameParts.slice(1).join(' ') || '';
-    const fullName = person.name;
-    const role = person.role || '';
-    const email = person.email || '';
+    const model = anthropic("claude-sonnet-4-20250514", {
+      apiKey: c.env.ANTHROPIC_API_KEY,
+    });
 
-    // Replace standard variables in subject and body
-    let processedSubject = template.subject
-      .replace(/{firstName}/g, firstName)
-      .replace(/{lastName}/g, lastName)
-      .replace(/{fullName}/g, fullName)
-      .replace(/{role}/g, role)
-      .replace(/{company}/g, company)
-      .replace(/{email}/g, email);
-
-    let processedBody = template.body
-      .replace(/{firstName}/g, firstName)
-      .replace(/{lastName}/g, lastName)
-      .replace(/{fullName}/g, fullName)
-      .replace(/{role}/g, role)
-      .replace(/{company}/g, company)
-      .replace(/{email}/g, email);
-
-    // Check if there are any AI instruction fields (any {...} that doesn't match standard variables)
-    const aiInstructionPattern = /\{([^}]+)\}/g;
-    const hasAiInstructions = aiInstructionPattern.test(processedBody) || aiInstructionPattern.test(processedSubject);
-
-    if (hasAiInstructions) {
-      // Use AI to process remaining instruction fields
-      // @ts-expect-error - openai function accepts apiKey option
-      const model = openai("gpt-4o-2024-11-20", {
-        apiKey: c.env.OPENAI_API_KEY,
-      });
-
-      const prompt = `You are a strict email template filler.
+    const prompt = `You are an expert email writer.
 
 Context:
-- Person: ${fullName}
+- Person Name: ${person.name}
+${person.role ? `- Role: ${person.role}` : ""}
+${person.email ? `- Email: ${person.email}` : ""}
 - Company: ${company}
-${email ? `- Email: ${email}` : ''}
 
-Template Subject: ${processedSubject}
-Template Body: ${processedBody}
+Original Template Subject: ${template.subject}
+Original Template Body: ${template.body}
 
-Rules:
-1. ONLY replace content inside curly braces {}. LEAVE ALL OTHER TEXT EXACTLY AS IS.
-2. Keep generated content very brief (under 15 words).
-3. Tone: Casual and professional.
+Your task:
+Rewrite this email to be personalized for this person at ${company}, while keeping the same general structure and intent. Make it sound natural and tailored to them specifically.
 
 Return format (JSON only):
 {
-  "subject": "final subject string",
-  "body": "final body string"
+  "subject": "rewritten subject",
+  "body": "rewritten body"
 }`;
 
-      try {
-        const result = await generateText({
-          model,
-          prompt,
-        });
+    try {
+      const result = await generateText({
+        model,
+        prompt,
+      });
 
-        let cleanText = result.text.trim();
-        if (cleanText.startsWith('```json')) {
-          cleanText = cleanText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-        } else if (cleanText.startsWith('```')) {
-          cleanText = cleanText.replace(/^```\s*/, '').replace(/\s*```$/, '');
-        }
-
-        const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          cleanText = jsonMatch[0];
-        }
-
-        const aiResult = JSON.parse(cleanText);
-        processedSubject = aiResult.subject || processedSubject;
-        processedBody = aiResult.body || processedBody;
-      } catch (error) {
-        console.error("Error processing template with AI:", error);
-        // Fall back to partially processed template
+      let cleanText = result.text.trim();
+      if (cleanText.startsWith("```json")) {
+        cleanText = cleanText
+          .replace(/^```json\s*/, "")
+          .replace(/\s*```$/, "");
+      } else if (cleanText.startsWith("```")) {
+        cleanText = cleanText.replace(/^```\s*/, "").replace(/\s*```$/, "");
       }
-    }
 
-    return {
-      success: true,
-      subject: processedSubject,
-      body: processedBody,
-    };
+      const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        cleanText = jsonMatch[0];
+      }
+
+      const aiResult = JSON.parse(cleanText);
+
+      return {
+        success: true,
+        subject: aiResult.subject,
+        body: aiResult.body,
+      };
+    } catch (error) {
+      console.error("Error processing template with AI:", error);
+
+      return {
+        success: true,
+        subject: template.subject,
+        body: template.body,
+      };
+    }
   }
 }

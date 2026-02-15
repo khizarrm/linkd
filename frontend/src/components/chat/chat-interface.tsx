@@ -1,86 +1,65 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { ArrowUp, Square } from "lucide-react";
-import { motion } from "framer-motion";
-import { MessageContent } from "@/components/chat/message-content";
+import { MessageLoading } from "@/components/ui/message-loading";
+import { StepItem, type Step } from "./step-item";
+import { EmailComposeCard, type EmailData } from "./email-compose-card";
+import { ChatComposeModal } from "./chat-compose-modal";
+import { ChatPersonCard, type PersonData } from "./person-card";
 import { useProtectedApi } from "@/hooks/use-protected-api";
 import { useChatContext } from "@/contexts/chat-context";
-
-interface Step {
-  id: string;
-  label: string;
-  status: "running" | "done";
-}
-
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  steps?: Step[];
-}
+import { AIInput } from "@/components/ui/ai-input";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { useChat, type UIMessage } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
 
 interface ChatInterfaceProps {
   chatId?: string;
 }
 
 function StreamingText({ content }: { content: string }) {
-  if (content.trimStart().startsWith("{")) {
-    return <MessageContent content={content} />;
-  }
-
   return (
-    <motion.div>
-      {content.split(/(\s+)/).map((segment, i) => {
-        if (segment.match(/^\s+$/)) {
-          return <span key={i}>{segment}</span>;
-        }
-        return (
-          <motion.span
-            key={i}
-            initial={{ opacity: 0, filter: "blur(4px)" }}
-            animate={{ opacity: 1, filter: "blur(0px)" }}
-            transition={{
-              duration: 0.4,
-              ease: "easeOut",
-            }}
-            className="inline-block"
-          >
-            {segment}
-          </motion.span>
-        );
-      })}
-    </motion.div>
+    <div className="prose prose-sm max-w-none dark:prose-invert">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+        {content}
+      </ReactMarkdown>
+    </div>
   );
 }
 
-export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
+function ChatSession({
+  chatId,
+  initialMessages,
+  onChatIdChange,
+}: {
+  chatId: string | null;
+  initialMessages: UIMessage[];
+  onChatIdChange: (nextChatId: string) => void;
+}) {
   const { getToken } = useAuth();
-  const router = useRouter();
   const api = useProtectedApi();
   const { addChat } = useChatContext();
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
 
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [isFocused, setIsFocused] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [chatId, setChatId] = useState<string | null>(initialChatId || null);
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: `${apiBase}/api/agents/research`,
+      }),
+    [apiBase],
+  );
 
-  useEffect(() => {
-    if (initialChatId !== chatId) {
-      setChatId(initialChatId || null);
-      setMessages([]);
-      setConversationId(null);
-    }
-  }, [initialChatId]);
-  const [conversationId, setConversationId] = useState<string | null>(null);
-  const [isInitializing, setIsInitializing] = useState(!!initialChatId);
+  const { messages, sendMessage, status, stop } = useChat({
+    messages: initialMessages,
+    transport,
+  });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const isLoading = status === "submitted" || status === "streaming";
+  const [composeEmail, setComposeEmail] = useState<EmailData | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -89,37 +68,6 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
-
-  useEffect(() => {
-    if (initialChatId) {
-      loadExistingChat(initialChatId);
-    }
-  }, [initialChatId]);
-
-  const loadExistingChat = async (id: string) => {
-    try {
-      setIsInitializing(true);
-      const response = await api.getChat(id);
-      if (response.success) {
-        setChatId(id);
-        setConversationId(response.chat.openaiConversationId || null);
-        setMessages(
-          response.messages.map(
-            (msg: { id: string; role: string; content: string }) => ({
-              id: msg.id,
-              role: msg.role as "user" | "assistant",
-              content: msg.content,
-            }),
-          ),
-        );
-      }
-    } catch (error) {
-      console.error("Failed to load chat:", error);
-      router.push("/chat");
-    } finally {
-      setIsInitializing(false);
-    }
-  };
 
   const createNewChat = async (): Promise<string> => {
     const response = await api.createChat();
@@ -141,222 +89,40 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
     return truncated.length < content.length ? `${truncated}...` : truncated;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      content: input.trim(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-    setIsLoading(true);
-
-    let currentChatId = chatId;
+  const handleSubmit = async (value: string) => {
+    if (!value.trim() || isLoading) return;
 
     try {
+      let currentChatId = chatId;
       if (!currentChatId) {
         currentChatId = await createNewChat();
-        setChatId(currentChatId);
+        onChatIdChange(currentChatId);
         window.history.replaceState(null, "", `/chat/${currentChatId}`);
 
-        await api.updateChat(currentChatId, {
-          title: generateTitle(userMessage.content),
+        const title = generateTitle(value.trim());
+        await api.updateChat(currentChatId, { title });
+        addChat({
+          id: currentChatId,
+          title,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         });
       }
-
-      await api.addMessage(currentChatId, {
-        role: "user",
-        content: userMessage.content,
-      });
-
-      const assistantMessageId = (Date.now() + 1).toString();
-      setMessages((prev) => [
-        ...prev,
-        { id: assistantMessageId, role: "assistant", content: "" },
-      ]);
 
       const token = await getToken();
-      abortControllerRef.current = new AbortController();
-
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
-      const response = await fetch(`${apiBase}/api/agents/research`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token && { Authorization: `Bearer ${token}` }),
+      await sendMessage(
+        { text: value.trim() },
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          body: {
+            chatId: currentChatId,
+          },
         },
-        body: JSON.stringify({
-          query: userMessage.content,
-          ...(conversationId && { conversationId }),
-          chatId: currentChatId,
-        }),
-        signal: abortControllerRef.current.signal,
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to send message");
-      }
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-
-      if (!reader) {
-        throw new Error("No response body");
-      }
-
-      let buffer = "";
-      let finalContent = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed.startsWith("data: ")) continue;
-
-          const dataStr = trimmed.slice(6);
-          if (!dataStr) continue;
-
-          try {
-            const data = JSON.parse(dataStr);
-
-            if (data.type === "step") {
-              setMessages((prev) =>
-                prev.map((msg) => {
-                  if (msg.id !== assistantMessageId) return msg;
-                  const steps = msg.steps ?? [];
-                  const existing = steps.find((s) => s.id === data.id);
-                  if (existing) {
-                    return {
-                      ...msg,
-                      steps: steps.map((s) =>
-                        s.id === data.id ? { ...s, status: data.status } : s,
-                      ),
-                    };
-                  }
-                  return {
-                    ...msg,
-                    steps: [
-                      ...steps,
-                      { id: data.id, label: data.label, status: data.status },
-                    ],
-                  };
-                }),
-              );
-            }
-
-            if (data.type === "output") {
-              finalContent = JSON.stringify(data.data);
-              setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === assistantMessageId
-                    ? {
-                        ...msg,
-                        content: finalContent,
-                        steps: undefined,
-                      }
-                    : msg,
-                ),
-              );
-            }
-
-            if (data.done && data.conversationId) {
-              setConversationId(data.conversationId);
-              if (currentChatId) {
-                await api.updateChat(currentChatId, {
-                  openaiConversationId: data.conversationId,
-                });
-              }
-            }
-
-            if (data.error) {
-              finalContent = "Error: " + data.error;
-              setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === assistantMessageId
-                    ? { ...msg, content: finalContent, steps: undefined }
-                    : msg,
-                ),
-              );
-            }
-          } catch {}
-        }
-      }
-
-      if (finalContent && currentChatId) {
-        await api.addMessage(currentChatId, {
-          role: "assistant",
-          content: finalContent,
-        });
-      }
-    } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") {
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === (Date.now() + 1).toString()
-              ? { ...msg, content: msg.content + " (stopped)" }
-              : msg,
-          ),
-        );
-      } else {
-        const errorMsgId = (Date.now() + 1).toString();
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === errorMsgId
-              ? { ...msg, content: "Error: Failed to get response" }
-              : msg,
-          ),
-        );
-      }
-    } finally {
-      setIsLoading(false);
-      abortControllerRef.current = null;
+      );
+    } catch (error) {
+      console.error("Failed to send message:", error);
     }
   };
-
-  const handleStop = () => {
-    abortControllerRef.current?.abort();
-  };
-
-  const autoResize = useCallback(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = Math.min(el.scrollHeight, 200) + "px";
-  }, []);
-
-  useEffect(() => {
-    autoResize();
-  }, [input, autoResize]);
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit(e);
-    }
-  };
-
-  if (isInitializing) {
-    return (
-      <div className="flex flex-col h-full bg-background">
-        <div className="flex-1 flex items-center justify-center">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <div className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-pulse" />
-            <span>Loading chat...</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -376,146 +142,167 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
           )}
 
           <div className="space-y-8">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${
-                  message.role === "user" ? "justify-end" : "justify-start"
-                }`}
-              >
+            {messages.map((message) => {
+              const renderedPartIds = new Set<string>();
+
+              return (
                 <div
-                  className={`max-w-[80%] text-[15px] leading-relaxed whitespace-pre-wrap ${
-                    message.role === "user"
-                      ? "rounded-3xl rounded-br-lg bg-primary text-primary-foreground px-5 py-3"
-                      : "rounded-3xl rounded-bl-lg glass-chat-bubble text-foreground px-5 py-4 ring-1 ring-black/[0.08] shadow-sm"
+                  key={message.id}
+                  className={`flex ${
+                    message.role === "user" ? "justify-end" : "justify-start"
                   }`}
                 >
-                  {message.content ? (
-                    message.role === "assistant" ? (
-                      <StreamingText content={message.content} />
+                  <div
+                    className={`text-[15px] leading-relaxed whitespace-pre-wrap ${
+                      message.role === "user"
+                        ? "max-w-[80%] rounded-3xl rounded-br-lg bg-primary text-primary-foreground px-5 py-3"
+                        : "text-foreground w-full"
+                    }`}
+                  >
+                    {message.role === "user" ? (
+                      message.parts
+                        .filter((part): part is Extract<UIMessage["parts"][number], { type: "text" }> => part.type === "text")
+                        .map((part) => part.text)
+                        .join("")
                     ) : (
-                      message.content
-                    )
-                  ) : message.role === "assistant" && isLoading ? (
-                    message.steps && message.steps.length > 0 ? (
-                      <div className="space-y-2">
-                        {message.steps.map((step) => (
-                          <div
-                            key={step.id}
-                            className={`text-[13px] font-medium ${
-                              step.status === "running"
-                                ? "text-foreground animate-pulse"
-                                : "text-muted-foreground/40"
-                            }`}
-                          >
-                            {step.label}
-                            {step.status === "running" && (
-                              <span className="text-muted-foreground/50">
-                                ...
-                              </span>
-                            )}
-                          </div>
-                        ))}
+                      <div className="space-y-3">
+                        {message.parts.map((part, index) => {
+                          if (
+                            ("id" in part && typeof part.id === "string") &&
+                            renderedPartIds.has(part.id)
+                          ) {
+                            return null;
+                          }
+
+                          if ("id" in part && typeof part.id === "string") {
+                            renderedPartIds.add(part.id);
+                          }
+
+                          switch (part.type) {
+                            case "text":
+                              return <StreamingText key={index} content={part.text} />;
+
+                            case "data-step": {
+                              const step = part.data as Step;
+                              return <StepItem key={part.id} step={step} />;
+                            }
+
+                            case "data-person": {
+                              const person = part.data as PersonData;
+                              return <ChatPersonCard key={part.id} person={person} />;
+                            }
+
+                            case "data-email": {
+                              const email = part.data as EmailData;
+                              return <EmailComposeCard
+                                key={part.id}
+                                email={email}
+                                onCompose={setComposeEmail}
+                              />;
+                            }
+
+                            default:
+                              return null;
+                          }
+                        })}
+
+                        {message.parts.length === 0 && isLoading && <MessageLoading />}
                       </div>
-                    ) : (
-                      <div className="flex items-center gap-1 h-6 px-2">
-                        {[0, 1, 2].map((i) => (
-                          <motion.div
-                            key={i}
-                            className="h-1.5 w-1.5 rounded-full bg-foreground/60"
-                            animate={{
-                              y: ["0%", "-30%", "0%"],
-                              opacity: [0.5, 1, 0.5],
-                            }}
-                            transition={{
-                              duration: 1.2,
-                              repeat: Infinity,
-                              ease: "easeInOut",
-                              delay: i * 0.2,
-                            }}
-                          />
-                        ))}
-                      </div>
-                    )
-                  ) : null}
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div ref={messagesEndRef} />
         </div>
       </div>
 
       <div className="p-4 pb-8 bg-gradient-to-t from-background via-background to-transparent">
-        <div className="flex items-end gap-3 max-w-2xl mx-auto">
-          <motion.form
-            layout
+        <div className="max-w-2xl mx-auto">
+          <AIInput
             onSubmit={handleSubmit}
-            className={`relative flex-1 rounded-2xl bg-muted ring-1 shadow-sm transition-all ${
-              isFocused ? "ring-ring shadow-md" : "ring-border"
-            }`}
-          >
-            {!input && (
-              <span className="absolute left-4 top-3.5 text-muted-foreground pointer-events-none text-[15px]">
-                Ask anything...
-              </span>
-            )}
-
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
-              disabled={isLoading}
-              rows={1}
-              className="block w-full resize-none bg-transparent text-[15px] text-foreground px-4 py-3.5 pr-14 outline-none disabled:opacity-50"
-              style={{ minHeight: "52px", maxHeight: "200px" }}
-            />
-            <div className="absolute right-2.5 bottom-2.5">
-              {isLoading ? (
-                <motion.button
-                  type="button"
-                  onClick={handleStop}
-                  whileTap={{ scale: 0.95 }}
-                  className="flex items-center justify-center h-9 w-9 rounded-xl bg-muted-foreground/10 hover:bg-muted-foreground/20 transition-colors"
-                >
-                  <Square className="h-3.5 w-3.5 text-muted-foreground fill-muted-foreground" />
-                </motion.button>
-              ) : (
-                <motion.button
-                  type="submit"
-                  disabled={!input.trim()}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="flex items-center justify-center h-9 w-9 rounded-xl bg-primary hover:bg-primary/90 disabled:opacity-20 disabled:hover:bg-primary transition-all"
-                >
-                  <motion.div
-                    animate={
-                      input.trim()
-                        ? {
-                            rotate: [0, -10, 10, -10, 10, 0],
-                            transition: {
-                              duration: 0.5,
-                              repeat: Infinity,
-                              repeatDelay: 2,
-                            },
-                          }
-                        : {}
-                    }
-                  >
-                    <ArrowUp
-                      className="h-4 w-4 text-primary-foreground"
-                      strokeWidth={2.5}
-                    />
-                  </motion.div>
-                </motion.button>
-              )}
-            </div>
-          </motion.form>
+            onStop={stop}
+            placeholder="What can I help you find?"
+            disabled={isLoading}
+          />
         </div>
       </div>
+
+      {composeEmail && (
+        <ChatComposeModal
+          open={!!composeEmail}
+          onOpenChange={(open) => {
+            if (!open) setComposeEmail(null);
+          }}
+          emailData={composeEmail}
+        />
+      )}
     </div>
+  );
+}
+
+export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
+  const router = useRouter();
+  const api = useProtectedApi();
+
+  const [chatId, setChatId] = useState<string | null>(initialChatId || null);
+  const [initialMessages, setInitialMessages] = useState<UIMessage[]>([]);
+  const [isInitializing, setIsInitializing] = useState(!!initialChatId);
+  const [sessionKey, setSessionKey] = useState(initialChatId || "new");
+
+  const loadExistingChat = async (id: string) => {
+    try {
+      setIsInitializing(true);
+      const response = await api.getChat(id);
+      if (response.success) {
+        setChatId(id);
+        setInitialMessages(response.messages);
+      }
+    } catch (error) {
+      console.error("Failed to load chat:", error);
+      router.push("/chat");
+    } finally {
+      setIsInitializing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (initialChatId !== chatId) {
+      setChatId(initialChatId || null);
+      setInitialMessages([]);
+      setSessionKey(initialChatId || "new");
+    }
+  }, [initialChatId]);
+
+  useEffect(() => {
+    if (initialChatId) {
+      loadExistingChat(initialChatId);
+    } else {
+      setInitialMessages([]);
+      setIsInitializing(false);
+    }
+  }, [initialChatId]);
+
+  if (isInitializing) {
+    return (
+      <div className="flex flex-col h-full bg-background">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <div className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-pulse" />
+            <span>Loading chat...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <ChatSession
+      key={sessionKey}
+      chatId={chatId}
+      initialMessages={initialMessages}
+      onChatIdChange={setChatId}
+    />
   );
 }

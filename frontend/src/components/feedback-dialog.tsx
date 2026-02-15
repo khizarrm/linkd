@@ -60,7 +60,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px] p-0 max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-[#2a2a2a] flex-shrink-0">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border flex-shrink-0">
           <DialogHeader className="p-0">
             <DialogTitle>Send Feedback</DialogTitle>
             <DialogDescription>
@@ -80,25 +80,25 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
               disabled={isSubmitting}
             />
             {error && (
-              <p className="text-sm text-red-500">{error}</p>
+              <p className="text-sm text-destructive">{error}</p>
             )}
           </div>
         </div>
 
         {/* Footer */}
-        <div className="p-4 sm:p-6 border-t border-[#2a2a2a] flex justify-end gap-3 flex-shrink-0">
+        <div className="p-4 sm:p-6 border-t border-border flex justify-end gap-3 flex-shrink-0">
           <Button
             variant="ghost"
             onClick={() => onOpenChange(false)}
             disabled={isSubmitting}
-            className="text-gray-400 hover:text-white hover:bg-[#2a2a2a] font-sans font-light tracking-wide"
+            className="text-muted-foreground hover:text-foreground hover:bg-accent font-sans font-light tracking-wide"
           >
             Cancel
           </Button>
           <Button
             onClick={handleSubmit}
             disabled={!feedback.trim() || isSubmitting}
-            className="bg-blue-600 hover:bg-blue-700 text-white min-w-[100px] font-sans font-light tracking-wide"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground min-w-[100px] font-sans font-light tracking-wide"
           >
             {isSubmitting ? 'Submitting...' : 'Submit'}
           </Button>

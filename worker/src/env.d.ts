@@ -12,8 +12,10 @@ export interface CloudflareBindings {
     EXA_API_KEY: string;
     ZEROBOUNCE_API_KEY: string;
     OPENAI_API_KEY: string;
+    ANTHROPIC_API_KEY: string;
     GOOGLE_CLIENT_ID?: string;
     GOOGLE_CLIENT_SECRET?: string;
+    GOOGLE_REFRESH_TOKEN?: string;
     CLERK_SECRET_KEY: string;
     CLERK_WEBHOOK_SIGNING_SECRET: string;
     TAVILY_API_KEY: string;

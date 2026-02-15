@@ -13,7 +13,7 @@ importers:
         version: 3.0.61(react@19.2.3)(zod@4.3.6)
       '@clerk/nextjs':
         specifier: ^6.35.5
-        version: 6.35.5(next@16.0.10(@opentelemetry/api@1.9.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+        version: 6.35.5(next@16.0.10(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       '@radix-ui/react-collapsible':
         specifier: ^1.1.12
         version: 1.1.12(@types/react-dom@19.2.3(@types/react@19.2.6))(@types/react@19.2.6)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -49,10 +49,7 @@ importers:
         version: 0.545.0(react@19.2.3)
       next:
         specifier: 16.0.10
-        version: 16.0.10(@opentelemetry/api@1.9.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
-      next-themes:
-        specifier: ^0.4.6
-        version: 0.4.6(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+        version: 16.0.10(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       pdfjs-dist:
         specifier: ^5.4.394
         version: 5.4.394
@@ -71,15 +68,6 @@ importers:
       remark-gfm:
         specifier: ^4.0.1
         version: 4.0.1
-      remeda:
-        specifier: ^2.33.4
-        version: 2.33.4
-      shiki:
-        specifier: ^1.29.2
-        version: 1.29.2
-      sonner:
-        specifier: ^2.0.7
-        version: 2.0.7(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       swr:
         specifier: ^2.3.6
         version: 2.3.6(react@19.2.3)
@@ -462,6 +450,11 @@ packages:
     resolution: {integrity: sha512-3giAOQvZiH5F9bMlMiv8+GSPMeqg0dbaeo58/0SlA9sxSqZhnUtxzX9/2FzyhS9sWQf5S0GJE0AKBrFqjpeYcg==}
     engines: {node: '>=8.0.0'}
 
+  '@playwright/test@1.58.2':
+    resolution: {integrity: sha512-akea+6bHYBBfA9uQqSYmlJXn61cTa+jbO87xVLCWbTqbWadRVmhxlXATaOjOgcBaWU4ePo0wB41KMFv3o35IXA==}
+    engines: {node: '>=18'}
+    hasBin: true
+
   '@posthog/core@1.7.1':
     resolution: {integrity: sha512-kjK0eFMIpKo9GXIbts8VtAknsoZ18oZorANdtuTj1CbgS28t4ZVq//HAWhnxEuXRTrtkd+SUJ6Ux3j2Af8NCuA==}
 
@@ -818,27 +811,6 @@ packages:
   '@radix-ui/rect@1.1.1':
     resolution: {integrity: sha512-HPwpGIzkl28mWyZqG52jiqDJ12waP11Pa1lGoiyUkIEuMLBP0oeK/C89esbXrxsky5we7dfd8U58nm0SgAWpVw==}
 
-  '@shikijs/core@1.29.2':
-    resolution: {integrity: sha512-vju0lY9r27jJfOY4Z7+Rt/nIOjzJpZ3y+nYpqtUZInVoXQ/TJZcfGnNOGnKjFdVZb8qexiCuSlZRKcGfhhTTZQ==}
-
-  '@shikijs/engine-javascript@1.29.2':
-    resolution: {integrity: sha512-iNEZv4IrLYPv64Q6k7EPpOCE/nuvGiKl7zxdq0WFuRPF5PAE9PRo2JGq/d8crLusM59BRemJ4eOqrFrC4wiQ+A==}
-
-  '@shikijs/engine-oniguruma@1.29.2':
-    resolution: {integrity: sha512-7iiOx3SG8+g1MnlzZVDYiaeHe7Ez2Kf2HrJzdmGwkRisT7r4rak0e655AcM/tF9JG/kg5fMNYlLLKglbN7gBqA==}
-
-  '@shikijs/langs@1.29.2':
-    resolution: {integrity: sha512-FIBA7N3LZ+223U7cJDUYd5shmciFQlYkFXlkKVaHsCPgfVLiO+e12FmQE6Tf9vuyEsFe3dIl8qGWKXgEHL9wmQ==}
-
-  '@shikijs/themes@1.29.2':
-    resolution: {integrity: sha512-i9TNZlsq4uoyqSbluIcZkmPL9Bfi3djVxRnofUHwvx/h6SRW3cwgBC5SML7vsDcWyukY0eCzVN980rqP6qNl9g==}
-
-  '@shikijs/types@1.29.2':
-    resolution: {integrity: sha512-VJjK0eIijTZf0QSTODEXCqinjBn0joAHQ+aPSBzrv4O2d/QSbsMw+ZeSRx03kV34Hy7NzUvV/7NqfYGRLrASmw==}
-
-  '@shikijs/vscode-textmate@10.0.2':
-    resolution: {integrity: sha512-83yeghZ2xxin3Nj8z1NMd/NCuca+gsYXswywDy5bHvwlWL8tpTQmzGeUuHd9FC3E/SBEMvzJRwWEOz5gGes9Qg==}
-
   '@stablelib/base64@1.0.1':
     resolution: {integrity: sha512-1bnPQqSxSuc3Ii6MhBysoWCg58j97aUjuCSZrGSmDxNqtytIi0k8utUenAwTZN4V5mXXYGsVUI9zeBqy+jBOSQ==}
 
@@ -1065,9 +1037,6 @@ packages:
   devlop@1.1.0:
     resolution: {integrity: sha512-RWmIqhcFf1lRYBvNmr7qTNuyCt/7/ns2jbpp1+PalgE/rDQcBT0fioSMUpJ93irlUhC5hrg4cYqe6U+0ImW0rA==}
 
-  emoji-regex-xs@1.0.0:
-    resolution: {integrity: sha512-LRlerrMYoIDrT6jgpeZ2YYl/L8EulRTt5hQcYjy5AInh7HWXKimpqx68aknBFpGL2+/IcogTcaydJEgaTmOpDg==}
-
   enhanced-resolve@5.18.3:
     resolution: {integrity: sha512-d4lC8xfavMeBjzGr2vECC3fsGXziXZQyJxD868h2M/mBI3PwAuODxAkLkq5HYuvrPYcUtiLzsTo8U3PgX3Ocww==}
     engines: {node: '>=10.13.0'}
@@ -1106,6 +1075,11 @@ packages:
       react-dom:
         optional: true
 
+  fsevents@2.3.2:
+    resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==}
+    engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
+    os: [darwin]
+
   get-nonce@1.0.1:
     resolution: {integrity: sha512-FJhYRoDaiatfEkUK8HKlicmu/3SGFD51q3itKDGoSTysQJBnfOcxU5GxnhE1E6soB76MbT0MBtnKJuXyAx+96Q==}
     engines: {node: '>=6'}
@@ -1116,9 +1090,6 @@ packages:
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
 
-  hast-util-to-html@9.0.5:
-    resolution: {integrity: sha512-OguPdidb+fbHQSU4Q4ZiLKnzWo8Wwsf5bZfbvu7//a9oTYoqD/fWpe96NuHkoS9h0ccGOTe0C4NGXdtS0iObOw==}
-
   hast-util-to-jsx-runtime@2.3.6:
     resolution: {integrity: sha512-zl6s8LwNyo1P9uw+XJGvZtdFF1GdAkOg8ujOw+4Pyb76874fLps4ueHXDhXWdk6YHQ6OgUtinliG7RsYvCbbBg==}
 
@@ -1127,9 +1098,6 @@ packages:
 
   html-url-attributes@3.0.1:
     resolution: {integrity: sha512-ol6UPyBWqsrO6EJySPz2O7ZSr856WDrEzM5zMqp+FJJLGMW35cLYmmZnl0vztAZxRUoNZJFTCohfjuIJ8I4QBQ==}
-
-  html-void-elements@3.0.0:
-    resolution: {integrity: sha512-bEqo66MRXsUGxWHV5IP0PUiAWwoEjba4VCzg0LjFJBpchPaTfyfCKTG6bc5F8ucKec3q5y6qOdGyYTSBEvhCrg==}
 
   inline-style-parser@0.2.7:
     resolution: {integrity: sha512-Nb2ctOyNR8DqQoR0OwRG95uNWIC0C1lCgf5Naz5H6Ji72KZ8OcFZLz2P5sNgwlyoJ8Yif11oMuYs5pBQa86csA==}
@@ -1391,12 +1359,6 @@ packages:
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
 
-  next-themes@0.4.6:
-    resolution: {integrity: sha512-pZvgD5L0IEvX5/9GWyHMf3m8BKiVQwsCMHfoFosXtXBMnaS0ZnIJ9ST4b4NqLVKDEm8QBxoNNGNaBv2JNF6XNA==}
-    peerDependencies:
-      react: ^16.8 || ^17 || ^18 || ^19 || ^19.0.0-rc
-      react-dom: ^16.8 || ^17 || ^18 || ^19 || ^19.0.0-rc
-
   next@16.0.10:
     resolution: {integrity: sha512-RtWh5PUgI+vxlV3HdR+IfWA1UUHu0+Ram/JBO4vWB54cVPentCD0e+lxyAYEsDTqGGMg7qpjhKh6dc6aW7W/sA==}
     engines: {node: '>=20.9.0'}
@@ -1418,9 +1380,6 @@ packages:
       sass:
         optional: true
 
-  oniguruma-to-es@2.3.0:
-    resolution: {integrity: sha512-bwALDxriqfKGfUufKGGepCzu9x7nJQuoRoAFp4AnwehhC2crqrDIAP/uN2qdlsAvSMpeRC3+Yzhqc7hLmle5+g==}
-
   parse-entities@4.0.2:
     resolution: {integrity: sha512-GG2AQYWoLgL877gQIKeRPGO1xF9+eG1ujIb5soS5gPvLQ1y2o8FL90w2QWNdf9I361Mpp7726c+lj3U0qK1uGw==}
 
@@ -1434,6 +1393,16 @@ packages:
 
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
+
+  playwright-core@1.58.2:
+    resolution: {integrity: sha512-yZkEtftgwS8CsfYo7nm0KE8jsvm6i/PTgVtB8DL726wNf6H2IMsDuxCpJj59KDaxCtSnrWan2AeDqM7JBaultg==}
+    engines: {node: '>=18'}
+    hasBin: true
+
+  playwright@1.58.2:
+    resolution: {integrity: sha512-vA30H8Nvkq/cPBnNw4Q8TWz1EJyqgpuinBcHET0YVJVFldr8JDNiU9LaWAE1KqSkRYazuaBhTpB5ZzShOezQ6A==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   postcss@8.4.31:
     resolution: {integrity: sha512-PS08Iboia9mts/2ygV3eLpY5ghnUcfLV/EXTOW1E2qYxJKGGBUtNjN76FYHnMs36RmARn41bC0AZmn+rR0OVpQ==}
@@ -1497,15 +1466,6 @@ packages:
     resolution: {integrity: sha512-Ku/hhYbVjOQnXDZFv2+RibmLFGwFdeeKHFcOTlrt7xplBnya5OGn/hIRDsqDiSUcfORsDC7MPxwork8jBwsIWA==}
     engines: {node: '>=0.10.0'}
 
-  regex-recursion@5.1.1:
-    resolution: {integrity: sha512-ae7SBCbzVNrIjgSbh7wMznPcQel1DNlDtzensnFxpiNpXt1U2ju/bHugH422r+4LAVS1FpW1YCwilmnNsjum9w==}
-
-  regex-utilities@2.3.0:
-    resolution: {integrity: sha512-8VhliFJAWRaUiVvREIiW2NXXTmHs4vMNnSzuJVhscgmGav3g9VDxLrQndI3dZZVVdp0ZO/5v0xmX516/7M9cng==}
-
-  regex@5.1.1:
-    resolution: {integrity: sha512-dN5I359AVGPnwzJm2jN1k0W9LPZ+ePvoOeVMMfqIMFz53sSwXkxaJoxr50ptnsC771lK95BnTrVSZxq0b9yCGw==}
-
   remark-gfm@4.0.1:
     resolution: {integrity: sha512-1quofZ2RQ9EWdeN34S79+KExV1764+wCUGop5CPL1WGdD0ocPpu91lzPGbwWMECpEpd42kJGQwzRfyov9j4yNg==}
 
@@ -1517,9 +1477,6 @@ packages:
 
   remark-stringify@11.0.0:
     resolution: {integrity: sha512-1OSmLd3awB/t8qdoEOMazZkNsfVTeY4fTsgzcQFdXNq8ToTN4ZGwrMnlda4K6smTFKD+GRV6O48i6Z4iKgPPpw==}
-
-  remeda@2.33.4:
-    resolution: {integrity: sha512-ygHswjlc/opg2VrtiYvUOPLjxjtdKvjGz1/plDhkG66hjNjFr1xmfrs2ClNFo/E6TyUFiwYNh53bKV26oBoMGQ==}
 
   scheduler@0.27.0:
     resolution: {integrity: sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q==}
@@ -1543,15 +1500,6 @@ packages:
   shebang-regex@3.0.0:
     resolution: {integrity: sha512-7++dFhtcx3353uBaq8DDR4NuxBetBzC7ZQOhmTQInHEd6bSrXdiEyzCvG07Z44UYdLShWUyXt5M/yhz8ekcb1A==}
     engines: {node: '>=8'}
-
-  shiki@1.29.2:
-    resolution: {integrity: sha512-njXuliz/cP+67jU2hukkxCNuH1yUi4QfdZZY+sMr5PPrIyXSu5iTb/qYC4BiWWB0vZ+7TbdvYUCeL23zpwCfbg==}
-
-  sonner@2.0.7:
-    resolution: {integrity: sha512-W6ZN4p58k8aDKA4XPcx2hpIQXBRAgyiWVkYhT7CvK6D3iAu7xjvVyhQHg2/iaKJZ1XVJ4r7XuwGL+WGEK37i9w==}
-    peerDependencies:
-      react: ^18.0.0 || ^19.0.0 || ^19.0.0-rc
-      react-dom: ^18.0.0 || ^19.0.0 || ^19.0.0-rc
 
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
@@ -1745,13 +1693,13 @@ snapshots:
       react-dom: 19.2.3(react@19.2.3)
       tslib: 2.8.1
 
-  '@clerk/nextjs@6.35.5(next@16.0.10(@opentelemetry/api@1.9.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
+  '@clerk/nextjs@6.35.5(next@16.0.10(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
     dependencies:
       '@clerk/backend': 2.24.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       '@clerk/clerk-react': 5.57.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       '@clerk/shared': 3.36.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       '@clerk/types': 4.101.3(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
-      next: 16.0.10(@opentelemetry/api@1.9.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      next: 16.0.10(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       react: 19.2.3
       react-dom: 19.2.3(react@19.2.3)
       server-only: 0.0.1
@@ -1985,6 +1933,11 @@ snapshots:
     optional: true
 
   '@opentelemetry/api@1.9.0': {}
+
+  '@playwright/test@1.58.2':
+    dependencies:
+      playwright: 1.58.2
+    optional: true
 
   '@posthog/core@1.7.1':
     dependencies:
@@ -2322,41 +2275,6 @@ snapshots:
 
   '@radix-ui/rect@1.1.1': {}
 
-  '@shikijs/core@1.29.2':
-    dependencies:
-      '@shikijs/engine-javascript': 1.29.2
-      '@shikijs/engine-oniguruma': 1.29.2
-      '@shikijs/types': 1.29.2
-      '@shikijs/vscode-textmate': 10.0.2
-      '@types/hast': 3.0.4
-      hast-util-to-html: 9.0.5
-
-  '@shikijs/engine-javascript@1.29.2':
-    dependencies:
-      '@shikijs/types': 1.29.2
-      '@shikijs/vscode-textmate': 10.0.2
-      oniguruma-to-es: 2.3.0
-
-  '@shikijs/engine-oniguruma@1.29.2':
-    dependencies:
-      '@shikijs/types': 1.29.2
-      '@shikijs/vscode-textmate': 10.0.2
-
-  '@shikijs/langs@1.29.2':
-    dependencies:
-      '@shikijs/types': 1.29.2
-
-  '@shikijs/themes@1.29.2':
-    dependencies:
-      '@shikijs/types': 1.29.2
-
-  '@shikijs/types@1.29.2':
-    dependencies:
-      '@shikijs/vscode-textmate': 10.0.2
-      '@types/hast': 3.0.4
-
-  '@shikijs/vscode-textmate@10.0.2': {}
-
   '@stablelib/base64@1.0.1': {}
 
   '@standard-schema/spec@1.1.0': {}
@@ -2542,8 +2460,6 @@ snapshots:
     dependencies:
       dequal: 2.0.3
 
-  emoji-regex-xs@1.0.0: {}
-
   enhanced-resolve@5.18.3:
     dependencies:
       graceful-fs: 4.2.11
@@ -2570,25 +2486,14 @@ snapshots:
       react: 19.2.3
       react-dom: 19.2.3(react@19.2.3)
 
+  fsevents@2.3.2:
+    optional: true
+
   get-nonce@1.0.1: {}
 
   glob-to-regexp@0.4.1: {}
 
   graceful-fs@4.2.11: {}
-
-  hast-util-to-html@9.0.5:
-    dependencies:
-      '@types/hast': 3.0.4
-      '@types/unist': 3.0.3
-      ccount: 2.0.1
-      comma-separated-tokens: 2.0.3
-      hast-util-whitespace: 3.0.0
-      html-void-elements: 3.0.0
-      mdast-util-to-hast: 13.2.1
-      property-information: 7.1.0
-      space-separated-tokens: 2.0.2
-      stringify-entities: 4.0.4
-      zwitch: 2.0.4
 
   hast-util-to-jsx-runtime@2.3.6:
     dependencies:
@@ -2615,8 +2520,6 @@ snapshots:
       '@types/hast': 3.0.4
 
   html-url-attributes@3.0.1: {}
-
-  html-void-elements@3.0.0: {}
 
   inline-style-parser@0.2.7: {}
 
@@ -3056,12 +2959,7 @@ snapshots:
 
   nanoid@3.3.11: {}
 
-  next-themes@0.4.6(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
-    dependencies:
-      react: 19.2.3
-      react-dom: 19.2.3(react@19.2.3)
-
-  next@16.0.10(@opentelemetry/api@1.9.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
+  next@16.0.10(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
     dependencies:
       '@next/env': 16.0.10
       '@swc/helpers': 0.5.15
@@ -3080,16 +2978,11 @@ snapshots:
       '@next/swc-win32-arm64-msvc': 16.0.10
       '@next/swc-win32-x64-msvc': 16.0.10
       '@opentelemetry/api': 1.9.0
+      '@playwright/test': 1.58.2
       sharp: 0.34.5
     transitivePeerDependencies:
       - '@babel/core'
       - babel-plugin-macros
-
-  oniguruma-to-es@2.3.0:
-    dependencies:
-      emoji-regex-xs: 1.0.0
-      regex: 5.1.1
-      regex-recursion: 5.1.1
 
   parse-entities@4.0.2:
     dependencies:
@@ -3108,6 +3001,16 @@ snapshots:
       '@napi-rs/canvas': 0.1.82
 
   picocolors@1.1.1: {}
+
+  playwright-core@1.58.2:
+    optional: true
+
+  playwright@1.58.2:
+    dependencies:
+      playwright-core: 1.58.2
+    optionalDependencies:
+      fsevents: 2.3.2
+    optional: true
 
   postcss@8.4.31:
     dependencies:
@@ -3185,17 +3088,6 @@ snapshots:
 
   react@19.2.3: {}
 
-  regex-recursion@5.1.1:
-    dependencies:
-      regex: 5.1.1
-      regex-utilities: 2.3.0
-
-  regex-utilities@2.3.0: {}
-
-  regex@5.1.1:
-    dependencies:
-      regex-utilities: 2.3.0
-
   remark-gfm@4.0.1:
     dependencies:
       '@types/mdast': 4.0.4
@@ -3229,8 +3121,6 @@ snapshots:
       '@types/mdast': 4.0.4
       mdast-util-to-markdown: 2.1.2
       unified: 11.0.5
-
-  remeda@2.33.4: {}
 
   scheduler@0.27.0: {}
 
@@ -3276,22 +3166,6 @@ snapshots:
       shebang-regex: 3.0.0
 
   shebang-regex@3.0.0: {}
-
-  shiki@1.29.2:
-    dependencies:
-      '@shikijs/core': 1.29.2
-      '@shikijs/engine-javascript': 1.29.2
-      '@shikijs/engine-oniguruma': 1.29.2
-      '@shikijs/langs': 1.29.2
-      '@shikijs/themes': 1.29.2
-      '@shikijs/types': 1.29.2
-      '@shikijs/vscode-textmate': 10.0.2
-      '@types/hast': 3.0.4
-
-  sonner@2.0.7(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
-    dependencies:
-      react: 19.2.3
-      react-dom: 19.2.3(react@19.2.3)
 
   source-map-js@1.2.1: {}
 
