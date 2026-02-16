@@ -54,7 +54,41 @@ function escapeHtml(text: string): string {
     .replace(/"/g, "&quot;");
 }
 
+const ALLOWED_TAGS = new Set(["p", "br", "a", "strong", "em", "b", "i", "u", "span", "div", "ul", "ol", "li"]);
+const ALLOWED_ATTRS: Record<string, Set<string>> = {
+  a: new Set(["href", "target", "rel"]),
+  span: new Set(["style"]),
+  div: new Set(["style"]),
+};
+
+function sanitizeHtml(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/on\w+\s*=\s*"[^"]*"/gi, "")
+    .replace(/on\w+\s*=\s*'[^']*'/gi, "")
+    .replace(/javascript\s*:/gi, "")
+    .replace(/<(\/?)([\w-]+)([^>]*)>/g, (match, slash, tag, attrs) => {
+      const lowerTag = tag.toLowerCase();
+      if (!ALLOWED_TAGS.has(lowerTag)) return "";
+      if (slash) return `</${lowerTag}>`;
+      const allowedAttrs = ALLOWED_ATTRS[lowerTag];
+      if (!allowedAttrs) return `<${lowerTag}>`;
+      const cleaned = (attrs as string).replace(
+        /([\w-]+)\s*=\s*"([^"]*)"/g,
+        (_: string, name: string, val: string) =>
+          allowedAttrs.has(name.toLowerCase()) ? ` ${name.toLowerCase()}="${val}"` : "",
+      );
+      return `<${lowerTag}${cleaned}>`;
+    });
+}
+
+function isHtmlBody(text: string): boolean {
+  return /<[a-z][\s\S]*>/i.test(text);
+}
+
 function bodyToHtml(text: string): string {
+  if (isHtmlBody(text)) return sanitizeHtml(text);
   return escapeHtml(text).replace(/\n/g, "<br>");
 }
 

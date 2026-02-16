@@ -15,8 +15,8 @@ import { useProtectedApi } from "@/hooks/use-protected-api";
 import { useTemplates } from "@/hooks/use-templates";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import {
   Dialog,
   DialogContent,
@@ -334,19 +334,21 @@ export function ChatComposeModal({
                   className="border-0 bg-transparent text-[#e8e8e8] focus-visible:ring-0 px-4 py-3 h-auto placeholder:text-[#4a4a4a]"
                 />
                 <Separator className="bg-[#2a2a2a]" />
-                <Textarea
-                  placeholder="Write your message..."
-                  value={emailBody}
-                  onChange={(e) => setEmailBody(e.target.value)}
-                  className="min-h-[250px] border-0 bg-transparent text-sm text-[#e8e8e8] focus-visible:ring-0 resize-none p-4 placeholder:text-[#4a4a4a]"
-                />
+                <div className="p-4">
+                  <RichTextEditor
+                    value={emailBody}
+                    onChange={setEmailBody}
+                    placeholder="Write your message..."
+                    editorClassName="min-h-[220px]"
+                  />
+                </div>
 
                 {/* Footer preview — read-only, rendered inline */}
                 {emailFooter && (emailFooter.text || emailFooter.links.length > 0) && (
                   <>
                     <div className="px-4 pb-3 space-y-1">
                       {emailFooter.text && (
-                        <p className="text-xs text-[#8a8a8a]">{emailFooter.text}</p>
+                        <p className="text-sm text-[#8a8a8a]">{emailFooter.text}</p>
                       )}
                       {emailFooter.links.length > 0 && (
                         <div className="flex flex-wrap items-center gap-y-1">
@@ -357,7 +359,7 @@ export function ChatComposeModal({
                                 href={link.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-xs text-blue-400 hover:text-blue-300 underline underline-offset-2"
+                                className="text-sm text-blue-400 hover:text-blue-300 underline underline-offset-2"
                               >
                                 {link.label}
                               </a>

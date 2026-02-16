@@ -331,6 +331,34 @@ export class ProtectedTemplatesDeleteRoute extends OpenAPIRoute {
   }
 }
 
+function extractLinks(html: string): Array<{ href: string; text: string }> {
+  const links: Array<{ href: string; text: string }> = [];
+  const regex = /<a\s+[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
+  let match;
+  while ((match = regex.exec(html)) !== null) {
+    links.push({ href: match[1], text: match[2].replace(/<[^>]*>/g, "").trim() });
+  }
+  return links;
+}
+
+function relinkBody(originalBody: string, aiBody: string): string {
+  const originalLinks = extractLinks(originalBody);
+  if (originalLinks.length === 0) return aiBody;
+
+  let result = aiBody;
+  for (const link of originalLinks) {
+    if (result.includes(link.href)) continue;
+    const plainText = link.text;
+    if (plainText && result.includes(plainText) && !result.includes(`>${plainText}</a>`)) {
+      result = result.replace(
+        plainText,
+        `<a href="${link.href}">${plainText}</a>`,
+      );
+    }
+  }
+  return result;
+}
+
 export class ProtectedTemplateProcessRoute extends OpenAPIRoute {
   schema = {
     tags: ["API"],
@@ -425,10 +453,12 @@ Original Template Body: ${template.body}
 Your task:
 Rewrite this email to be personalized for this person at ${company}, while keeping the same general structure and intent. Make it sound natural and tailored to them specifically.
 
+IMPORTANT: The body may contain HTML with hyperlinks (<a> tags). You MUST preserve all hyperlinks exactly as they appear — keep the <a href="..."> tags, their href URLs, and wrapping structure intact. Only rewrite the surrounding text, not the link markup. If a linked word needs to change for grammar, keep the <a> tag and update only the text inside it.
+
 Return format (JSON only):
 {
   "subject": "rewritten subject",
-  "body": "rewritten body"
+  "body": "rewritten body (with HTML hyperlinks preserved)"
 }`;
 
     try {
@@ -453,10 +483,12 @@ Return format (JSON only):
 
       const aiResult = JSON.parse(cleanText);
 
+      const relinkedBody = relinkBody(template.body, aiResult.body);
+
       return {
         success: true,
         subject: aiResult.subject,
-        body: aiResult.body,
+        body: relinkedBody,
         footer: template.footer ?? null,
         attachments: template.attachments ?? null,
       };

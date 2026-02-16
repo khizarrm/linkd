@@ -4,8 +4,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useProtectedApi } from '@/hooks/use-protected-api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Separator } from '@/components/ui/separator';
 import {
   Dialog,
   DialogContent,
@@ -13,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Loader2, Plus, Trash2, Link as LinkIcon, Paperclip, X } from 'lucide-react';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
 
 interface FooterLink {
   label: string;
@@ -106,7 +105,7 @@ export function TemplateEditorModal({ open, onOpenChange, onSuccess, initialData
   const [formData, setFormData] = useState({ name: '', subject: '', body: '' });
   const [footer, setFooter] = useState<FooterData>({ text: '', links: [] });
   const [attachments, setAttachments] = useState<TemplateAttachment[]>([]);
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
   const subjectRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -129,17 +128,12 @@ export function TemplateEditorModal({ open, onOpenChange, onSuccess, initialData
   }, [open, initialData]);
 
   const insertVariable = (value: string, target: 'subject' | 'body') => {
-    if (target === 'body' && bodyRef.current) {
-      const textarea = bodyRef.current;
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const text = formData.body;
-      const newText = text.substring(0, start) + value + text.substring(end);
-      setFormData(prev => ({ ...prev, body: newText }));
-      setTimeout(() => {
-        textarea.focus();
-        textarea.setSelectionRange(start + value.length, start + value.length);
-      }, 0);
+    if (target === 'body') {
+      const tiptap = editorRef.current?.querySelector('.tiptap') as HTMLElement & { editor?: { commands: { insertContent: (c: string) => void; focus: () => void } } } | null;
+      if (tiptap?.editor) {
+        tiptap.editor.commands.focus();
+        tiptap.editor.commands.insertContent(value);
+      }
     } else if (target === 'subject' && subjectRef.current) {
       const input = subjectRef.current;
       const start = input.selectionStart || 0;
@@ -248,22 +242,13 @@ export function TemplateEditorModal({ open, onOpenChange, onSuccess, initialData
               />
             </div>
             <div
-              className="flex-1 overflow-y-auto px-4 py-3 cursor-text"
-              onClick={() => bodyRef.current?.focus()}
+              ref={editorRef}
+              className="flex-1 overflow-y-auto px-4 py-3"
             >
-              <textarea
-                ref={bodyRef}
-                id="body"
-                required
-                placeholder="Write your email body here..."
+              <RichTextEditor
                 value={formData.body}
-                onChange={e => {
-                  setFormData(prev => ({ ...prev, body: e.target.value }));
-                  e.target.style.height = 'auto';
-                  e.target.style.height = e.target.scrollHeight + 'px';
-                }}
-                onFocus={e => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }}
-                className="w-full bg-transparent text-[#e8e8e8] text-sm leading-relaxed placeholder:text-[#4a4a4a] outline-none resize-none min-h-[200px]"
+                onChange={html => setFormData(prev => ({ ...prev, body: html }))}
+                placeholder="Write your email body here..."
               />
               {(footer.text || footer.links.some(l => l.label && l.url)) && (
                 <div className="text-sm leading-relaxed">
