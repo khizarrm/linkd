@@ -18,7 +18,7 @@ export function useProtectedApi() {
       return response.json();
     },
 
-    createTemplate: async (data: { name: string; subject: string; body: string }) => {
+    createTemplate: async (data: { name: string; subject: string; body: string; footer?: string | null; attachments?: string | null }) => {
       const token = await getToken();
       const response = await apiFetch('/api/protected/templates', {
         method: 'POST',
@@ -28,7 +28,7 @@ export function useProtectedApi() {
       return response.json();
     },
 
-    updateTemplate: async (id: string, data: { name?: string; subject?: string; body?: string }) => {
+    updateTemplate: async (id: string, data: { name?: string; subject?: string; body?: string; footer?: string | null; attachments?: string | null }) => {
       const token = await getToken();
       const response = await apiFetch(`/api/protected/templates/${id}`, {
         method: 'PUT',
@@ -62,7 +62,12 @@ export function useProtectedApi() {
         throw new Error(error.message || error.error || 'Failed to process template');
       }
       const result = await response.json();
-      return { subject: result.subject, body: result.body };
+      return {
+        subject: result.subject,
+        body: result.body,
+        footer: result.footer as string | null,
+        attachments: result.attachments as string | null,
+      };
     },
 
     // Companies
@@ -84,8 +89,33 @@ export function useProtectedApi() {
       return response.json();
     },
 
+    // Google OAuth
+    getGoogleAuthUrl: async () => {
+      const token = await getToken();
+      const response = await apiFetch('/api/protected/auth/google', {
+        method: 'GET',
+      }, token);
+      if (!response.ok) throw new Error('Failed to get Google auth URL');
+      return response.json() as Promise<{ url: string }>;
+    },
+
+    getGmailStatus: async () => {
+      const token = await getToken();
+      const response = await apiFetch('/api/protected/auth/google/status', {
+        method: 'GET',
+      }, token);
+      if (!response.ok) throw new Error('Failed to check Gmail status');
+      return response.json() as Promise<{ connected: boolean }>;
+    },
+
     // Email
-    sendEmail: async (data: { to: string; subject: string; body: string }) => {
+    sendEmail: async (data: {
+      to: string;
+      subject: string;
+      body: string;
+      footer?: { text?: string; links: Array<{ label: string; url: string }> } | null;
+      attachments?: Array<{ filename: string; mimeType: string; data: string }>;
+    }) => {
       const token = await getToken();
       const response = await apiFetch('/api/protected/email/send', {
         method: 'POST',
@@ -141,7 +171,7 @@ export function useProtectedApi() {
       return response.json();
     },
 
-    updateChat: async (id: string, data: { title?: string; openaiConversationId?: string }) => {
+    updateChat: async (id: string, data: { title?: string; claudeConversationId?: string }) => {
       const token = await getToken();
       const response = await apiFetch(`/api/protected/chats/${id}`, {
         method: 'PUT',

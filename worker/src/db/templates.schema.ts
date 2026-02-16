@@ -10,6 +10,8 @@ export const templates = sqliteTable("templates", {
   name: text("name").notNull(),
   subject: text("subject").notNull(),
   body: text("body").notNull(),
+  footer: text("footer"),
+  attachments: text("attachments"),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" })

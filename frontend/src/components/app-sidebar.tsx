@@ -1,13 +1,14 @@
 'use client';
 
-import { User, LogOut, FileText, Info, Plus } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { User, LogOut, FileText, Info, Plus, LayoutTemplate } from "lucide-react"
+import { useRouter, usePathname } from "next/navigation"
 import Image from "next/image"
 import { useState } from "react"
 import { useUser, useClerk } from "@clerk/nextjs"
 import { FeedbackDialog } from "./feedback-dialog"
 import { InfoDialog } from "./info-dialog"
 import { ChatHistoryList } from "./chat/chat-history-list"
+import { TemplateManagementModal } from "./templates/template-management-modal"
 
 import {
   Sidebar,
@@ -26,10 +27,12 @@ import {
 
 export function AppSidebar() {
   const router = useRouter();
+  const pathname = usePathname();
   const [imageError, setImageError] = useState(false);
   const [showSignOut, setShowSignOut] = useState(false);
   const [isFeedbackDialogOpen, setIsFeedbackDialogOpen] = useState(false);
   const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
+  const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
   // const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
 
   const { user } = useUser();
@@ -73,11 +76,26 @@ export function AppSidebar() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  onClick={() => router.push('/chat')}
+                  onClick={() => {
+                    if (pathname === '/chat') {
+                      window.location.href = '/chat';
+                    } else {
+                      router.push('/chat');
+                    }
+                  }}
                   tooltip="New chat"
                 >
                   <Plus className="size-4" />
                   <span>New chat</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => setIsTemplatesModalOpen(true)}
+                  tooltip="Templates"
+                >
+                  <LayoutTemplate className="size-4" />
+                  <span>Templates</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -161,6 +179,10 @@ export function AppSidebar() {
       <InfoDialog
         open={isInfoDialogOpen}
         onOpenChange={setIsInfoDialogOpen}
+      />
+      <TemplateManagementModal
+        open={isTemplatesModalOpen}
+        onOpenChange={setIsTemplatesModalOpen}
       />
       <SidebarRail />
     </Sidebar>

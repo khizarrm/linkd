@@ -45,9 +45,8 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   }, [isSignedIn, user]);
 
   const isAuthPage = pathname === '/login' || pathname === '/sso-callback';
-  const showSidebar = isSignedIn && !isAuthPage;
 
-  if (!showSidebar) {
+  if (isAuthPage) {
     return (
       <div className="min-h-screen w-full">
         {children}
@@ -59,6 +58,14 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
     return (
       <div className="min-h-screen w-full flex items-center justify-center">
         <div className="h-4 w-4 rounded-full bg-foreground/20 animate-pulse" />
+      </div>
+    );
+  }
+
+  if (!isSignedIn) {
+    return (
+      <div className="min-h-screen w-full">
+        {children}
       </div>
     );
   }

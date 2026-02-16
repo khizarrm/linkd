@@ -9,5 +9,6 @@ export const messages = sqliteTable("messages", {
     .references(() => chats.id, { onDelete: "cascade" }),
   role: text("role"),
   content: text("content"),
+  parts: text("parts"),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });

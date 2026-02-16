@@ -1,18 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { X, Send, Check, FileText, ChevronDown, Loader2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Send, Check, Mail, Loader2, Paperclip, X } from 'lucide-react';
 import { useProtectedApi } from '@/hooks/use-protected-api';
-import { replaceUrlKeywords } from '@/lib/url-replace';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Separator } from '@/components/ui/separator';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface Employee {
   id: number;
@@ -22,6 +22,13 @@ interface Employee {
   companyId: number;
 }
 
+interface AttachmentFile {
+  filename: string;
+  mimeType: string;
+  data: string;
+  size: number;
+}
+
 interface EmployeeComposeModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -29,95 +36,89 @@ interface EmployeeComposeModalProps {
   companyName: string;
 }
 
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      const base64 = result.split(",")[1];
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 export function EmployeeComposeModal({ open, onOpenChange, employee, companyName }: EmployeeComposeModalProps) {
   const protectedApi = useProtectedApi();
   const [isSending, setIsSending] = useState(false);
   const [emailSubject, setEmailSubject] = useState('');
   const [emailBody, setEmailBody] = useState('');
+  const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [sendSuccess, setSendSuccess] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
-
-  const [templates, setTemplates] = useState<Array<{ id: string; name: string; subject: string; body: string }>>([]);
-  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
-  const [processingTemplateId, setProcessingTemplateId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (open) {
-      setIsLoadingTemplates(true);
-      protectedApi.listTemplates()
-        .then(data => {
-          if (data.success && data.templates) {
-            setTemplates(data.templates);
-          }
-        })
-        .catch(err => console.error('Failed to load templates:', err))
-        .finally(() => setIsLoadingTemplates(false));
-    }
-  }, [open]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) {
-      // Reset form when modal closes
       setEmailSubject('');
       setEmailBody('');
+      setAttachments([]);
       setSendSuccess(false);
       setSendError(null);
     }
   }, [open]);
 
-  const handleTemplateSelect = async (template: { id: string; subject: string; body: string }) => {
-    setProcessingTemplateId(template.id);
-    setSendError(null);
-    
-    try {
-      const result = await protectedApi.processTemplate({
-        templateId: template.id,
-        person: {
-          name: employee.employeeName,
-          role: employee.employeeTitle || undefined,
-          email: employee.email || undefined,
-        },
-        company: companyName,
-      });
-      
-      setEmailSubject(result.subject);
-      setEmailBody(result.body);
-    } catch (error) {
-      console.error('Failed to process template:', error);
-      setSendError((error as Error).message || 'Failed to process template. Please try again.');
-      // Fallback to original template if processing fails
-      setEmailSubject(template.subject);
-      setEmailBody(template.body);
-    } finally {
-      setProcessingTemplateId(null);
-    }
-  };
-
   const hasEmail = employee.email && employee.email.trim() !== '';
   const targetEmail = employee.email || null;
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    for (const file of Array.from(files)) {
+      if (file.size > 10 * 1024 * 1024) {
+        setSendError(`File "${file.name}" exceeds 10MB limit`);
+        continue;
+      }
+      const data = await fileToBase64(file);
+      setAttachments((prev) => [
+        ...prev,
+        { filename: file.name, mimeType: file.type || "application/octet-stream", data, size: file.size },
+      ]);
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleSendEmail = async () => {
     if (!targetEmail) return;
-    
+
     setIsSending(true);
     setSendError(null);
-    
+
     try {
-      // Replace URL keywords with HTML links before sending
-      const bodyWithLinks = replaceUrlKeywords(emailBody);
-      
       await protectedApi.sendEmail({
         to: targetEmail,
         subject: emailSubject,
-        body: bodyWithLinks
+        body: emailBody,
+        attachments: attachments.length > 0
+          ? attachments.map(({ filename, mimeType, data }) => ({ filename, mimeType, data }))
+          : undefined,
       });
       setSendSuccess(true);
       setTimeout(() => {
         onOpenChange(false);
-        setSendSuccess(false);
-        setEmailSubject('');
-        setEmailBody('');
-      }, 2000);
+      }, 1500);
     } catch (error) {
       setSendError((error as Error).message);
     } finally {
@@ -125,156 +126,130 @@ export function EmployeeComposeModal({ open, onOpenChange, employee, companyName
     }
   };
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-      <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
-        onClick={() => onOpenChange(false)}
-      />
-      
-      <div className="relative w-full max-w-2xl bg-[#151515] border border-[#2a2a2a] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-[#2a2a2a]">
-          <h3 className="text-lg font-medium text-white font-sans font-light tracking-wide">
-            Send Email to {employee.employeeName}
-          </h3>
-          <div className="flex items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 gap-1 bg-transparent border-[#2a2a2a] text-gray-400 hover:text-white hover:bg-[#2a2a2a]">
-                  <FileText className="w-3.5 h-3.5" />
-                  <span className="text-xs">Templates</span>
-                  <ChevronDown className="w-3 h-3 opacity-50" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 bg-[#151515] border-[#2a2a2a] text-white">
-                {isLoadingTemplates ? (
-                  <div className="flex items-center justify-center p-2 text-gray-500">
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    <span className="text-xs">Loading...</span>
-                  </div>
-                ) : templates.length === 0 ? (
-                  <div className="p-2 text-xs text-gray-500 text-center">
-                    No templates found
-                  </div>
-                ) : (
-                  templates.map(template => {
-                    const isProcessing = processingTemplateId === template.id;
-                    return (
-                      <DropdownMenuItem 
-                        key={template.id} 
-                        onClick={() => handleTemplateSelect(template)}
-                        disabled={processingTemplateId !== null}
-                        className="text-sm hover:bg-[#2a2a2a] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {isProcessing ? (
-                          <div className="flex items-center gap-2">
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                            <span className="truncate">Processing...</span>
-                          </div>
-                        ) : (
-                          <span className="truncate">{template.name}</span>
-                        )}
-                      </DropdownMenuItem>
-                    );
-                  })
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[600px] p-0 gap-0 bg-[#0a0a0a] border-[#2a2a2a] text-[#e8e8e8]">
+        <DialogHeader className="p-6 pb-4 border-b border-[#2a2a2a]">
+          <DialogTitle className="text-lg font-medium tracking-tight">
+            Compose
+          </DialogTitle>
+          <p className="text-sm text-[#8a8a8a] mt-1">
+            To: {employee.employeeName} {targetEmail && <>&lt;{targetEmail}&gt;</>}
+          </p>
+        </DialogHeader>
 
+        <div className="p-6 space-y-4 overflow-y-auto max-h-[60vh]">
+          {!hasEmail ? (
+            <div className="text-center py-8 space-y-4">
+              <div className="w-16 h-16 rounded-full bg-yellow-500/10 flex items-center justify-center mx-auto">
+                <Mail className="w-8 h-8 text-yellow-500" />
+              </div>
+              <div className="space-y-2">
+                <h4 className="text-lg font-medium text-[#e8e8e8]">
+                  No Email Available
+                </h4>
+                <p className="text-sm text-[#8a8a8a] max-w-sm mx-auto">
+                  We don&apos;t have an email address for this employee. Please try a different contact method.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="border border-[#2a2a2a] rounded-lg bg-[#151515] overflow-hidden">
+                <Input
+                  placeholder="Subject..."
+                  value={emailSubject}
+                  onChange={(e) => setEmailSubject(e.target.value)}
+                  disabled={!hasEmail}
+                  className="border-0 bg-transparent text-[#e8e8e8] focus-visible:ring-0 px-4 py-3 h-auto font-medium placeholder:text-[#4a4a4a] disabled:opacity-50"
+                />
+                <Separator className="bg-[#2a2a2a]" />
+                <Textarea
+                  placeholder="Write your message..."
+                  value={emailBody}
+                  onChange={(e) => setEmailBody(e.target.value)}
+                  disabled={!hasEmail}
+                  className="min-h-[250px] border-0 bg-transparent text-sm text-[#e8e8e8] focus-visible:ring-0 resize-none p-4 placeholder:text-[#4a4a4a] leading-relaxed disabled:opacity-50"
+                />
+              </div>
+
+              {/* Attachments */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="h-8 px-2.5 text-xs text-[#6a6a6a] hover:text-[#e8e8e8] hover:bg-[#1a1a1a]"
+                >
+                  <Paperclip className="w-3.5 h-3.5 mr-1.5" />
+                  Attach
+                </Button>
+
+                {attachments.map((att, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-1.5 bg-[#151515] border border-[#2a2a2a] rounded-md px-2.5 py-1 text-xs text-[#c0c0c0]"
+                  >
+                    <Paperclip className="w-3 h-3 text-[#6a6a6a]" />
+                    <span className="truncate max-w-[140px]">{att.filename}</span>
+                    <span className="text-[#6a6a6a]">({formatFileSize(att.size)})</span>
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(index)}
+                      className="ml-0.5 text-[#6a6a6a] hover:text-red-400 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {sendError && (
+                <p className="text-sm text-red-400 bg-red-400/10 p-3 rounded-lg">
+                  {sendError}
+                </p>
+              )}
+            </>
+          )}
+        </div>
+
+        {hasEmail && (
+          <div className="p-6 pt-0 flex justify-end gap-3">
             <Button
               variant="ghost"
-              size="icon"
-              className="text-gray-400 hover:text-white"
               onClick={() => onOpenChange(false)}
+              className="text-[#8a8a8a] hover:text-[#e8e8e8] hover:bg-[#1a1a1a]"
             >
-              <X className="w-5 h-5" />
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSendEmail}
+              disabled={isSending || !emailSubject || !emailBody || !hasEmail}
+              className="bg-[#e8e8e8] text-black hover:bg-white min-w-[100px]"
+            >
+              {isSending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : sendSuccess ? (
+                <span className="flex items-center gap-2">
+                  <Check className="w-4 h-4" /> Sent
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <Send className="w-4 h-4" /> Send
+                </span>
+              )}
             </Button>
           </div>
-        </div>
-
-        {/* Body */}
-        <div className="p-4 sm:p-6 space-y-4">
-          {!hasEmail && (
-            <p className="text-sm text-yellow-400 bg-yellow-400/10 p-3 rounded-lg font-sans font-light tracking-wide">
-              No email address available for this employee
-            </p>
-          )}
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-400 font-sans font-light tracking-wide">Subject</label>
-            <div className="relative">
-              <Input
-                placeholder="Enter subject..."
-                value={emailSubject}
-                onChange={(e) => setEmailSubject(e.target.value)}
-                disabled={processingTemplateId !== null || !hasEmail}
-                className="bg-[#0a0a0a] border-[#2a2a2a] text-white focus:border-[#3a3a3a] focus:ring-0 font-sans font-light tracking-wide disabled:opacity-60 disabled:cursor-not-allowed"
-              />
-              {processingTemplateId !== null && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-400 font-sans font-light tracking-wide">Message</label>
-            <div className="relative">
-              <Textarea
-                placeholder="Write your message..."
-                value={emailBody}
-                onChange={(e) => setEmailBody(e.target.value)}
-                disabled={processingTemplateId !== null || !hasEmail}
-                className="min-h-[150px] bg-[#0a0a0a] border-[#2a2a2a] text-white focus:border-[#3a3a3a] focus:ring-0 resize-none font-sans font-light tracking-wide disabled:opacity-60 disabled:cursor-not-allowed"
-              />
-              {processingTemplateId !== null && (
-                <div className="absolute right-3 top-3">
-                  <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {sendError && (
-            <p className="text-sm text-red-400 bg-red-400/10 p-3 rounded-lg font-sans font-light tracking-wide">
-              {sendError}
-            </p>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="p-4 sm:p-6 pt-0 flex justify-end gap-3">
-          <Button
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
-            className="text-gray-400 hover:text-white hover:bg-[#2a2a2a] font-sans font-light tracking-wide"
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSendEmail}
-            disabled={isSending || !emailSubject || !emailBody || !hasEmail}
-            className="bg-blue-600 hover:bg-blue-700 text-white min-w-[100px] font-sans font-light tracking-wide"
-          >
-            {isSending ? (
-              "Sending..."
-            ) : sendSuccess ? (
-              <span className="flex items-center gap-2">
-                <Check className="w-4 h-4" /> Sent
-              </span>
-            ) : (
-              <span className="flex items-center gap-2">
-                <Send className="w-4 h-4" /> Send
-              </span>
-            )}
-          </Button>
-        </div>
-      </div>
-    </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
-
