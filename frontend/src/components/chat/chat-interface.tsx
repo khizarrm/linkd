@@ -246,13 +246,13 @@ function ChatSession({
           aria-label="Scroll to bottom"
           type="button"
           onClick={() => scrollToBottom("smooth")}
-          className={`absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-full border bg-background p-2 shadow-lg transition-all hover:bg-muted ${
+          className={`absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-full border-0 bg-blue-500 p-2 shadow-lg transition-all hover:bg-blue-600 ${
             isAtBottom
               ? "pointer-events-none scale-0 opacity-0"
               : "pointer-events-auto scale-100 opacity-100"
           }`}
         >
-          <ArrowDown className="size-4 text-blue-500" />
+          <ArrowDown className="size-4 text-white" />
         </button>
       </div>
 
