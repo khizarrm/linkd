@@ -95,7 +95,7 @@ export function createTools(
   env: CloudflareBindings,
   options?: {
     onToolStart?: (toolName: string) => string | undefined;
-    onToolEnd?: (toolName: string, stepId?: string) => void;
+    onToolEnd?: (toolName: string, stepId?: string, failed?: boolean) => void;
     onEmailFound?: (data: {
       name: string;
       email: string;
@@ -266,6 +266,7 @@ export function createTools(
     }),
     execute: async ({ name, domain }) => {
       const resolvedStepId = options?.onToolStart?.("find_and_verify_email");
+      let failed = false;
       try {
         const cleanDomain = domain.replace(/^www\./, "").toLowerCase();
 
@@ -274,57 +275,62 @@ export function createTools(
         const last = parts[parts.length - 1]?.toLowerCase() || "";
         const firstInitial = first[0] || "";
 
-        const patterns: string[] = [];
-
-        patterns.push(
+        const patterns = [
           `${first}.${last}@${cleanDomain}`,
           `${last}@${cleanDomain}`,
           `${first}${last}@${cleanDomain}`,
           `${first}_${last}@${cleanDomain}`,
           `${firstInitial}${last}@${cleanDomain}`,
           `${first}@${cleanDomain}`,
+        ];
+
+        const results = await Promise.allSettled(
+          patterns.map(async (email) => {
+            const status = await verifyEmail(email);
+            return { email, status };
+          }),
         );
 
-        for (const email of patterns) {
-          try {
-            const status = await verifyEmail(email);
-            if (status === "valid") {
-              options?.onEmailFound?.({
-                name,
-                email,
-                domain: cleanDomain,
-                verificationStatus: "verified",
-              });
-              return {
-                email,
-                pattern: email.split("@")[0],
-                verificationStatus: "verified",
-              };
-            } else if (
-              status === "catch-all" ||
-              status === "catch_all" ||
-              status === "acceptable"
-            ) {
-              options?.onEmailFound?.({
-                name,
-                email,
-                domain: cleanDomain,
-                verificationStatus: "possible",
-              });
-              return {
-                email,
-                pattern: email.split("@")[0],
-                verificationStatus: "possible",
-              };
-            }
-          } catch {
-            // Continue to next pattern
-          }
+        const fulfilled = results.flatMap((r) =>
+          r.status === "fulfilled" ? [r.value] : [],
+        );
+
+        const valid = fulfilled.find((r) => r.status === "valid");
+        if (valid) {
+          options?.onEmailFound?.({
+            name,
+            email: valid.email,
+            domain: cleanDomain,
+            verificationStatus: "verified",
+          });
+          return {
+            email: valid.email,
+            pattern: valid.email.split("@")[0],
+            verificationStatus: "verified",
+          };
         }
 
+        const catchAll = fulfilled.find(
+          (r) => r.status === "catch-all" || r.status === "catch_all",
+        );
+        if (catchAll) {
+          options?.onEmailFound?.({
+            name,
+            email: catchAll.email,
+            domain: cleanDomain,
+            verificationStatus: "possible",
+          });
+          return {
+            email: catchAll.email,
+            pattern: catchAll.email.split("@")[0],
+            verificationStatus: "possible",
+          };
+        }
+
+        failed = true;
         return { email: null, pattern: null, verificationStatus: null };
       } finally {
-        options?.onToolEnd?.("find_and_verify_email", resolvedStepId);
+        options?.onToolEnd?.("find_and_verify_email", resolvedStepId, failed);
       }
     },
   });

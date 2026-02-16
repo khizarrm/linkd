@@ -2,13 +2,13 @@
 
 import * as React from "react";
 import * as Collapsible from "@radix-ui/react-collapsible";
-import { Check, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface Step {
   id: string;
   label: string;
-  status: "running" | "done";
+  status: "running" | "done" | "failed";
 }
 
 export interface ToolCallAccordionProps {
@@ -56,6 +56,8 @@ export function ToolCallAccordion({ steps, isLoading }: ToolCallAccordionProps) 
               <div className="flex h-5 w-5 items-center justify-center">
                 {step.status === "running" ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                ) : step.status === "failed" ? (
+                  <X className="h-3.5 w-3.5 text-red-500" />
                 ) : (
                   <Check className="h-3.5 w-3.5 text-green-500" />
                 )}
@@ -66,7 +68,7 @@ export function ToolCallAccordion({ steps, isLoading }: ToolCallAccordionProps) 
                   step.status === "running" && "text-foreground font-medium"
                 )}
               >
-                {step.label}
+                {step.label}{step.status === "failed" ? " — not found" : ""}
               </span>
             </div>
           ))}

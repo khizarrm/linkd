@@ -196,14 +196,15 @@ export class ResearchAgentRoute extends OpenAPIRoute {
           });
           return stepId;
         };
-        const onToolEnd = (toolName: string, stepId?: string) => {
+        const onToolEnd = (toolName: string, stepId?: string, failed?: boolean) => {
           const label = TOOL_LABELS[toolName] || toolName.replace(/_/g, " ");
           if (!stepId) return;
-          console.log(`[endpoint] Tool completed: ${toolName} → "${label}"`);
+          const status = failed ? "failed" : "done";
+          console.log(`[endpoint] Tool completed: ${toolName} → "${label}" (${status})`);
           writer.write({
             type: "data-step",
             id: stepId,
-            data: { id: stepId, label, status: "done" },
+            data: { id: stepId, label, status },
           });
         };
         const onEmailFound = (data: {

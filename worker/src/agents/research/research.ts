@@ -47,7 +47,7 @@ export async function runResearchAgent(options: {
   messages: ModelMessage[];
   abortSignal?: AbortSignal;
   onToolStart?: (toolName: string) => string | undefined;
-  onToolEnd?: (toolName: string, stepId?: string) => void;
+  onToolEnd?: (toolName: string, stepId?: string, failed?: boolean) => void;
   onEmailFound?: (data: {
     name: string;
     email: string;
