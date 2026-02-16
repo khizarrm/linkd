@@ -166,45 +166,70 @@ function ChatSession({
                         .join("")
                     ) : (
                       <div className="space-y-3">
-                        {message.parts.map((part, index) => {
-                          if (
-                            ("id" in part && typeof part.id === "string") &&
-                            renderedPartIds.has(part.id)
-                          ) {
-                            return null;
-                          }
+                        {(() => {
+                          const elements: React.ReactNode[] = [];
+                          let personBatch: PersonData[] = [];
+                          let batchStartIndex = 0;
 
-                          if ("id" in part && typeof part.id === "string") {
-                            renderedPartIds.add(part.id);
-                          }
+                          const flushPersonBatch = () => {
+                            if (personBatch.length === 0) return;
+                            elements.push(
+                              <div key={`person-grid-${batchStartIndex}`} className="grid grid-cols-3 gap-2.5">
+                                {personBatch.map((person) => (
+                                  <ChatPersonCard key={person.id} person={person} />
+                                ))}
+                              </div>
+                            );
+                            personBatch = [];
+                          };
 
-                          switch (part.type) {
-                            case "text":
-                              return <StreamingText key={index} content={part.text} />;
-
-                            case "data-step": {
-                              const step = part.data as Step;
-                              return <StepItem key={part.id} step={step} />;
+                          message.parts.forEach((part, index) => {
+                            if (
+                              ("id" in part && typeof part.id === "string") &&
+                              renderedPartIds.has(part.id)
+                            ) {
+                              return;
+                            }
+                            if ("id" in part && typeof part.id === "string") {
+                              renderedPartIds.add(part.id);
                             }
 
-                            case "data-person": {
-                              const person = part.data as PersonData;
-                              return <ChatPersonCard key={part.id} person={person} />;
+                            if (part.type === "data-person") {
+                              if (personBatch.length === 0) batchStartIndex = index;
+                              personBatch.push(part.data as PersonData);
+                              return;
                             }
 
-                            case "data-email": {
-                              const email = part.data as EmailData;
-                              return <EmailComposeCard
-                                key={part.id}
-                                email={email}
-                                onCompose={setComposeEmail}
-                              />;
-                            }
+                            flushPersonBatch();
 
-                            default:
-                              return null;
-                          }
-                        })}
+                            switch (part.type) {
+                              case "text":
+                                elements.push(<StreamingText key={index} content={part.text} />);
+                                break;
+                              case "data-step": {
+                                const step = part.data as Step;
+                                elements.push(<StepItem key={part.id} step={step} />);
+                                break;
+                              }
+                              case "data-email": {
+                                const email = part.data as EmailData;
+                                elements.push(
+                                  <EmailComposeCard
+                                    key={part.id}
+                                    email={email}
+                                    onCompose={setComposeEmail}
+                                  />
+                                );
+                                break;
+                              }
+                              default:
+                                break;
+                            }
+                          });
+
+                          flushPersonBatch();
+                          return elements;
+                        })()}
 
                         {message.parts.length === 0 && isLoading && <MessageLoading />}
                       </div>

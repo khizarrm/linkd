@@ -37,40 +37,37 @@ export function ChatPersonCard({ person }: ChatPersonCardProps) {
   };
 
   return (
-    <div className="rounded-2xl bg-card px-4 py-4 space-y-3 ring-1 ring-border shadow-sm">
-      <div className="min-w-0">
-        <p className="text-[15px] font-medium text-foreground">{person.name}</p>
-        {person.snippet && (
-          <p className="text-[13px] text-muted-foreground mt-1 leading-relaxed line-clamp-2">
-            {person.snippet}
-          </p>
-        )}
-      </div>
-      <div className="flex flex-col gap-2">
+    <div className="rounded-2xl bg-card p-3 gap-2 ring-1 ring-border shadow-sm aspect-square flex flex-col">
+      <p className="text-xl font-bold text-foreground leading-tight">
+        {person.name.split(' ').map((part, i) => (
+          <span key={i} className="block">{part}</span>
+        ))}
+      </p>
+      <div className="flex flex-col gap-1.5 mt-auto">
         {person.linkedinUrl && (
           <a
             href={person.linkedinUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full rounded-xl bg-[#0077B5] hover:bg-[#006097] active:bg-[#005586] transition-all py-2.5 text-[13px] font-medium text-white"
+            className="flex items-center justify-center gap-1.5 w-full rounded-lg bg-[#0077B5] hover:bg-[#006097] active:bg-[#005586] transition-all py-1.5 text-[11px] font-medium text-white"
           >
-            <ExternalLink className="h-3.5 w-3.5" />
-            View LinkedIn
+            <ExternalLink className="h-3 w-3" />
+            LinkedIn
           </a>
         )}
         <button
           onClick={handleCopyMessage}
-          className="flex items-center justify-center gap-2 w-full rounded-xl bg-card hover:bg-muted ring-1 ring-border transition-all py-2.5 text-[13px] font-medium text-muted-foreground hover:text-foreground"
+          className="flex items-center justify-center gap-1.5 w-full rounded-lg bg-card hover:bg-muted ring-1 ring-border transition-all py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground"
         >
           {copied ? (
             <>
-              <Check className="h-3.5 w-3.5 text-emerald-500" />
+              <Check className="h-3 w-3 text-emerald-500" />
               Copied
             </>
           ) : (
             <>
-              <Copy className="h-3.5 w-3.5" />
-              Copy Invite Message
+              <Copy className="h-3 w-3" />
+              Copy Invite
             </>
           )}
         </button>

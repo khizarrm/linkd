@@ -11,7 +11,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Plus, Trash2, Edit2, Loader2, AlertCircle } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Plus, Trash2, Loader2, AlertCircle, MoreHorizontal, Edit2 } from 'lucide-react';
 import { TemplateEditorModal } from './template-editor-modal';
 
 interface Template {
@@ -95,7 +101,7 @@ export function TemplateManagementModal({ open, onOpenChange }: TemplateManageme
                 {/* Create New Card */}
                 <button
                   onClick={handleCreate}
-                  className="flex flex-col items-center justify-center h-[200px] border-2 border-dashed border-[#2a2a2a] rounded-xl hover:border-[#4a4a4a] hover:bg-[#151515] transition-all group"
+                  className="flex flex-col items-center justify-center h-[220px] border-2 border-dashed border-[#2a2a2a] rounded-xl hover:border-[#4a4a4a] hover:bg-[#151515] transition-all group"
                 >
                   <div className="w-12 h-12 rounded-full bg-[#1a1a1a] flex items-center justify-center mb-3 group-hover:bg-[#252525] transition-colors">
                     <Plus className="w-6 h-6 text-[#8a8a8a] group-hover:text-[#e8e8e8]" />
@@ -107,56 +113,60 @@ export function TemplateManagementModal({ open, onOpenChange }: TemplateManageme
                 {templates.map((template: Template) => (
                   <Card
                     key={template.id}
-                    onClick={() => handleEdit(template)}
-                    role="button"
-                    className="bg-[#151515] border-[#2a2a2a] h-[200px] flex flex-col hover:border-[#3a3a3a] transition-colors group relative overflow-hidden cursor-pointer"
+                    className="h-[220px] rounded-xl border-[#2a2a2a] bg-[#151515] flex flex-col overflow-hidden transition-colors hover:border-[#3a3a3a]"
                   >
-                    <CardHeader className="p-4 pb-2">
+                    <CardHeader className="p-4 pb-3 flex flex-row items-start justify-between gap-2">
                       <CardTitle className="text-base font-medium text-[#e8e8e8] truncate">
                         {template.name}
                       </CardTitle>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 shrink-0 text-[#8a8a8a] hover:text-[#e8e8e8] hover:bg-[#252525]"
+                          >
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align="end"
+                          className="border-[#2a2a2a] bg-[#111111] text-[#e8e8e8]"
+                        >
+                          <DropdownMenuItem
+                            onClick={() => handleEdit(template)}
+                            className="text-[#c8c8c8] focus:bg-[#252525] focus:text-[#ffffff]"
+                          >
+                            <Edit2 className="w-4 h-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => handleDelete(template.id, e)}
+                            className="text-red-400 focus:bg-[#252525] focus:text-red-300"
+                          >
+                            {deletingId === template.id ? (
+                              <>
+                                <AlertCircle className="w-4 h-4 mr-2" />
+                                Confirm delete
+                              </>
+                            ) : (
+                              <>
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete
+                              </>
+                            )}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </CardHeader>
-                    <CardContent className="p-4 pt-2 flex-1 overflow-hidden">
-                      <p className="text-xs text-[#8a8a8a] font-medium mb-1 truncate">
-                        {template.subject}
+                    <CardContent className="px-4 pt-0 pb-3 flex-1 min-h-0 overflow-hidden">
+                      <p className="text-xs text-[#8a8a8a] font-medium mb-2 truncate">
+                        {template.subject || 'No subject'}
                       </p>
                       <p className="text-xs text-[#6a6a6a] line-clamp-4 leading-relaxed">
                         {template.body}
                       </p>
                     </CardContent>
-                    <div className="p-3 border-t border-[#2a2a2a] bg-[#1a1a1a] flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-0 w-full">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEdit(template)}
-                        className="h-8 px-2 text-[#8a8a8a] hover:text-[#e8e8e8] hover:bg-[#252525]"
-                      >
-                        <Edit2 className="w-4 h-4 mr-1.5" />
-                        Edit
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => handleDelete(template.id, e)}
-                        className={`h-8 px-2 ${
-                          deletingId === template.id
-                            ? 'text-red-400 hover:text-red-300 hover:bg-red-900/20'
-                            : 'text-[#8a8a8a] hover:text-red-400 hover:bg-[#252525]'
-                        }`}
-                      >
-                        {deletingId === template.id ? (
-                          <>
-                            <AlertCircle className="w-4 h-4 mr-1.5" />
-                            Confirm
-                          </>
-                        ) : (
-                          <>
-                            <Trash2 className="w-4 h-4 mr-1.5" />
-                            Delete
-                          </>
-                        )}
-                      </Button>
-                    </div>
                   </Card>
                 ))}
               </div>
