@@ -4,20 +4,13 @@ import { useState } from 'react';
 import { useTemplates } from '@/hooks/use-templates';
 import { useProtectedApi } from '@/hooks/use-protected-api';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Plus, Trash2, Loader2, AlertCircle, MoreHorizontal, Edit2 } from 'lucide-react';
+import { Plus, Trash2, Loader2, Edit2 } from 'lucide-react';
 import { TemplateEditorModal } from './template-editor-modal';
 
 interface Template {
@@ -39,8 +32,6 @@ export function TemplateManagementModal({ open, onOpenChange }: TemplateManageme
   const protectedApi = useProtectedApi();
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-
   const handleCreate = () => {
     setEditingTemplate(null);
     setIsEditorOpen(true);
@@ -53,41 +44,39 @@ export function TemplateManagementModal({ open, onOpenChange }: TemplateManageme
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (deletingId === id) {
-      // Confirm delete
-      try {
-        await protectedApi.deleteTemplate(id);
-        mutateTemplates();
-      } catch (error) {
-        console.error('Failed to delete template:', error);
-      } finally {
-        setDeletingId(null);
-      }
-    } else {
-      // Show confirmation
-      setDeletingId(id);
-      // Auto-reset after 3 seconds
-      setTimeout(() => setDeletingId(null), 3000);
+    try {
+      await protectedApi.deleteTemplate(id);
+      mutateTemplates();
+    } catch (error) {
+      console.error('Failed to delete template:', error);
     }
   };
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl h-[80vh] flex flex-col bg-[#0a0a0a] border-[#2a2a2a] text-[#e8e8e8] p-0 gap-0">
-          <DialogHeader className="p-6 border-b border-[#2a2a2a]">
+        <DialogContent className="max-w-2xl h-[80vh] flex flex-col bg-[#0a0a0a] border-[#2a2a2a] text-[#e8e8e8] p-0 gap-0">
+          <DialogHeader className="px-6 py-4 border-b border-[#2a2a2a] flex flex-row items-center justify-between">
             <DialogTitle className="text-xl font-medium tracking-tight">Templates</DialogTitle>
+            <Button
+              onClick={handleCreate}
+              size="sm"
+              className="bg-[#e8e8e8] text-black hover:bg-white h-8 text-xs"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1.5" />
+              New template
+            </Button>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto">
             {isLoading ? (
               <div className="flex items-center justify-center h-full text-[#8a8a8a]">
-                <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                <Loader2 className="w-5 h-5 animate-spin mr-2" />
                 Loading...
               </div>
             ) : templates.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center gap-4">
-                <p className="text-sm text-[#8a8a8a]">No templates yet</p>
+              <div className="flex flex-col items-center justify-center h-full text-center gap-3">
+                <p className="text-sm text-[#6a6a6a]">No templates yet</p>
                 <Button
                   onClick={handleCreate}
                   className="bg-[#e8e8e8] text-black hover:bg-white"
@@ -97,77 +86,46 @@ export function TemplateManagementModal({ open, onOpenChange }: TemplateManageme
                 </Button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {/* Create New Card */}
-                <button
-                  onClick={handleCreate}
-                  className="flex flex-col items-center justify-center h-[220px] border-2 border-dashed border-[#2a2a2a] rounded-xl hover:border-[#4a4a4a] hover:bg-[#151515] transition-all group"
-                >
-                  <div className="w-12 h-12 rounded-full bg-[#1a1a1a] flex items-center justify-center mb-3 group-hover:bg-[#252525] transition-colors">
-                    <Plus className="w-6 h-6 text-[#8a8a8a] group-hover:text-[#e8e8e8]" />
-                  </div>
-                  <span className="text-sm font-medium text-[#8a8a8a] group-hover:text-[#e8e8e8]">New template</span>
-                </button>
-
-                {/* Template Cards */}
+              <div className="divide-y divide-[#1a1a1a]">
                 {templates.map((template: Template) => (
-                  <Card
+                  <button
                     key={template.id}
-                    className="h-[220px] rounded-xl border-[#2a2a2a] bg-[#151515] flex flex-col overflow-hidden transition-colors hover:border-[#3a3a3a]"
+                    onClick={() => handleEdit(template)}
+                    className="w-full flex items-center gap-4 px-6 py-3.5 text-left hover:bg-[#111111] transition-colors group"
                   >
-                    <CardHeader className="p-4 pb-3 flex flex-row items-start justify-between gap-2">
-                      <CardTitle className="text-base font-medium text-[#e8e8e8] truncate">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-[#e8e8e8] truncate">
                         {template.name}
-                      </CardTitle>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 shrink-0 text-[#8a8a8a] hover:text-[#e8e8e8] hover:bg-[#252525]"
-                          >
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                          align="end"
-                          className="border-[#2a2a2a] bg-[#111111] text-[#e8e8e8]"
-                        >
-                          <DropdownMenuItem
-                            onClick={() => handleEdit(template)}
-                            className="text-[#c8c8c8] focus:bg-[#252525] focus:text-[#ffffff]"
-                          >
-                            <Edit2 className="w-4 h-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={(e) => handleDelete(template.id, e)}
-                            className="text-red-400 focus:bg-[#252525] focus:text-red-300"
-                          >
-                            {deletingId === template.id ? (
-                              <>
-                                <AlertCircle className="w-4 h-4 mr-2" />
-                                Confirm delete
-                              </>
-                            ) : (
-                              <>
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Delete
-                              </>
-                            )}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </CardHeader>
-                    <CardContent className="px-4 pt-0 pb-3 flex-1 min-h-0 overflow-hidden">
-                      <p className="text-xs text-[#8a8a8a] font-medium mb-2 truncate">
+                      </p>
+                      <p className="text-xs text-[#6a6a6a] truncate mt-0.5">
                         {template.subject || 'No subject'}
                       </p>
-                      <p className="text-xs text-[#6a6a6a] line-clamp-4 leading-relaxed">
-                        {template.body}
-                      </p>
-                    </CardContent>
-                  </Card>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEdit(template);
+                        }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); handleEdit(template); } }}
+                        className="p-1.5 rounded-md text-[#6a6a6a] hover:text-[#e8e8e8] hover:bg-[#252525] transition-colors"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </span>
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => handleDelete(template.id, e)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleDelete(template.id, e as unknown as React.MouseEvent); }}
+                        className="p-1.5 rounded-md text-[#6a6a6a] hover:text-red-400 hover:bg-[#252525] transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </span>
+                    </div>
+                  </button>
                 ))}
               </div>
             )}

@@ -163,7 +163,7 @@ export function TemplateEditorModal({ open, onOpenChange, onSuccess, initialData
                   placeholder="Write your email body here..."
                   value={formData.body}
                   onChange={e => setFormData(prev => ({ ...prev, body: e.target.value }))}
-                  className="min-h-[300px] border-0 bg-transparent text-[#e8e8e8] focus-visible:ring-0 resize-none p-4 placeholder:text-[#4a4a4a] leading-relaxed"
+                  className="min-h-[300px] border-0 bg-transparent text-[#e8e8e8] focus-visible:ring-0 resize-none px-4 py-3 font-medium placeholder:text-[#4a4a4a] leading-relaxed"
                 />
               </div>
             </div>

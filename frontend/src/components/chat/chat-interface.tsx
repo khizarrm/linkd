@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
+import { ArrowDown } from "lucide-react";
 import { MessageLoading } from "@/components/ui/message-loading";
 import { StepItem, type Step } from "./step-item";
 import { EmailComposeCard, type EmailData } from "./email-compose-card";
 import { ChatComposeModal } from "./chat-compose-modal";
 import { ChatPersonCard, type PersonData } from "./person-card";
 import { useProtectedApi } from "@/hooks/use-protected-api";
+import { useScrollToBottom } from "@/hooks/use-scroll-to-bottom";
 import { useChatContext } from "@/contexts/chat-context";
 import { AIInput } from "@/components/ui/ai-input";
 import ReactMarkdown from "react-markdown";
@@ -57,17 +59,10 @@ function ChatSession({
     transport,
   });
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { containerRef, endRef, isAtBottom, scrollToBottom } =
+    useScrollToBottom();
   const isLoading = status === "submitted" || status === "streaming";
   const [composeEmail, setComposeEmail] = useState<EmailData | null>(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
 
   const createNewChat = async (): Promise<string> => {
     const response = await api.createChat();
@@ -126,10 +121,14 @@ function ChatSession({
 
   return (
     <div className="flex flex-col h-full bg-background">
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="relative flex-1">
         <div
-          className={`max-w-2xl mx-auto space-y-8 ${messages.length === 0 ? "flex items-center justify-center h-full" : ""}`}
+          ref={containerRef}
+          className="absolute inset-0 overflow-y-auto p-6"
         >
+          <div
+            className={`max-w-2xl mx-auto space-y-8 ${messages.length === 0 ? "flex items-center justify-center h-full" : ""}`}
+          >
           {messages.length === 0 && (
             <div className="flex flex-col items-center text-center space-y-3">
               <p className="text-lg font-light text-muted-foreground">
@@ -239,8 +238,22 @@ function ChatSession({
               );
             })}
           </div>
-          <div ref={messagesEndRef} />
+            <div ref={endRef} className="min-h-[24px] shrink-0" />
+          </div>
         </div>
+
+        <button
+          aria-label="Scroll to bottom"
+          type="button"
+          onClick={() => scrollToBottom("smooth")}
+          className={`absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-full border bg-background p-2 shadow-lg transition-all hover:bg-muted ${
+            isAtBottom
+              ? "pointer-events-none scale-0 opacity-0"
+              : "pointer-events-auto scale-100 opacity-100"
+          }`}
+        >
+          <ArrowDown className="size-4 text-blue-500" />
+        </button>
       </div>
 
       <div className="p-4 pb-8 bg-gradient-to-t from-background via-background to-transparent">
