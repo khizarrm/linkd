@@ -263,9 +263,8 @@ export function createTools(
     inputSchema: z.object({
       name: z.string(),
       domain: z.string(),
-      knownPattern: z.string().nullable(),
     }),
-    execute: async ({ name, domain, knownPattern }) => {
+    execute: async ({ name, domain }) => {
       const resolvedStepId = options?.onToolStart?.("find_and_verify_email");
       try {
         const cleanDomain = domain.replace(/^www\./, "").toLowerCase();
@@ -276,16 +275,6 @@ export function createTools(
         const firstInitial = first[0] || "";
 
         const patterns: string[] = [];
-
-        if (
-          knownPattern &&
-          knownPattern.trim() !== "" &&
-          knownPattern !== null
-        ) {
-          const knownLocal = knownPattern.split("@")[0];
-          const knownDomain = knownPattern.split("@")[1] || cleanDomain;
-          patterns.push(`${knownLocal}@${knownDomain}`);
-        }
 
         patterns.push(
           `${first}.${last}@${cleanDomain}`,

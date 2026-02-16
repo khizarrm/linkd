@@ -16,7 +16,6 @@ import {
   MissingToolResultsError,
   type ModelMessage,
   type UIMessage,
-  type UIMessagePart,
 } from "ai";
 
 const TOOL_LABELS: Record<string, string> = {
@@ -32,8 +31,9 @@ async function loadChatHistory(chatId: string, env: CloudflareBindings): Promise
     where: eq(messages.chatId, chatId),
     orderBy: [messages.createdAt],
   });
-  return chatMessages.map((msg) => {
-    let parts: UIMessagePart[] = [];
+
+  const uiMessages: UIMessage[] = chatMessages.map((msg) => {
+    let parts: any[] = [];
     if (msg.parts && msg.parts !== "null") {
       try {
         parts = JSON.parse(msg.parts);
@@ -41,15 +41,19 @@ async function loadChatHistory(chatId: string, env: CloudflareBindings): Promise
         parts = [];
       }
     }
-    const textContent = parts
-      .filter((part) => part.type === "text")
-      .map((part) => (part as { text: string }).text)
-      .join("") || msg.content || "";
+
+    if (parts.length === 0) {
+      parts = [{ type: "text", text: msg.content || "" }];
+    }
+
     return {
-      role: msg.role === "assistant" ? "assistant" : "user",
-      content: textContent,
-    };
+      id: msg.id,
+      role: msg.role as "user" | "assistant",
+      parts,
+    } as UIMessage;
   });
+
+  return convertToModelMessages(uiMessages);
 }
 
 function extractMessageText(message?: UIMessage): string {
