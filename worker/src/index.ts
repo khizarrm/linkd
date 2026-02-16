@@ -88,7 +88,7 @@ app.use(
       console.log("Blocked CORS origin:", origin);
       return null;
     },
-    allowHeaders: ["Content-Type", "Authorization"],
+    allowHeaders: ["Content-Type", "Authorization", "User-Agent"],
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     exposeHeaders: ["Content-Length"],
     maxAge: 600,

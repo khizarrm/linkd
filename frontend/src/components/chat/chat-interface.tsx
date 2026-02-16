@@ -153,9 +153,9 @@ function ChatSession({
                   }`}
                 >
                   <div
-                    className={`text-[15px] leading-relaxed whitespace-pre-wrap ${
+                    className={`text-[15px] leading-relaxed ${
                       message.role === "user"
-                        ? "max-w-[80%] rounded-3xl rounded-br-lg bg-primary text-primary-foreground px-5 py-3"
+                        ? "max-w-[80%] rounded-3xl rounded-br-lg bg-primary text-primary-foreground px-5 py-3 whitespace-pre-wrap"
                         : "text-foreground w-full"
                     }`}
                   >

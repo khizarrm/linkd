@@ -178,6 +178,7 @@ export class ResearchAgentRoute extends OpenAPIRoute {
     let stepCounter = 0;
     let emailCounter = 0;
     let personCounter = 0;
+    const seenProfileUrls = new Set<string>();
     const stream = createUIMessageStream({
       execute: async ({ writer }) => {
         const onToolStart = (toolName: string) => {
@@ -227,8 +228,10 @@ export class ResearchAgentRoute extends OpenAPIRoute {
           url: string;
           snippet: string;
         }>) => {
-          console.log(`[endpoint] People found: ${profiles.length} profiles`);
-          for (const profile of profiles) {
+          const newProfiles = profiles.filter((p) => !seenProfileUrls.has(p.url));
+          console.log(`[endpoint] People found: ${profiles.length} total, ${newProfiles.length} new`);
+          for (const profile of newProfiles) {
+            seenProfileUrls.add(profile.url);
             const personId = `person_${++personCounter}`;
             writer.write({
               type: "data-person",
