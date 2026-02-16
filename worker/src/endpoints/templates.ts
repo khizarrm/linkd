@@ -25,6 +25,8 @@ export class ProtectedTemplatesListRoute extends OpenAPIRoute {
                   name: z.string(),
                   subject: z.string(),
                   body: z.string(),
+                  footer: z.string().nullable(),
+                  attachments: z.string().nullable(),
                   createdAt: z.string(),
                   updatedAt: z.string(),
                 }),
@@ -78,6 +80,8 @@ export class ProtectedTemplatesCreateRoute extends OpenAPIRoute {
               name: z.string(),
               subject: z.string(),
               body: z.string(),
+              footer: z.string().nullable().optional(),
+              attachments: z.string().nullable().optional(),
             }),
           },
         },
@@ -95,6 +99,8 @@ export class ProtectedTemplatesCreateRoute extends OpenAPIRoute {
                 name: z.string(),
                 subject: z.string(),
                 body: z.string(),
+                footer: z.string().nullable(),
+                attachments: z.string().nullable(),
                 createdAt: z.string(),
               }),
             }),
@@ -117,7 +123,7 @@ export class ProtectedTemplatesCreateRoute extends OpenAPIRoute {
     }
 
     const { clerkUserId } = authResult;
-    const { name, subject, body } = await this.getValidatedData<
+    const { name, subject, body, footer, attachments } = await this.getValidatedData<
       typeof this.schema
     >().then((d) => d.body);
     const db = drizzle(env.DB, { schema });
@@ -128,6 +134,8 @@ export class ProtectedTemplatesCreateRoute extends OpenAPIRoute {
       name,
       subject,
       body,
+      footer: footer ?? null,
+      attachments: attachments ?? null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -159,6 +167,8 @@ export class ProtectedTemplatesUpdateRoute extends OpenAPIRoute {
               name: z.string().optional(),
               subject: z.string().optional(),
               body: z.string().optional(),
+              footer: z.string().nullable().optional(),
+              attachments: z.string().nullable().optional(),
             }),
           },
         },
@@ -176,6 +186,8 @@ export class ProtectedTemplatesUpdateRoute extends OpenAPIRoute {
                 name: z.string(),
                 subject: z.string(),
                 body: z.string(),
+                footer: z.string().nullable(),
+                attachments: z.string().nullable(),
                 createdAt: z.string(),
                 updatedAt: z.string(),
               }),
@@ -207,7 +219,7 @@ export class ProtectedTemplatesUpdateRoute extends OpenAPIRoute {
     const { id } = await this.getValidatedData<typeof this.schema>().then(
       (d) => d.params,
     );
-    const { name, subject, body } = await this.getValidatedData<
+    const { name, subject, body, footer, attachments } = await this.getValidatedData<
       typeof this.schema
     >().then((d) => d.body);
     const db = drizzle(env.DB, { schema });
@@ -230,6 +242,8 @@ export class ProtectedTemplatesUpdateRoute extends OpenAPIRoute {
         name,
         subject,
         body,
+        footer,
+        attachments,
         updatedAt: new Date(),
       })
       .where(eq(templates.id, id))
@@ -347,6 +361,8 @@ export class ProtectedTemplateProcessRoute extends OpenAPIRoute {
               success: z.boolean(),
               subject: z.string(),
               body: z.string(),
+              footer: z.string().nullable(),
+              attachments: z.string().nullable(),
             }),
           },
         },
@@ -441,6 +457,8 @@ Return format (JSON only):
         success: true,
         subject: aiResult.subject,
         body: aiResult.body,
+        footer: template.footer ?? null,
+        attachments: template.attachments ?? null,
       };
     } catch (error) {
       console.error("Error processing template with AI:", error);
@@ -449,6 +467,8 @@ Return format (JSON only):
         success: true,
         subject: template.subject,
         body: template.body,
+        footer: template.footer ?? null,
+        attachments: template.attachments ?? null,
       };
     }
   }

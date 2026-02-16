@@ -6,6 +6,17 @@ import { schema } from "../db";
 import { users } from "../db/auth.schema";
 import { verifyClerkToken } from "../lib/clerk-auth";
 
+interface FooterData {
+  text?: string;
+  links: Array<{ label: string; url: string }>;
+}
+
+interface AttachmentData {
+  filename: string;
+  mimeType: string;
+  data: string;
+}
+
 async function getAccessToken(
   refreshToken: string,
   env: { GOOGLE_CLIENT_ID?: string; GOOGLE_CLIENT_SECRET?: string },
@@ -35,23 +46,130 @@ async function getAccessToken(
   return data.access_token;
 }
 
-function buildRawEmail(to: string, subject: string, body: string): string {
-  const lines = [
-    `To: ${to}`,
-    `Subject: ${subject}`,
-    `Content-Type: text/plain; charset="UTF-8"`,
-    "",
-    body,
-  ];
-  return lines.join("\r\n");
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function bodyToHtml(text: string): string {
+  return escapeHtml(text).replace(/\n/g, "<br>");
+}
+
+function renderFooterHtml(footer: FooterData): string {
+  const parts: string[] = [];
+
+  if (footer.text) {
+    parts.push(`<span style="color:#888888;">${escapeHtml(footer.text)}</span>`);
+  }
+
+  if (footer.links.length > 0) {
+    const linkHtml = footer.links
+      .map(
+        (link) =>
+          `<a href="${escapeHtml(link.url)}" style="color:#1a73e8;">${escapeHtml(link.label)}</a>`,
+      )
+      .join(" | ");
+    parts.push(`<span style="color:#888888;">${linkHtml}</span>`);
+  }
+
+  if (parts.length === 0) return "";
+
+  return `<div style="margin-top:16px;color:#888888;">${parts.join("<br>")}</div>`;
+}
+
+function buildHtmlBody(body: string, footer?: FooterData | null): string {
+  const bodyHtml = bodyToHtml(body);
+  const footerHtml = footer ? renderFooterHtml(footer) : "";
+
+  return [
+    '<!DOCTYPE html><html><head><meta charset="UTF-8"></head>',
+    "<body>",
+    `<div>${bodyHtml}</div>`,
+    footerHtml,
+    "</body></html>",
+  ].join("");
 }
 
 function base64UrlEncode(str: string): string {
   const encoder = new TextEncoder();
   const bytes = encoder.encode(str);
-  const base64 = btoa(String.fromCharCode(...bytes));
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  const base64 = btoa(binary);
   return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
+
+function buildRawEmail(
+  to: string,
+  subject: string,
+  body: string,
+  footer?: FooterData | null,
+  attachments?: AttachmentData[],
+): string {
+  const htmlContent = buildHtmlBody(body, footer);
+  const hasAttachments = attachments && attachments.length > 0;
+
+  if (!hasAttachments) {
+    return [
+      `To: ${to}`,
+      `Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`,
+      'MIME-Version: 1.0',
+      'Content-Type: text/html; charset="UTF-8"',
+      "",
+      htmlContent,
+    ].join("\r\n");
+  }
+
+  const boundary = `boundary_${crypto.randomUUID().replace(/-/g, "")}`;
+
+  const parts: string[] = [
+    `To: ${to}`,
+    `Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`,
+    "MIME-Version: 1.0",
+    `Content-Type: multipart/mixed; boundary="${boundary}"`,
+    "",
+    `--${boundary}`,
+    'Content-Type: text/html; charset="UTF-8"',
+    "",
+    htmlContent,
+  ];
+
+  for (const attachment of attachments) {
+    parts.push(
+      `--${boundary}`,
+      `Content-Type: ${attachment.mimeType}; name="${attachment.filename}"`,
+      `Content-Disposition: attachment; filename="${attachment.filename}"`,
+      "Content-Transfer-Encoding: base64",
+      "",
+      attachment.data,
+    );
+  }
+
+  parts.push(`--${boundary}--`);
+
+  return parts.join("\r\n");
+}
+
+const footerSchema = z.object({
+  text: z.string().optional(),
+  links: z.array(
+    z.object({
+      label: z.string(),
+      url: z.string(),
+    }),
+  ),
+});
+
+const attachmentSchema = z.object({
+  filename: z.string(),
+  mimeType: z.string(),
+  data: z.string(),
+});
 
 export class ProtectedEmailSendRoute extends OpenAPIRoute {
   schema = {
@@ -66,6 +184,8 @@ export class ProtectedEmailSendRoute extends OpenAPIRoute {
               to: z.string().email().describe("Recipient email address"),
               subject: z.string().min(1).describe("Email subject"),
               body: z.string().min(1).describe("Email body content"),
+              footer: footerSchema.nullable().optional(),
+              attachments: z.array(attachmentSchema).optional(),
             }),
           },
         },
@@ -102,7 +222,7 @@ export class ProtectedEmailSendRoute extends OpenAPIRoute {
     const data = await this.getValidatedData<typeof this.schema>();
     const env = c.env;
     const request = c.req.raw;
-    const { to, subject, body } = data.body;
+    const { to, subject, body, footer, attachments } = data.body;
 
     try {
       const authResult = await verifyClerkToken(request, env.CLERK_SECRET_KEY);
@@ -124,7 +244,7 @@ export class ProtectedEmailSendRoute extends OpenAPIRoute {
       }
 
       const accessToken = await getAccessToken(user.googleRefreshToken, env);
-      const rawEmail = buildRawEmail(to, subject, body);
+      const rawEmail = buildRawEmail(to, subject, body, footer, attachments);
       const encodedEmail = base64UrlEncode(rawEmail);
 
       const response = await fetch(

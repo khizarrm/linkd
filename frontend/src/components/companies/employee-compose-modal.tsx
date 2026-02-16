@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Send, Check, Mail, Loader2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Send, Check, Mail, Loader2, Paperclip, X } from 'lucide-react';
 import { useProtectedApi } from '@/hooks/use-protected-api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +22,13 @@ interface Employee {
   companyId: number;
 }
 
+interface AttachmentFile {
+  filename: string;
+  mimeType: string;
+  data: string;
+  size: number;
+}
+
 interface EmployeeComposeModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -29,18 +36,40 @@ interface EmployeeComposeModalProps {
   companyName: string;
 }
 
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      const base64 = result.split(",")[1];
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 export function EmployeeComposeModal({ open, onOpenChange, employee, companyName }: EmployeeComposeModalProps) {
   const protectedApi = useProtectedApi();
   const [isSending, setIsSending] = useState(false);
   const [emailSubject, setEmailSubject] = useState('');
   const [emailBody, setEmailBody] = useState('');
+  const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [sendSuccess, setSendSuccess] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) {
       setEmailSubject('');
       setEmailBody('');
+      setAttachments([]);
       setSendSuccess(false);
       setSendError(null);
     }
@@ -49,17 +78,42 @@ export function EmployeeComposeModal({ open, onOpenChange, employee, companyName
   const hasEmail = employee.email && employee.email.trim() !== '';
   const targetEmail = employee.email || null;
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    for (const file of Array.from(files)) {
+      if (file.size > 10 * 1024 * 1024) {
+        setSendError(`File "${file.name}" exceeds 10MB limit`);
+        continue;
+      }
+      const data = await fileToBase64(file);
+      setAttachments((prev) => [
+        ...prev,
+        { filename: file.name, mimeType: file.type || "application/octet-stream", data, size: file.size },
+      ]);
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleSendEmail = async () => {
     if (!targetEmail) return;
-    
+
     setIsSending(true);
     setSendError(null);
-    
+
     try {
       await protectedApi.sendEmail({
         to: targetEmail,
         subject: emailSubject,
         body: emailBody,
+        attachments: attachments.length > 0
+          ? attachments.map(({ filename, mimeType, data }) => ({ filename, mimeType, data }))
+          : undefined,
       });
       setSendSuccess(true);
       setTimeout(() => {
@@ -117,6 +171,45 @@ export function EmployeeComposeModal({ open, onOpenChange, employee, companyName
                   disabled={!hasEmail}
                   className="min-h-[250px] border-0 bg-transparent text-sm text-[#e8e8e8] focus-visible:ring-0 resize-none p-4 placeholder:text-[#4a4a4a] leading-relaxed disabled:opacity-50"
                 />
+              </div>
+
+              {/* Attachments */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="h-8 px-2.5 text-xs text-[#6a6a6a] hover:text-[#e8e8e8] hover:bg-[#1a1a1a]"
+                >
+                  <Paperclip className="w-3.5 h-3.5 mr-1.5" />
+                  Attach
+                </Button>
+
+                {attachments.map((att, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-1.5 bg-[#151515] border border-[#2a2a2a] rounded-md px-2.5 py-1 text-xs text-[#c0c0c0]"
+                  >
+                    <Paperclip className="w-3 h-3 text-[#6a6a6a]" />
+                    <span className="truncate max-w-[140px]">{att.filename}</span>
+                    <span className="text-[#6a6a6a]">({formatFileSize(att.size)})</span>
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(index)}
+                      className="ml-0.5 text-[#6a6a6a] hover:text-red-400 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
               </div>
 
               {sendError && (

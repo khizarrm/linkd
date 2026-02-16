@@ -18,6 +18,8 @@ interface Template {
   name: string;
   subject: string;
   body: string;
+  footer?: string | null;
+  attachments?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -56,7 +58,7 @@ export function TemplateManagementModal({ open, onOpenChange }: TemplateManageme
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-2xl h-[80vh] flex flex-col bg-[#0a0a0a] border-[#2a2a2a] text-[#e8e8e8] p-0 gap-0">
-          <DialogHeader className="px-6 py-4 border-b border-[#2a2a2a] flex flex-row items-center justify-between">
+          <DialogHeader className="px-6 pr-14 py-4 border-b border-[#2a2a2a] flex flex-row items-center justify-between">
             <DialogTitle className="text-xl font-medium tracking-tight">Templates</DialogTitle>
             <Button
               onClick={handleCreate}
