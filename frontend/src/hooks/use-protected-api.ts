@@ -145,10 +145,15 @@ export function useProtectedApi() {
     // Chats
     listChats: async () => {
       const token = await getToken();
+      console.log('[listChats] token present:', !!token, 'length:', token?.length ?? 0);
       const response = await apiFetch('/api/protected/chats', {
         method: 'GET',
       }, token);
-      if (!response.ok) throw new Error('Failed to list chats');
+      if (!response.ok) {
+        const body = await response.text();
+        console.error('[listChats] failed', response.status, body);
+        throw new Error(`Failed to list chats: ${response.status} ${body}`);
+      }
       return response.json();
     },
 

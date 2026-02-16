@@ -4,9 +4,78 @@ import { drizzle } from "drizzle-orm/d1";
 import { schema } from "../db";
 import { eq, desc, and } from "drizzle-orm";
 import { templates } from "../db/templates.schema";
+import { users } from "../db/auth.schema";
 import { anthropic } from "@ai-sdk/anthropic";
 import { generateText } from "ai";
 import { verifyClerkToken } from "../lib/clerk-auth";
+
+const DEMO_TEMPLATES = [
+  {
+    name: "Direct Internship Inquiry",
+    subject: "Internship Opportunity at Fullscript",
+    body: `<p>Hi Sarah,</p>
+<p>I came across Fullscript and was really impressed by what your team is building in the health and wellness space. I'm currently a computer science student and I'm looking for an internship where I can contribute meaningfully while learning from experienced engineers.</p>
+<p>I have experience with full-stack development, including TypeScript, React, and Node.js, and I've shipped several projects to real users. I'd love the chance to bring that energy to Fullscript's engineering team.</p>
+<p>Would you be open to a brief chat about any upcoming internship openings? I'd really appreciate the opportunity.</p>
+<p>Thanks for your time,</p>
+<p>Alex</p>`,
+    footer: null,
+  },
+  {
+    name: "Value-First Outreach",
+    subject: "Student Developer — Internship Interest at Fullscript",
+    body: `<p>Hi Sarah,</p>
+<p>I've been following Fullscript for a while now, and the way you're making integrative health more accessible really resonates with me. I'm reaching out because I think I could be a strong addition to your team as an intern.</p>
+<p>Here's a quick snapshot of what I bring:</p>
+<ul>
+<li>Built and deployed production web apps used by real users</li>
+<li>Comfortable working across the stack — frontend, backend, and databases</li>
+<li>Fast learner who ships quickly and iterates based on feedback</li>
+</ul>
+<p>I'm not looking for a passive internship — I want to work on real projects and make an impact. If there's room on your team, I'd love to chat.</p>
+<p>Best,</p>
+<p>Alex</p>`,
+    footer: null,
+  },
+  {
+    name: "Short & Casual",
+    subject: "Quick Question — Internships at Fullscript?",
+    body: `<p>Hey Sarah,</p>
+<p>I'll keep this short — I'm a CS student who loves building things, and Fullscript is at the top of my list for places I'd want to intern. The product is great and the engineering team seems like an awesome group to learn from.</p>
+<p>I've been working on full-stack web projects and I'm eager to apply those skills somewhere fast-paced. Would love to hear if your team has any internship openings coming up.</p>
+<p>Happy to send over my resume or portfolio if helpful. Thanks!</p>
+<p>Alex</p>`,
+    footer: null,
+  },
+];
+
+async function seedDemoTemplates(
+  db: ReturnType<typeof drizzle>,
+  clerkUserId: string,
+) {
+  const [user] = await db
+    .select({ name: users.name })
+    .from(users)
+    .where(eq(users.clerkUserId, clerkUserId))
+    .limit(1);
+  const firstName = user?.name?.split(" ")[0] || "Alex";
+
+  const now = new Date();
+  const demoRows = DEMO_TEMPLATES.map((t, i) => ({
+    id: crypto.randomUUID(),
+    clerkUserId,
+    name: t.name,
+    subject: t.subject,
+    body: t.body.replace(/Alex/g, firstName),
+    footer: t.footer,
+    attachments: null,
+    createdAt: new Date(now.getTime() - i * 1000),
+    updatedAt: new Date(now.getTime() - i * 1000),
+  }));
+
+  await db.insert(templates).values(demoRows);
+  return demoRows;
+}
 
 export class ProtectedTemplatesListRoute extends OpenAPIRoute {
   schema = {
@@ -52,10 +121,15 @@ export class ProtectedTemplatesListRoute extends OpenAPIRoute {
 
     const { clerkUserId } = authResult;
     const db = drizzle(env.DB, { schema });
-    const userTemplates = await db.query.templates.findMany({
+    let userTemplates = await db.query.templates.findMany({
       where: eq(templates.clerkUserId, clerkUserId),
       orderBy: [desc(templates.createdAt)],
     });
+
+    if (userTemplates.length === 0) {
+      const seeded = await seedDemoTemplates(db, clerkUserId);
+      userTemplates = seeded as typeof userTemplates;
+    }
 
     return {
       success: true,

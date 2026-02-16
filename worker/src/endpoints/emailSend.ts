@@ -114,14 +114,20 @@ function renderFooterHtml(footer: FooterData): string {
   return `<div style="margin-top:16px;color:#888888;">${parts.join("<br>")}</div>`;
 }
 
+function inlineEmailStyles(html: string): string {
+  return html
+    .replace(/<p><\/p>/g, '<p style="margin:0;padding:0;"><br></p>')
+    .replace(/<p>/g, '<p style="margin:0;padding:0;">');
+}
+
 function buildHtmlBody(body: string, footer?: FooterData | null): string {
-  const bodyHtml = bodyToHtml(body);
+  const bodyHtml = inlineEmailStyles(bodyToHtml(body));
   const footerHtml = footer ? renderFooterHtml(footer) : "";
 
   return [
     '<!DOCTYPE html><html><head><meta charset="UTF-8"></head>',
-    "<body>",
-    `<div>${bodyHtml}</div>`,
+    '<body style="margin:0;padding:0;">',
+    `<div style="font-family:sans-serif;font-size:14px;line-height:1.5;color:#222222;">${bodyHtml}</div>`,
     footerHtml,
     "</body></html>",
   ].join("");

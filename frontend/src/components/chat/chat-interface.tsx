@@ -119,6 +119,35 @@ function ChatSession({
     }
   };
 
+  const isEmpty = messages.length === 0;
+
+  if (isEmpty) {
+    return (
+      <div className="flex flex-col h-full bg-black">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="w-full max-w-2xl px-6 flex flex-col items-center gap-8">
+            <div className="text-center space-y-3">
+              <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-white">
+                Let&apos;s find you people
+              </h1>
+              <p className="text-base text-neutral-500">
+                Tell us who you&apos;re looking to reach and we&apos;ll help you connect
+              </p>
+            </div>
+            <div className="w-full">
+              <AIInput
+                onSubmit={handleSubmit}
+                onStop={stop}
+                placeholder="Who can I help you find?"
+                disabled={isLoading}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full bg-background">
       <div className="relative flex-1">
@@ -126,118 +155,105 @@ function ChatSession({
           ref={containerRef}
           className="absolute inset-0 overflow-y-auto p-6"
         >
-          <div
-            className={`max-w-2xl mx-auto space-y-8 ${messages.length === 0 ? "flex items-center justify-center h-full" : ""}`}
-          >
-          {messages.length === 0 && (
-            <div className="flex flex-col items-center text-center space-y-3">
-              <p className="text-lg font-light text-muted-foreground">
-                What can I help you find?
-              </p>
-              <p className="text-xs text-muted-foreground/60">
-                Search for people (currently in beta)
-              </p>
-            </div>
-          )}
+          <div className="max-w-2xl mx-auto space-y-8">
+            <div className="space-y-8">
+              {messages.map((message) => {
+                const renderedPartIds = new Set<string>();
 
-          <div className="space-y-8">
-            {messages.map((message) => {
-              const renderedPartIds = new Set<string>();
-
-              return (
-                <div
-                  key={message.id}
-                  className={`flex ${
-                    message.role === "user" ? "justify-end" : "justify-start"
-                  }`}
-                >
+                return (
                   <div
-                    className={`text-[15px] leading-relaxed ${
-                      message.role === "user"
-                        ? "max-w-[80%] rounded-3xl rounded-br-lg bg-primary text-primary-foreground px-5 py-3 whitespace-pre-wrap"
-                        : "text-foreground w-full"
+                    key={message.id}
+                    className={`flex ${
+                      message.role === "user" ? "justify-end" : "justify-start"
                     }`}
                   >
-                    {message.role === "user" ? (
-                      message.parts
-                        .filter((part): part is Extract<UIMessage["parts"][number], { type: "text" }> => part.type === "text")
-                        .map((part) => part.text)
-                        .join("")
-                    ) : (
-                      <div className="space-y-3">
-                        {(() => {
-                          const elements: React.ReactNode[] = [];
-                          let personBatch: PersonData[] = [];
-                          let batchStartIndex = 0;
+                    <div
+                      className={`text-[15px] leading-relaxed ${
+                        message.role === "user"
+                          ? "max-w-[80%] rounded-3xl rounded-br-lg bg-primary text-primary-foreground px-5 py-3 whitespace-pre-wrap"
+                          : "text-foreground w-full"
+                      }`}
+                    >
+                      {message.role === "user" ? (
+                        message.parts
+                          .filter((part): part is Extract<UIMessage["parts"][number], { type: "text" }> => part.type === "text")
+                          .map((part) => part.text)
+                          .join("")
+                      ) : (
+                        <div className="space-y-3">
+                          {(() => {
+                            const elements: React.ReactNode[] = [];
+                            let personBatch: PersonData[] = [];
+                            let batchStartIndex = 0;
 
-                          const flushPersonBatch = () => {
-                            if (personBatch.length === 0) return;
-                            elements.push(
-                              <div key={`person-grid-${batchStartIndex}`} className="grid grid-cols-3 gap-2.5">
-                                {personBatch.map((person) => (
-                                  <ChatPersonCard key={person.id} person={person} />
-                                ))}
-                              </div>
-                            );
-                            personBatch = [];
-                          };
+                            const flushPersonBatch = () => {
+                              if (personBatch.length === 0) return;
+                              elements.push(
+                                <div key={`person-grid-${batchStartIndex}`} className="grid grid-cols-3 gap-2.5">
+                                  {personBatch.map((person) => (
+                                    <ChatPersonCard key={person.id} person={person} />
+                                  ))}
+                                </div>
+                              );
+                              personBatch = [];
+                            };
 
-                          message.parts.forEach((part, index) => {
-                            if (
-                              ("id" in part && typeof part.id === "string") &&
-                              renderedPartIds.has(part.id)
-                            ) {
-                              return;
-                            }
-                            if ("id" in part && typeof part.id === "string") {
-                              renderedPartIds.add(part.id);
-                            }
+                            message.parts.forEach((part, index) => {
+                              if (
+                                ("id" in part && typeof part.id === "string") &&
+                                renderedPartIds.has(part.id)
+                              ) {
+                                return;
+                              }
+                              if ("id" in part && typeof part.id === "string") {
+                                renderedPartIds.add(part.id);
+                              }
 
-                            if (part.type === "data-person") {
-                              if (personBatch.length === 0) batchStartIndex = index;
-                              personBatch.push(part.data as PersonData);
-                              return;
-                            }
+                              if (part.type === "data-person") {
+                                if (personBatch.length === 0) batchStartIndex = index;
+                                personBatch.push(part.data as PersonData);
+                                return;
+                              }
+
+                              flushPersonBatch();
+
+                              switch (part.type) {
+                                case "text":
+                                  elements.push(<StreamingText key={index} content={part.text} />);
+                                  break;
+                                case "data-step": {
+                                  const step = part.data as Step;
+                                  elements.push(<StepItem key={part.id} step={step} />);
+                                  break;
+                                }
+                                case "data-email": {
+                                  const email = part.data as EmailData;
+                                  elements.push(
+                                    <EmailComposeCard
+                                      key={part.id}
+                                      email={email}
+                                      onCompose={setComposeEmail}
+                                    />
+                                  );
+                                  break;
+                                }
+                                default:
+                                  break;
+                              }
+                            });
 
                             flushPersonBatch();
+                            return elements;
+                          })()}
 
-                            switch (part.type) {
-                              case "text":
-                                elements.push(<StreamingText key={index} content={part.text} />);
-                                break;
-                              case "data-step": {
-                                const step = part.data as Step;
-                                elements.push(<StepItem key={part.id} step={step} />);
-                                break;
-                              }
-                              case "data-email": {
-                                const email = part.data as EmailData;
-                                elements.push(
-                                  <EmailComposeCard
-                                    key={part.id}
-                                    email={email}
-                                    onCompose={setComposeEmail}
-                                  />
-                                );
-                                break;
-                              }
-                              default:
-                                break;
-                            }
-                          });
-
-                          flushPersonBatch();
-                          return elements;
-                        })()}
-
-                        {message.parts.length === 0 && isLoading && <MessageLoading />}
-                      </div>
-                    )}
+                          {message.parts.length === 0 && isLoading && <MessageLoading />}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
             <div ref={endRef} className="min-h-[24px] shrink-0" />
           </div>
         </div>
