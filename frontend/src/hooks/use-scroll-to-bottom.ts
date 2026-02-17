@@ -1,36 +1,42 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export function useScrollToBottom() {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const internalRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const isAtBottomRef = useRef(true);
   const isUserScrollingRef = useRef(false);
+  const [containerNode, setContainerNode] = useState<HTMLDivElement | null>(null);
+
+  const containerRef = useCallback((node: HTMLDivElement | null) => {
+    internalRef.current = node;
+    setContainerNode(node);
+  }, []);
 
   useEffect(() => {
     isAtBottomRef.current = isAtBottom;
   }, [isAtBottom]);
 
   const checkIfAtBottom = useCallback(() => {
-    if (!containerRef.current) return true;
-    const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+    if (!internalRef.current) return true;
+    const { scrollTop, scrollHeight, clientHeight } = internalRef.current;
     return scrollTop + clientHeight >= scrollHeight - 100;
   }, []);
 
   const scrollToBottom = useCallback(
     (behavior: ScrollBehavior = "smooth") => {
-      if (!containerRef.current) return;
-      containerRef.current.scrollTo({
-        top: containerRef.current.scrollHeight,
+      if (!internalRef.current) return;
+      internalRef.current.scrollTo({
+        top: internalRef.current.scrollHeight,
         behavior,
       });
     },
     [],
   );
 
-  // Track user scroll events
+  // Track user scroll events — re-runs when the container element appears/disappears
   useEffect(() => {
-    const container = containerRef.current;
+    const container = containerNode;
     if (!container) return;
 
     let scrollTimeout: ReturnType<typeof setTimeout>;
@@ -53,11 +59,11 @@ export function useScrollToBottom() {
       container.removeEventListener("scroll", handleScroll);
       clearTimeout(scrollTimeout);
     };
-  }, [checkIfAtBottom]);
+  }, [containerNode, checkIfAtBottom]);
 
   // Auto-scroll when content changes (streaming, new messages, resizing)
   useEffect(() => {
-    const container = containerRef.current;
+    const container = containerNode;
     if (!container) return;
 
     const scrollIfNeeded = () => {
@@ -90,7 +96,7 @@ export function useScrollToBottom() {
       mutationObserver.disconnect();
       resizeObserver.disconnect();
     };
-  }, []);
+  }, [containerNode]);
 
   return { containerRef, endRef, isAtBottom, scrollToBottom };
 }

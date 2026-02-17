@@ -34,6 +34,7 @@ import type { EmailData } from "./email-compose-card";
 interface Template {
   id: string;
   name: string;
+  isDefault?: number;
 }
 
 interface FooterData {
@@ -150,6 +151,22 @@ export function ChatComposeModal({
       setIsProcessingTemplate(false);
     }
   }, [open]);
+
+  // Auto-select the default template when the modal opens and templates are loaded
+  const hasAutoSelected = useRef(false);
+  useEffect(() => {
+    if (!open) {
+      hasAutoSelected.current = false;
+      return;
+    }
+    if (hasAutoSelected.current || isLoadingTemplates || templates.length === 0) return;
+    const defaultTemplate = templates.find((t) => t.isDefault === 1);
+    if (defaultTemplate) {
+      hasAutoSelected.current = true;
+      handleTemplateChange(defaultTemplate.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isLoadingTemplates, templates]);
 
   const handleConnectGmail = async () => {
     try {

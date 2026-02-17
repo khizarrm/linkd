@@ -3,11 +3,13 @@ import { z } from "zod";
 import { runResearchAgent } from "./research";
 import type { CloudflareBindings } from "../../env.d";
 import { drizzle } from "drizzle-orm/d1";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { schema } from "../../db";
 import { messages } from "../../db/messages.schema";
 import { chats } from "../../db/chats.schema";
+import { templates } from "../../db/templates.schema";
 import { verifyClerkToken } from "../../lib/clerk-auth";
+import { processTemplateForPerson } from "../../endpoints/templates";
 import {
   convertToModelMessages,
   consumeStream,
@@ -185,6 +187,8 @@ export class ResearchAgentRoute extends OpenAPIRoute {
     const seenProfileUrls = new Set<string>();
     const stream = createUIMessageStream({
       execute: async ({ writer }) => {
+        const pendingTemplateProcesses: Promise<void>[] = [];
+
         const onToolStart = (toolName: string) => {
           const label = TOOL_LABELS[toolName] || toolName.replace(/_/g, " ");
           const stepId = `step_${++stepCounter}`;
@@ -226,6 +230,49 @@ export class ResearchAgentRoute extends OpenAPIRoute {
               verificationStatus: data.verificationStatus,
             },
           });
+
+          if (!authResult) return;
+          const p = (async () => {
+            try {
+              const db = drizzle(env.DB, { schema });
+              const defaultTemplate = await db.query.templates.findFirst({
+                where: and(
+                  eq(templates.clerkUserId, authResult.clerkUserId),
+                  eq(templates.isDefault, 1),
+                ),
+              });
+              if (!defaultTemplate) return;
+
+              console.log(`[endpoint] Pre-processing default template "${defaultTemplate.name}" for ${data.email}`);
+              const result = await processTemplateForPerson(env, {
+                template: {
+                  subject: defaultTemplate.subject,
+                  body: defaultTemplate.body,
+                  footer: defaultTemplate.footer ?? null,
+                  attachments: defaultTemplate.attachments ?? null,
+                },
+                person: { name: data.name, email: data.email },
+                company: data.domain,
+              });
+
+              writer.write({
+                type: "data-email-content",
+                id: `${emailId}_content`,
+                data: {
+                  emailId,
+                  templateId: defaultTemplate.id,
+                  subject: result.subject,
+                  body: result.body,
+                  footer: result.footer,
+                  attachments: result.attachments,
+                },
+              });
+              console.log(`[endpoint] Pre-processed email content written for ${data.email}`);
+            } catch (err) {
+              console.error(`[endpoint] Failed to pre-process template for ${data.email}:`, err);
+            }
+          })();
+          pendingTemplateProcesses.push(p);
         };
 
         const onPeopleFound = (profiles: Array<{
@@ -264,6 +311,8 @@ export class ResearchAgentRoute extends OpenAPIRoute {
 
         researchStream.consumeStream();
         writer.merge(researchStream.toUIMessageStream());
+
+        await Promise.allSettled(pendingTemplateProcesses);
       },
       onFinish: async ({ responseMessage, isAborted }) => {
         if (!chatId || !authResult || isAborted) return;

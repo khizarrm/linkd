@@ -16,4 +16,5 @@ export const templates = sqliteTable("templates", {
     .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" })
     .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`),
+  isDefault: integer("is_default").default(0),
 });

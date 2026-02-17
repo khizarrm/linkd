@@ -98,6 +98,7 @@ export class ProtectedTemplatesListRoute extends OpenAPIRoute {
                   attachments: z.string().nullable(),
                   createdAt: z.string(),
                   updatedAt: z.string(),
+                  isDefault: z.number(),
                 }),
               ),
             }),
@@ -137,6 +138,7 @@ export class ProtectedTemplatesListRoute extends OpenAPIRoute {
         ...t,
         createdAt: new Date(t.createdAt).toISOString(),
         updatedAt: new Date(t.updatedAt).toISOString(),
+        isDefault: t.isDefault ?? 0,
       })),
     };
   }
@@ -400,6 +402,73 @@ export class ProtectedTemplatesDeleteRoute extends OpenAPIRoute {
       .delete(templates)
       .where(eq(templates.id, id))
       .returning();
+
+    return { success: true };
+  }
+}
+
+export class ProtectedTemplatesSetDefaultRoute extends OpenAPIRoute {
+  schema = {
+    tags: ["API"],
+    summary: "Set Default Template",
+    request: {
+      params: z.object({
+        id: z.string().describe("Template ID"),
+      }),
+    },
+    responses: {
+      "200": {
+        description: "Default template set",
+        content: {
+          "application/json": {
+            schema: z.object({ success: z.boolean() }),
+          },
+        },
+      },
+      "401": { description: "Unauthorized" },
+      "403": { description: "Forbidden" },
+      "404": { description: "Template not found" },
+    },
+  };
+
+  async handle(c: any) {
+    const env = c.env;
+    const request = c.req.raw;
+
+    const authResult = await verifyClerkToken(request, env.CLERK_SECRET_KEY);
+    if (!authResult) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { clerkUserId } = authResult;
+    const { id } = await this.getValidatedData<typeof this.schema>().then(
+      (d) => d.params,
+    );
+    const db = drizzle(env.DB, { schema });
+
+    const existingTemplate = await db.query.templates.findFirst({
+      where: eq(templates.id, id),
+    });
+
+    if (!existingTemplate) {
+      return Response.json({ error: "Template not found" }, { status: 404 });
+    }
+
+    if (existingTemplate.clerkUserId !== clerkUserId) {
+      return Response.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Unset all defaults for this user, then set the chosen one
+    await db
+      .update(templates)
+      .set({ isDefault: 0 })
+      .where(eq(templates.clerkUserId, clerkUserId));
+
+    const newValue = existingTemplate.isDefault === 1 ? 0 : 1;
+    await db
+      .update(templates)
+      .set({ isDefault: newValue })
+      .where(eq(templates.id, id));
 
     return { success: true };
   }

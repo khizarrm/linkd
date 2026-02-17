@@ -47,6 +47,15 @@ export function useProtectedApi() {
       return response.json();
     },
 
+    setDefaultTemplate: async (id: string) => {
+      const token = await getToken();
+      const response = await apiFetch(`/api/protected/templates/${id}/default`, {
+        method: 'PUT',
+      }, token);
+      if (!response.ok) throw new Error('Failed to set default template');
+      return response.json();
+    },
+
     processTemplate: async (data: { 
       templateId: string; 
       person: { name: string; role?: string; email?: string }; 

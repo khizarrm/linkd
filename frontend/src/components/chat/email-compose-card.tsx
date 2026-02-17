@@ -3,12 +3,21 @@
 import { Mail, Copy, Check } from "lucide-react";
 import { useState } from "react";
 
+export interface ProcessedEmailContent {
+  templateId: string;
+  subject: string;
+  body: string;
+  footer: string | null;
+  attachments: string | null;
+}
+
 export interface EmailData {
   id: string;
   name: string;
   email: string;
   domain: string;
   verificationStatus: "verified" | "possible";
+  processedEmail?: ProcessedEmailContent | null;
 }
 
 interface EmailComposeCardProps {

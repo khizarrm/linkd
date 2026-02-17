@@ -23,6 +23,7 @@ import {
   ProtectedTemplatesDeleteRoute,
   ProtectedTemplatesUpdateRoute,
   ProtectedTemplateProcessRoute,
+  ProtectedTemplatesSetDefaultRoute,
 } from "./endpoints/templates";
 import {
   ProtectedCompaniesListRoute,
@@ -238,6 +239,7 @@ openapi.get("/api/protected/templates", ProtectedTemplatesListRoute);
 openapi.delete("/api/protected/templates/:id", ProtectedTemplatesDeleteRoute);
 openapi.put("/api/protected/templates/:id", ProtectedTemplatesUpdateRoute);
 openapi.post("/api/protected/templates/process", ProtectedTemplateProcessRoute);
+openapi.put("/api/protected/templates/:id/default", ProtectedTemplatesSetDefaultRoute);
 openapi.get("/api/protected/companies", ProtectedCompaniesListRoute);
 openapi.get(
   "/api/protected/companies/:id/employees",

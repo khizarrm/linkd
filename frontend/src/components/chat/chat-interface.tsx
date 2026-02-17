@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowDown } from "lucide-react";
 import { MessageLoading } from "@/components/ui/message-loading";
 import { StepItem, type Step } from "./step-item";
-import { EmailComposeCard, type EmailData } from "./email-compose-card";
+import { EmailComposeCard, type EmailData, type ProcessedEmailContent } from "./email-compose-card";
 import { ChatComposeModal } from "./chat-compose-modal";
 import { ChatPersonCard, type PersonData } from "./person-card";
 import { useProtectedApi } from "@/hooks/use-protected-api";
@@ -186,6 +186,20 @@ function ChatSession({
                             let personBatch: PersonData[] = [];
                             let batchStartIndex = 0;
 
+                            const emailContentMap = new Map<string, ProcessedEmailContent>();
+                            for (const p of message.parts) {
+                              if (p.type === "data-email-content" && "data" in p) {
+                                const d = p.data as { emailId: string; templateId: string; subject: string; body: string; footer: string | null; attachments: string | null };
+                                emailContentMap.set(d.emailId, {
+                                  templateId: d.templateId,
+                                  subject: d.subject,
+                                  body: d.body,
+                                  footer: d.footer,
+                                  attachments: d.attachments,
+                                });
+                              }
+                            }
+
                             const flushPersonBatch = () => {
                               if (personBatch.length === 0) return;
                               elements.push(
@@ -215,6 +229,8 @@ function ChatSession({
                                 return;
                               }
 
+                              if (part.type === "data-email-content") return;
+
                               flushPersonBatch();
 
                               switch (part.type) {
@@ -227,7 +243,11 @@ function ChatSession({
                                   break;
                                 }
                                 case "data-email": {
-                                  const email = part.data as EmailData;
+                                  const emailBase = part.data as EmailData;
+                                  const preProcessed = emailContentMap.get(emailBase.id);
+                                  const email: EmailData = preProcessed
+                                    ? { ...emailBase, processedEmail: preProcessed }
+                                    : emailBase;
                                   elements.push(
                                     <EmailComposeCard
                                       key={part.id}

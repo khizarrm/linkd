@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Plus, Trash2, Loader2, Edit2 } from 'lucide-react';
+import { Plus, Trash2, Loader2, Edit2, Star } from 'lucide-react';
 import { TemplateEditorModal } from './template-editor-modal';
 
 interface Template {
@@ -22,6 +22,7 @@ interface Template {
   attachments?: string | null;
   createdAt?: string;
   updatedAt?: string;
+  isDefault?: number;
 }
 
 interface TemplateManagementModalProps {
@@ -42,6 +43,16 @@ export function TemplateManagementModal({ open, onOpenChange }: TemplateManageme
   const handleEdit = (template: Template) => {
     setEditingTemplate(template);
     setIsEditorOpen(true);
+  };
+
+  const handleSetDefault = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await protectedApi.setDefaultTemplate(id);
+      mutateTemplates();
+    } catch (error) {
+      console.error('Failed to set default template:', error);
+    }
   };
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
@@ -96,15 +107,36 @@ export function TemplateManagementModal({ open, onOpenChange }: TemplateManageme
                     className="w-full flex items-center gap-4 px-6 py-3.5 text-left hover:bg-[#111111] transition-colors group"
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-[#e8e8e8] truncate">
-                        {template.name}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-[#e8e8e8] truncate">
+                          {template.name}
+                        </p>
+                        {template.isDefault === 1 && (
+                          <span className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 leading-none">
+                            Default
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-[#6a6a6a] truncate mt-0.5">
                         {template.subject || 'No subject'}
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => handleSetDefault(template.id, e)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleSetDefault(template.id, e as unknown as React.MouseEvent); }}
+                        className={`p-1.5 rounded-md transition-colors ${
+                          template.isDefault === 1
+                            ? 'text-amber-400'
+                            : 'text-[#6a6a6a] hover:text-amber-400 hover:bg-[#252525] opacity-0 group-hover:opacity-100'
+                        }`}
+                        title={template.isDefault === 1 ? 'Remove default' : 'Set as default'}
+                      >
+                        <Star className={`w-3.5 h-3.5 ${template.isDefault === 1 ? 'fill-amber-400' : ''}`} />
+                      </span>
                       <span
                         role="button"
                         tabIndex={0}
@@ -113,7 +145,7 @@ export function TemplateManagementModal({ open, onOpenChange }: TemplateManageme
                           handleEdit(template);
                         }}
                         onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); handleEdit(template); } }}
-                        className="p-1.5 rounded-md text-[#6a6a6a] hover:text-[#e8e8e8] hover:bg-[#252525] transition-colors"
+                        className="p-1.5 rounded-md text-[#6a6a6a] hover:text-[#e8e8e8] hover:bg-[#252525] transition-colors opacity-0 group-hover:opacity-100"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </span>
@@ -122,7 +154,7 @@ export function TemplateManagementModal({ open, onOpenChange }: TemplateManageme
                         tabIndex={0}
                         onClick={(e) => handleDelete(template.id, e)}
                         onKeyDown={(e) => { if (e.key === 'Enter') handleDelete(template.id, e as unknown as React.MouseEvent); }}
-                        className="p-1.5 rounded-md text-[#6a6a6a] hover:text-red-400 hover:bg-[#252525] transition-colors"
+                        className="p-1.5 rounded-md text-[#6a6a6a] hover:text-red-400 hover:bg-[#252525] transition-colors opacity-0 group-hover:opacity-100"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </span>
