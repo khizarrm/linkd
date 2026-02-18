@@ -24,6 +24,7 @@ import {
   ProtectedTemplatesUpdateRoute,
   ProtectedTemplateProcessRoute,
   ProtectedTemplatesSetDefaultRoute,
+  ProtectedTemplateGenerateFromOnboardingRoute,
 } from "./endpoints/templates";
 import {
   ProtectedCompaniesListRoute,
@@ -37,6 +38,10 @@ import {
   ProtectedChatsDeleteRoute,
   ProtectedMessagesCreateRoute,
 } from "./endpoints/chats";
+import {
+  ProtectedUserMeRoute,
+  ProtectedUserUpdateMeRoute,
+} from "./endpoints/users";
 import {
   VectorizePopulateCompaniesRoute,
   VectorizePopulateEmployeesRoute,
@@ -239,6 +244,10 @@ openapi.get("/api/protected/templates", ProtectedTemplatesListRoute);
 openapi.delete("/api/protected/templates/:id", ProtectedTemplatesDeleteRoute);
 openapi.put("/api/protected/templates/:id", ProtectedTemplatesUpdateRoute);
 openapi.post("/api/protected/templates/process", ProtectedTemplateProcessRoute);
+openapi.post(
+  "/api/protected/templates/generate-from-onboarding",
+  ProtectedTemplateGenerateFromOnboardingRoute,
+);
 openapi.put("/api/protected/templates/:id/default", ProtectedTemplatesSetDefaultRoute);
 openapi.get("/api/protected/companies", ProtectedCompaniesListRoute);
 openapi.get(
@@ -252,6 +261,8 @@ openapi.get("/api/protected/chats/:id", ProtectedChatsGetRoute);
 openapi.put("/api/protected/chats/:id", ProtectedChatsUpdateRoute);
 openapi.delete("/api/protected/chats/:id", ProtectedChatsDeleteRoute);
 openapi.post("/api/protected/chats/:id/messages", ProtectedMessagesCreateRoute);
+openapi.get("/api/protected/users/me", ProtectedUserMeRoute);
+openapi.patch("/api/protected/users/me", ProtectedUserUpdateMeRoute);
 
 // Research Agent Route (OpenAI Agents SDK)
 openapi.post("/api/agents/research", ResearchAgentRoute);

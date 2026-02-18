@@ -1,0 +1,1 @@
+ALTER TABLE users ADD COLUMN onboarding_step INTEGER DEFAULT 1;

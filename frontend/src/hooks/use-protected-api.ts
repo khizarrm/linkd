@@ -8,6 +8,66 @@ export function useProtectedApi() {
   const { getToken, userId } = useAuth();
 
   return {
+    // User profile
+    getCurrentUser: async () => {
+      const token = await getToken();
+      const response = await apiFetch("/api/protected/users/me", {
+        method: "GET",
+      }, token);
+      if (!response.ok) throw new Error("Failed to fetch current user");
+      return response.json() as Promise<{
+        success: boolean;
+        user: {
+          clerkUserId: string;
+          email: string;
+          name: string | null;
+          image: string | null;
+          outreachIntents: string[];
+          profileBlurb: string | null;
+          linkedinUrl: string | null;
+          websiteUrl: string | null;
+          additionalUrls: Array<{ label: string; url: string }>;
+          onboardingStep: number;
+          onboardingCompleted: boolean;
+          onboardingCompletedAt: number | null;
+        };
+      }>;
+    },
+
+    updateCurrentUser: async (data: {
+      outreachIntents?: string[];
+      profileBlurb?: string | null;
+      linkedinUrl?: string | null;
+      websiteUrl?: string | null;
+      additionalUrls?: Array<{ label: string; url: string }>;
+      onboardingStep?: number;
+      onboardingCompleted?: boolean;
+    }) => {
+      const token = await getToken();
+      const response = await apiFetch("/api/protected/users/me", {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }, token);
+      if (!response.ok) throw new Error("Failed to update current user");
+      return response.json() as Promise<{
+        success: boolean;
+        user: {
+          clerkUserId: string;
+          email: string;
+          name: string | null;
+          image: string | null;
+          outreachIntents: string[];
+          profileBlurb: string | null;
+          linkedinUrl: string | null;
+          websiteUrl: string | null;
+          additionalUrls: Array<{ label: string; url: string }>;
+          onboardingStep: number;
+          onboardingCompleted: boolean;
+          onboardingCompletedAt: number | null;
+        };
+      }>;
+    },
+
     // Templates
     listTemplates: async () => {
       const token = await getToken();
@@ -54,6 +114,34 @@ export function useProtectedApi() {
       }, token);
       if (!response.ok) throw new Error('Failed to set default template');
       return response.json();
+    },
+
+    generateTemplateFromOnboarding: async (data: {
+      outreachIntents: string[];
+      profileBlurb: string;
+      linkedinUrl: string | null;
+      websiteUrl: string | null;
+      additionalUrls: Array<{ label: string; url: string }>;
+    }) => {
+      const token = await getToken();
+      const response = await apiFetch('/api/protected/templates/generate-from-onboarding', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }, token);
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Failed to generate template draft' }));
+        throw new Error(error.message || error.error || 'Failed to generate template draft');
+      }
+      return response.json() as Promise<{
+        success: boolean;
+        templateDraft: {
+          name: string;
+          subject: string;
+          body: string;
+          footer: string | null;
+          attachments: string | null;
+        };
+      }>;
     },
 
     processTemplate: async (data: { 

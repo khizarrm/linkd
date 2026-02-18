@@ -12,16 +12,7 @@ import {
 } from "@/components/ui/dialog"
 import { Loader2, Plus, Trash2, Link as LinkIcon, Paperclip, X } from 'lucide-react';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
-
-interface FooterLink {
-  label: string;
-  url: string;
-}
-
-interface FooterData {
-  text: string;
-  links: FooterLink[];
-}
+import { parseFooter, serializeFooter, type FooterData } from '@/lib/template-footer';
 
 interface TemplateAttachment {
   filename: string;
@@ -42,28 +33,6 @@ interface TemplateEditorModalProps {
     footer?: string | null;
     attachments?: string | null;
   } | null;
-}
-
-function parseFooter(raw: string | null | undefined): FooterData {
-  if (!raw) return { text: '', links: [] };
-  try {
-    const parsed = JSON.parse(raw);
-    return {
-      text: parsed.text ?? '',
-      links: Array.isArray(parsed.links) ? parsed.links : [],
-    };
-  } catch {
-    return { text: '', links: [] };
-  }
-}
-
-function serializeFooter(footer: FooterData): string | null {
-  const hasContent = footer.text.trim() || footer.links.some(l => l.label.trim() && l.url.trim());
-  if (!hasContent) return null;
-  return JSON.stringify({
-    text: footer.text,
-    links: footer.links.filter(l => l.label.trim() && l.url.trim()),
-  });
 }
 
 function parseAttachments(raw: string | null | undefined): TemplateAttachment[] {
