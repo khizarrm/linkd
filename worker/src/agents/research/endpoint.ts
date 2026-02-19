@@ -1,6 +1,6 @@
 import { OpenAPIRoute } from "chanfana";
 import { z } from "zod";
-import { runResearchAgent } from "./research";
+import { runResearchAgent, type UserContext } from "./research";
 import type { CloudflareBindings } from "../../env.d";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, and } from "drizzle-orm";
@@ -8,6 +8,7 @@ import { schema } from "../../db";
 import { messages } from "../../db/messages.schema";
 import { chats } from "../../db/chats.schema";
 import { templates } from "../../db/templates.schema";
+import { users } from "../../db/auth.schema";
 import { verifyClerkToken } from "../../lib/clerk-auth";
 import { processTemplateForPerson } from "../../endpoints/templates";
 import {
@@ -26,6 +27,77 @@ const TOOL_LABELS: Record<string, string> = {
   company_lookup: "Looking up company",
   find_and_verify_email: "Finding & verifying email",
 };
+
+function parseOutreachIntents(raw: string | null | undefined): string[] {
+  if (!raw || raw === "null") return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((value): value is string => typeof value === "string")
+      .map((value) => value.trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function parseInfo(raw: string | null | undefined): {
+  profileBlurb?: string;
+  additionalUrls?: Array<{ label: string; url: string }>;
+} {
+  if (!raw || raw === "null") return {};
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return {};
+    return parsed as {
+      profileBlurb?: string;
+      additionalUrls?: Array<{ label: string; url: string }>;
+    };
+  } catch {
+    return {};
+  }
+}
+
+async function loadUserContext(
+  clerkUserId: string,
+  env: CloudflareBindings,
+): Promise<UserContext | undefined> {
+  const db = drizzle(env.DB, { schema });
+  const user = await db.query.users.findFirst({
+    where: eq(users.clerkUserId, clerkUserId),
+    columns: {
+      outreachIntents: true,
+      linkedinUrl: true,
+      websiteUrl: true,
+      info: true,
+    },
+  });
+
+  if (!user) return undefined;
+
+  const outreachIntents = parseOutreachIntents(user.outreachIntents);
+  const info = parseInfo(user.info);
+
+  const hasData =
+    outreachIntents.length > 0 ||
+    !!info.profileBlurb?.trim() ||
+    !!user.linkedinUrl?.trim() ||
+    !!user.websiteUrl?.trim() ||
+    (info.additionalUrls && info.additionalUrls.length > 0);
+
+  if (!hasData) return undefined;
+
+  return {
+    outreachIntents: outreachIntents.length > 0 ? outreachIntents : undefined,
+    profileBlurb: info.profileBlurb?.trim() || undefined,
+    linkedinUrl: user.linkedinUrl?.trim() || null,
+    websiteUrl: user.websiteUrl?.trim() || null,
+    additionalUrls: info.additionalUrls && info.additionalUrls.length > 0
+      ? info.additionalUrls
+      : undefined,
+  };
+}
 
 async function loadChatHistory(chatId: string, env: CloudflareBindings): Promise<ModelMessage[]> {
   const dbClient = drizzle(env.DB, { schema });
@@ -181,6 +253,11 @@ export class ResearchAgentRoute extends OpenAPIRoute {
       }
     }
 
+    let userContext: UserContext | undefined;
+    if (authResult) {
+      userContext = await loadUserContext(authResult.clerkUserId, env);
+    }
+
     let stepCounter = 0;
     let emailCounter = 0;
     let personCounter = 0;
@@ -302,6 +379,7 @@ export class ResearchAgentRoute extends OpenAPIRoute {
         const researchStream = await runResearchAgent({
           env,
           messages: coreMessages,
+          userContext,
           abortSignal: request.signal,
           onToolStart,
           onToolEnd,

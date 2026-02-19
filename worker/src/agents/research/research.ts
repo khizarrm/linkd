@@ -3,7 +3,16 @@ import { streamText, stepCountIs, type ModelMessage } from "ai";
 import { createTools } from "./tools";
 import type { CloudflareBindings } from "../../env.d";
 
-const SYSTEM_PROMPT = `You are a linkd, a career search assistant for students and early-career professionals. You help find internships, jobs, companies, recruiters, and hiring managers.
+export type UserContext = {
+  outreachIntents?: string[];
+  profileBlurb?: string;
+  linkedinUrl?: string | null;
+  websiteUrl?: string | null;
+  additionalUrls?: Array<{ label: string; url: string }>;
+};
+
+function buildSystemPrompt(userContext?: UserContext): string {
+  const basePrompt = `You are a linkd, a career search assistant for students and early-career professionals. You help find internships, jobs, companies, recruiters, and hiring managers.
 
 ## How to respond
 Be direct, slightly conversational, and consice — like a knowledgeable friend who happens to be great at job searching. No emojis.
@@ -42,9 +51,52 @@ If linkedin_search returns fewer results than you need, try:
 - If results are sparse, be honest: "I only found 2 people — want me to try searching for different roles at the same company?"
 - Always end with a concrete next step or follow-up suggestion. Your goal is to eventually guide the user to sending an email from the app, so once you find people encourage them to ask you to find emails.`;
 
+  if (!userContext) {
+    return basePrompt;
+  }
+
+  const userContextSection: string[] = [];
+
+  if (userContext.outreachIntents && userContext.outreachIntents.length > 0) {
+    userContextSection.push(`Outreach goals: ${userContext.outreachIntents.join(", ")}`);
+  }
+
+  if (userContext.profileBlurb) {
+    userContextSection.push(`About them: ${userContext.profileBlurb}`);
+  }
+
+  const links: string[] = [];
+  if (userContext.linkedinUrl) {
+    links.push(`LinkedIn: ${userContext.linkedinUrl}`);
+  }
+  if (userContext.websiteUrl) {
+    links.push(`Website: ${userContext.websiteUrl}`);
+  }
+  if (userContext.additionalUrls && userContext.additionalUrls.length > 0) {
+    for (const { label, url } of userContext.additionalUrls) {
+      links.push(`${label}: ${url}`);
+    }
+  }
+  if (links.length > 0) {
+    userContextSection.push(`Links: ${links.join(", ")}`);
+  }
+
+  if (userContextSection.length === 0) {
+    return basePrompt;
+  }
+
+  return `${basePrompt}
+
+## About the user
+${userContextSection.join("\n")}
+
+Use this context to personalize your responses and tailor your search suggestions to their specific goals and background.`;
+}
+
 export async function runResearchAgent(options: {
   env: CloudflareBindings;
   messages: ModelMessage[];
+  userContext?: UserContext;
   abortSignal?: AbortSignal;
   onToolStart?: (toolName: string) => string | undefined;
   onToolEnd?: (toolName: string, stepId?: string, failed?: boolean) => void;
@@ -75,7 +127,7 @@ export async function runResearchAgent(options: {
 
   const result = streamText({
     model: anthropic("claude-sonnet-4-0"),
-    system: SYSTEM_PROMPT,
+    system: buildSystemPrompt(options.userContext),
     messages: options.messages,
     tools: {
       linkedin_search: tools.linkedinSearch,
