@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { ArrowDown } from "lucide-react";
@@ -17,6 +17,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useChat, type UIMessage } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
+import { posthog } from "@/../instrumentation-client";
 
 interface ChatInterfaceProps {
   chatId?: string;
@@ -63,6 +64,7 @@ function ChatSession({
     useScrollToBottom();
   const isLoading = status === "submitted" || status === "streaming";
   const [composeEmail, setComposeEmail] = useState<EmailData | null>(null);
+  const trackedGeneratedEmailIds = useRef<Set<string>>(new Set());
 
   const createNewChat = async (): Promise<string> => {
     const response = await api.createChat();
@@ -88,6 +90,7 @@ function ChatSession({
     if (!value.trim() || isLoading) return;
 
     try {
+      const wasNewChat = !chatId;
       let currentChatId = chatId;
       if (!currentChatId) {
         currentChatId = await createNewChat();
@@ -104,6 +107,13 @@ function ChatSession({
         });
       }
 
+      posthog.capture("chat_user_message_sent", {
+        source: "research_agent",
+        chat_id: currentChatId,
+        message_length: value.trim().length,
+        is_new_chat: wasNewChat,
+      });
+
       const token = await getToken();
       await sendMessage(
         { text: value.trim() },
@@ -117,6 +127,42 @@ function ChatSession({
     } catch (error) {
       console.error("Failed to send message:", error);
     }
+  };
+
+  useEffect(() => {
+    for (const message of messages) {
+      if (message.role !== "assistant" || !Array.isArray(message.parts)) continue;
+      for (const part of message.parts) {
+        if (part.type !== "data-email" || !("data" in part)) continue;
+        const email = part.data as EmailData;
+        const trackingKey = `${message.id}:${email.id}`;
+        if (trackedGeneratedEmailIds.current.has(trackingKey)) continue;
+        trackedGeneratedEmailIds.current.add(trackingKey);
+
+        posthog.capture("agent_email_target_generated", {
+          source: "research_agent",
+          chat_id: chatId,
+          email_id: email.id,
+          generated_email: email.email,
+          person_name: email.name,
+          recipient_domain: email.domain,
+          verification_status: email.verificationStatus,
+        });
+      }
+    }
+  }, [messages, chatId]);
+
+  const handleComposeClick = (email: EmailData) => {
+    posthog.capture("email_compose_clicked", {
+      source: "research_agent",
+      chat_id: chatId,
+      email_id: email.id,
+      generated_email: email.email,
+      person_name: email.name,
+      recipient_domain: email.domain,
+      verification_status: email.verificationStatus,
+    });
+    setComposeEmail(email);
   };
 
   const isEmpty = messages.length === 0;
@@ -252,7 +298,7 @@ function ChatSession({
                                     <EmailComposeCard
                                       key={part.id}
                                       email={email}
-                                      onCompose={setComposeEmail}
+                                      onCompose={handleComposeClick}
                                     />
                                   );
                                   break;
@@ -310,6 +356,7 @@ function ChatSession({
             if (!open) setComposeEmail(null);
           }}
           emailData={composeEmail}
+          chatId={chatId}
         />
       )}
     </div>

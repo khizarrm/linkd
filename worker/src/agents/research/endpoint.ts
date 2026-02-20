@@ -309,7 +309,6 @@ export class ResearchAgentRoute extends OpenAPIRoute {
           onPeopleFound,
         });
 
-        researchStream.consumeStream();
         writer.merge(researchStream.toUIMessageStream());
 
         await Promise.allSettled(pendingTemplateProcesses);

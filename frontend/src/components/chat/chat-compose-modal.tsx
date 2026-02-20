@@ -30,6 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { EmailData } from "./email-compose-card";
+import { posthog } from "@/../instrumentation-client";
 
 interface Template {
   id: string;
@@ -95,12 +96,14 @@ interface ChatComposeModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   emailData: EmailData;
+  chatId: string | null;
 }
 
 export function ChatComposeModal({
   open,
   onOpenChange,
   emailData,
+  chatId,
 }: ChatComposeModalProps) {
   const protectedApi = useProtectedApi();
   const { templates, isLoading: isLoadingTemplates } = useTemplates() as {
@@ -234,6 +237,17 @@ export function ChatComposeModal({
     setIsSending(true);
     setSendError(null);
 
+    posthog.capture("email_send_clicked", {
+      source: "research_agent",
+      chat_id: chatId,
+      email_id: emailData.id,
+      generated_email: emailData.email,
+      person_name: emailData.name,
+      recipient_domain: emailData.domain,
+      verification_status: emailData.verificationStatus,
+      has_attachments: attachments.length > 0,
+    });
+
     try {
       await protectedApi.sendEmail({
         to: emailData.email,
@@ -244,12 +258,36 @@ export function ChatComposeModal({
           ? attachments.map(({ filename, mimeType, data }) => ({ filename, mimeType, data }))
           : undefined,
       });
+
+      posthog.capture("email_send_succeeded", {
+        source: "research_agent",
+        chat_id: chatId,
+        email_id: emailData.id,
+        generated_email: emailData.email,
+        person_name: emailData.name,
+        recipient_domain: emailData.domain,
+        verification_status: emailData.verificationStatus,
+        has_attachments: attachments.length > 0,
+      });
+
       setSendSuccess(true);
       setTimeout(() => {
         onOpenChange(false);
       }, 1500);
     } catch (error) {
-      setSendError((error as Error).message);
+      const errorMessage = (error as Error).message;
+      posthog.capture("email_send_failed", {
+        source: "research_agent",
+        chat_id: chatId,
+        email_id: emailData.id,
+        generated_email: emailData.email,
+        person_name: emailData.name,
+        recipient_domain: emailData.domain,
+        verification_status: emailData.verificationStatus,
+        has_attachments: attachments.length > 0,
+        error_message: errorMessage,
+      });
+      setSendError(errorMessage);
     } finally {
       setIsSending(false);
     }
