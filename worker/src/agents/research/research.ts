@@ -45,6 +45,7 @@ If linkedin_search returns fewer results than you need, try:
 export async function runResearchAgent(options: {
   env: CloudflareBindings;
   messages: ModelMessage[];
+  userContext?: string | null;
   abortSignal?: AbortSignal;
   onToolStart?: (toolName: string) => string | undefined;
   onToolEnd?: (toolName: string, stepId?: string, failed?: boolean) => void;
@@ -66,6 +67,15 @@ export async function runResearchAgent(options: {
     isAborted?: boolean;
   }) => void | Promise<void>;
 }) {
+  const normalizedUserContext = options.userContext?.trim() || "";
+  const systemPrompt = normalizedUserContext
+    ? `${SYSTEM_PROMPT}
+
+## User context
+This user has provided personal context about why they use Linkd. Treat it as true and use it to tailor your suggestions and research:
+${normalizedUserContext}`
+    : SYSTEM_PROMPT;
+
   const tools = createTools(options.env, {
     onToolStart: options.onToolStart,
     onToolEnd: options.onToolEnd,
@@ -75,7 +85,7 @@ export async function runResearchAgent(options: {
 
   const result = streamText({
     model: anthropic("claude-sonnet-4-0"),
-    system: SYSTEM_PROMPT,
+    system: systemPrompt,
     messages: options.messages,
     tools: {
       linkedin_search: tools.linkedinSearch,

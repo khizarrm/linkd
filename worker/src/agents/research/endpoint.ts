@@ -8,6 +8,7 @@ import { schema } from "../../db";
 import { messages } from "../../db/messages.schema";
 import { chats } from "../../db/chats.schema";
 import { templates } from "../../db/templates.schema";
+import { users } from "../../db/auth.schema";
 import { verifyClerkToken } from "../../lib/clerk-auth";
 import { processTemplateForPerson } from "../../endpoints/templates";
 import {
@@ -19,6 +20,18 @@ import {
   type ModelMessage,
   type UIMessage,
 } from "ai";
+
+function parseLegacyProfileBlurb(rawInfo: string | null | undefined): string | null {
+  if (!rawInfo || rawInfo === "null") return null;
+  try {
+    const parsed = JSON.parse(rawInfo) as { profileBlurb?: unknown };
+    if (typeof parsed?.profileBlurb !== "string") return null;
+    const trimmed = parsed.profileBlurb.trim();
+    return trimmed || null;
+  } catch {
+    return null;
+  }
+}
 
 const TOOL_LABELS: Record<string, string> = {
   linkedin_search: "Searching LinkedIn",
@@ -131,11 +144,25 @@ export class ResearchAgentRoute extends OpenAPIRoute {
       `[endpoint] Incoming request: chatId="${chatId}" hasMessages=${Array.isArray(uiMessages)}`,
     );
 
-    const authResult = chatId
-      ? await verifyClerkToken(request, env.CLERK_SECRET_KEY)
-      : null;
+    const authResult = await verifyClerkToken(request, env.CLERK_SECRET_KEY);
     if (chatId && !authResult) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    let userContext: string | null = null;
+    if (authResult) {
+      const db = drizzle(env.DB, { schema });
+      const user = await db.query.users.findFirst({
+        where: eq(users.clerkUserId, authResult.clerkUserId),
+        columns: {
+          onboardingContext: true,
+          info: true,
+        },
+      });
+      userContext =
+        user?.onboardingContext?.trim() ||
+        parseLegacyProfileBlurb(user?.info) ||
+        null;
     }
 
     let coreMessages: ModelMessage[] = [];
@@ -302,6 +329,7 @@ export class ResearchAgentRoute extends OpenAPIRoute {
         const researchStream = await runResearchAgent({
           env,
           messages: coreMessages,
+          userContext,
           abortSignal: request.signal,
           onToolStart,
           onToolEnd,

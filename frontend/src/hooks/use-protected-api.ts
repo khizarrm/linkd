@@ -22,12 +22,7 @@ export function useProtectedApi() {
           email: string;
           name: string | null;
           image: string | null;
-          outreachIntents: string[];
-          profileBlurb: string | null;
-          linkedinUrl: string | null;
-          websiteUrl: string | null;
-          additionalUrls: Array<{ label: string; url: string }>;
-          onboardingStep: number;
+          onboardingContext: string | null;
           onboardingCompleted: boolean;
           onboardingCompletedAt: number | null;
         };
@@ -35,12 +30,7 @@ export function useProtectedApi() {
     },
 
     updateCurrentUser: async (data: {
-      outreachIntents?: string[];
-      profileBlurb?: string | null;
-      linkedinUrl?: string | null;
-      websiteUrl?: string | null;
-      additionalUrls?: Array<{ label: string; url: string }>;
-      onboardingStep?: number;
+      onboardingContext?: string | null;
       onboardingCompleted?: boolean;
     }) => {
       const token = await getToken();
@@ -56,12 +46,7 @@ export function useProtectedApi() {
           email: string;
           name: string | null;
           image: string | null;
-          outreachIntents: string[];
-          profileBlurb: string | null;
-          linkedinUrl: string | null;
-          websiteUrl: string | null;
-          additionalUrls: Array<{ label: string; url: string }>;
-          onboardingStep: number;
+          onboardingContext: string | null;
           onboardingCompleted: boolean;
           onboardingCompletedAt: number | null;
         };
