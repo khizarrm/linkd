@@ -46,13 +46,33 @@ function ChatSession({
   const api = useProtectedApi();
   const { addChat } = useChatContext();
   const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
+  const sendLastMessageOnly =
+    process.env.NEXT_PUBLIC_RESEARCH_SEND_LAST_MESSAGE_ONLY === "true";
 
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
         api: `${apiBase}/api/agents/research`,
+        prepareSendMessagesRequest: ({ messages, body, trigger }) => {
+          if (!sendLastMessageOnly || trigger === "regenerate-message") {
+            return {
+              body: {
+                ...(body || {}),
+                messages,
+              },
+            };
+          }
+
+          const latestMessage = messages[messages.length - 1];
+          return {
+            body: {
+              ...(body || {}),
+              messages: latestMessage ? [latestMessage] : [],
+            },
+          };
+        },
       }),
-    [apiBase],
+    [apiBase, sendLastMessageOnly],
   );
 
   const { messages, sendMessage, status, stop } = useChat({
@@ -371,6 +391,21 @@ export function ChatInterface({ chatId: initialChatId }: ChatInterfaceProps) {
   const [initialMessages, setInitialMessages] = useState<UIMessage[]>([]);
   const [isInitializing, setIsInitializing] = useState(!!initialChatId);
   const [sessionKey, setSessionKey] = useState(initialChatId || "new");
+
+  useEffect(() => {
+    const handleNewChat = () => {
+      if (window.location.pathname !== "/chat") {
+        window.history.replaceState(null, "", "/chat");
+      }
+      setChatId(null);
+      setInitialMessages([]);
+      setIsInitializing(false);
+      setSessionKey(`new-${Date.now()}`);
+    };
+
+    window.addEventListener("linkd:new-chat", handleNewChat);
+    return () => window.removeEventListener("linkd:new-chat", handleNewChat);
+  }, []);
 
   const loadExistingChat = async (id: string) => {
     try {

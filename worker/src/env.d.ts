@@ -19,6 +19,13 @@ export interface CloudflareBindings {
     CLERK_SECRET_KEY: string;
     CLERK_WEBHOOK_SIGNING_SECRET: string;
     TAVILY_API_KEY: string;
+    RESEARCH_BASELINE_TELEMETRY?: string;
+    RESEARCH_SEND_LAST_MESSAGE_ONLY?: string;
+    RESEARCH_SERVER_RECONSTRUCT_CONTEXT?: string;
+    RESEARCH_PRUNE_CONTEXT?: string;
+    RESEARCH_COMPACT_CONTEXT?: string;
+    RESEARCH_PROMPT_CACHE?: string;
+    RESEARCH_OPTIMIZE_TOOL_LOOP?: string;
 }
 
 declare global {

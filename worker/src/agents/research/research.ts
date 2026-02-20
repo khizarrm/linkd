@@ -1,5 +1,5 @@
 import { anthropic } from "@ai-sdk/anthropic";
-import { streamText, stepCountIs, type ModelMessage } from "ai";
+import { streamText, type ModelMessage } from "ai";
 import { createTools } from "./tools";
 import type { CloudflareBindings } from "../../env.d";
 
@@ -40,12 +40,16 @@ If linkedin_search returns fewer results than you need, try:
 - linkedin_search streams the response to the user itself, so you don't need to stream the people.
 
 - If results are sparse, be honest: "I only found 2 people — want me to try searching for different roles at the same company?"
-- Always end with a concrete next step or follow-up suggestion. Your goal is to eventually guide the user to sending an email from the app, so once you find people encourage them to ask you to find emails.`;
+- Always end with a concrete next step or follow-up suggestion. Your goal is to eventually guide the user to sending an email from the app, so once you find people encourage them to ask you to find emails.
+- Stop calling tools once the user's request is satisfied. Summarize what you found and ask for the next action.`;
 
 export async function runResearchAgent(options: {
   env: CloudflareBindings;
   messages: ModelMessage[];
   userContext?: string | null;
+  rollingSummary?: string | null;
+  promptCache?: boolean;
+  optimizeToolLoop?: boolean;
   abortSignal?: AbortSignal;
   onToolStart?: (toolName: string) => string | undefined;
   onToolEnd?: (toolName: string, stepId?: string, failed?: boolean) => void;
@@ -66,22 +70,44 @@ export async function runResearchAgent(options: {
     text: string;
     isAborted?: boolean;
   }) => void | Promise<void>;
+  onFirstToken?: () => void;
+  onModelFinish?: (args: {
+    text: string;
+    finishReason: string;
+    stepCount: number;
+    toolCallCount: number;
+    inputTokens?: number;
+    outputTokens?: number;
+    cachedInputTokens?: number;
+    reasoningTokens?: number;
+  }) => void | Promise<void>;
 }) {
   const normalizedUserContext = options.userContext?.trim() || "";
-  const systemPrompt = normalizedUserContext
-    ? `${SYSTEM_PROMPT}
-
-## User context
+  const normalizedRollingSummary = options.rollingSummary?.trim() || "";
+  const promptSections = [SYSTEM_PROMPT];
+  if (normalizedUserContext) {
+    promptSections.push(`## User context
 This user has provided personal context about why they use Linkd. Treat it as true and use it to tailor your suggestions and research:
-${normalizedUserContext}`
-    : SYSTEM_PROMPT;
+${normalizedUserContext}`);
+  }
+  if (normalizedRollingSummary) {
+    promptSections.push(`## Rolling summary from earlier turns
+Use this as memory for older context. Prefer this summary over stale tool traces:
+${normalizedRollingSummary}`);
+  }
+  const systemPrompt = promptSections.join("\n\n");
+  const optimizeToolLoop = options.optimizeToolLoop === true;
+  const defaultStepLimit = optimizeToolLoop ? 6 : 10;
+  const hardStepLimit = optimizeToolLoop ? 10 : defaultStepLimit;
 
   const tools = createTools(options.env, {
     onToolStart: options.onToolStart,
     onToolEnd: options.onToolEnd,
     onEmailFound: options.onEmailFound,
     onPeopleFound: options.onPeopleFound,
+    optimizeToolLoop,
   });
+  let hasEmittedFirstToken = false;
 
   const result = streamText({
     model: anthropic("claude-sonnet-4-0"),
@@ -94,9 +120,47 @@ ${normalizedUserContext}`
       find_and_verify_email: tools.emailFinder,
     },
     abortSignal: options.abortSignal,
-    stopWhen: stepCountIs(10),
+    stopWhen: ({ steps }) => {
+      if (steps.length < defaultStepLimit) return false;
+      if (!optimizeToolLoop) return true;
+      if (steps.length >= hardStepLimit) return true;
+      const lastStep = steps[steps.length - 1];
+      const needsExtraStep = lastStep.finishReason === "tool-calls" || lastStep.toolCalls.length > 0;
+      return !needsExtraStep;
+    },
+    providerOptions: options.promptCache
+      ? {
+        anthropic: {
+          cacheControl: { type: "ephemeral" as const },
+        },
+      }
+      : undefined,
     temperature: 0.7,
-    onFinish: options.onFinish,
+    onChunk: ({ chunk }) => {
+      if (hasEmittedFirstToken) return;
+      if (chunk.type === "text-delta" || chunk.type === "reasoning-delta") {
+        hasEmittedFirstToken = true;
+        options.onFirstToken?.();
+      }
+    },
+    onAbort: async () => {
+      await options.onFinish?.({ text: "", isAborted: true });
+    },
+    onFinish: async (event) => {
+      await options.onModelFinish?.({
+        text: event.text,
+        finishReason: event.finishReason,
+        stepCount: event.steps.length,
+        toolCallCount: event.steps.reduce((total, step) => total + step.toolCalls.length, 0),
+        inputTokens: event.totalUsage.inputTokens,
+        outputTokens: event.totalUsage.outputTokens,
+        cachedInputTokens: event.totalUsage.cachedInputTokens,
+        reasoningTokens:
+          event.totalUsage.outputTokenDetails?.reasoningTokens ??
+          event.totalUsage.reasoningTokens,
+      });
+      await options.onFinish?.({ text: event.text, isAborted: false });
+    },
   });
 
   return result;

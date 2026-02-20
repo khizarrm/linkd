@@ -37,7 +37,7 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const apiRef = useRef(api);
   apiRef.current = api;
 
-  const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
+  const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(false);
   const [isSavingOnboarding, setIsSavingOnboarding] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [onboardingContext, setOnboardingContext] = useState<string | null>(null);
@@ -111,21 +111,13 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (isCheckingOnboarding) {
-    return (
-      <div className="min-h-screen w-full flex items-center justify-center">
-        <div className="h-4 w-4 rounded-full bg-foreground/20 animate-pulse" />
-      </div>
-    );
-  }
-
   return (
     <>
       <AuthenticatedLayoutInner>
         {children}
       </AuthenticatedLayoutInner>
       <OnboardingModal
-        open={needsOnboarding}
+        open={!isCheckingOnboarding && needsOnboarding}
         isSaving={isSavingOnboarding}
         defaultValue={onboardingContext}
         onSubmit={async ({ onboardingContext: value }) => {

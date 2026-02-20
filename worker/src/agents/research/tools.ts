@@ -91,6 +91,41 @@ const ROLE_EXPANSIONS: Record<string, string> = {
   director: `(director OR vp OR "vice president" OR "head of" OR "senior director")`,
 };
 
+function mapLinkedinProfiles(results: TavilyResult[]) {
+  return results
+    .filter((result) => result.url.includes("linkedin.com/in/"))
+    .map((result) => {
+      const roleMatch = result.title.match(/[-\u2013\u2014|](.+?)(?:at|$)/);
+      const snippet = roleMatch ? roleMatch[1].trim() : "";
+      return {
+        name: result.title.replace(/ [-\u2013\u2014|].*$/, "").trim(),
+        url: result.url,
+        snippet,
+      };
+    });
+}
+
+function dedupeProfiles(
+  profiles: Array<{
+    name: string;
+    url: string;
+    snippet: string;
+  }>,
+) {
+  const seen = new Set<string>();
+  return profiles.filter((profile) => {
+    if (seen.has(profile.url)) return false;
+    seen.add(profile.url);
+    return true;
+  });
+}
+
+function compactSnippet(content: string, maxLength: number) {
+  return content.length <= maxLength
+    ? content
+    : `${content.slice(0, maxLength).trimEnd()}...`;
+}
+
 export function createTools(
   env: CloudflareBindings,
   options?: {
@@ -109,8 +144,11 @@ export function createTools(
         snippet: string;
       }>,
     ) => void;
+    optimizeToolLoop?: boolean;
   },
 ) {
+  const optimizeToolLoop = options?.optimizeToolLoop === true;
+
   const linkedinSearch = tool({
     description: "Search LinkedIn for people at a specific company",
     inputSchema: z.object({
@@ -145,36 +183,36 @@ export function createTools(
         validatedMaxResults = maxResults;
       }
 
+      let failed = false;
       try {
-        const response = await tavilySearch(env.TAVILY_API_KEY, query, {
-          searchDepth: "advanced",
+        const initialResponse = await tavilySearch(env.TAVILY_API_KEY, query, {
+          searchDepth: optimizeToolLoop ? "basic" : "advanced",
           includeDomains: ["linkedin.com"],
-          maxResults: 10,
+          maxResults: optimizeToolLoop ? 6 : 10,
         });
 
-        const profiles = response.results
-          .filter((r) => r.url.includes("linkedin.com/in/"))
-          .slice(0, validatedMaxResults)
-          .map((r) => {
-            const roleMatch = r.title.match(/[-\u2013\u2014|](.+?)(?:at|$)/);
-            const snippet = roleMatch ? roleMatch[1].trim() : "";
+        let profiles = dedupeProfiles(mapLinkedinProfiles(initialResponse.results))
+          .slice(0, validatedMaxResults);
 
-            return {
-              name: r.title.replace(/ [-\u2013\u2014|].*$/, "").trim(),
-              url: r.url,
-              snippet,
-            };
+        if (optimizeToolLoop && profiles.length < validatedMaxResults) {
+          const fallbackResponse = await tavilySearch(env.TAVILY_API_KEY, query, {
+            searchDepth: "advanced",
+            includeDomains: ["linkedin.com"],
+            maxResults: 10,
           });
-
-        if (profiles.length > 0) {
-          options?.onPeopleFound?.(profiles);
+          profiles = dedupeProfiles([
+            ...profiles,
+            ...mapLinkedinProfiles(fallbackResponse.results),
+          ]).slice(0, validatedMaxResults);
         }
 
+        if (profiles.length > 0) options?.onPeopleFound?.(profiles);
         return { query, resultCount: profiles.length, profiles };
       } catch (error) {
+        failed = true;
         return { query, resultCount: 0, profiles: [], error: String(error) };
       } finally {
-        options?.onToolEnd?.("linkedin_search", resolvedStepId);
+        options?.onToolEnd?.("linkedin_search", resolvedStepId, failed);
       }
     },
   });
@@ -186,10 +224,11 @@ export function createTools(
     }),
     execute: async ({ query }) => {
       const resolvedStepId = options?.onToolStart?.("web_search");
+      let failed = false;
       try {
         const response = await tavilySearch(env.TAVILY_API_KEY, query, {
-          searchDepth: "advanced",
-          maxResults: 10,
+          searchDepth: optimizeToolLoop ? "basic" : "advanced",
+          maxResults: optimizeToolLoop ? 5 : 10,
         });
 
         return {
@@ -197,13 +236,14 @@ export function createTools(
           results: response.results.map((r) => ({
             title: r.title,
             url: r.url,
-            snippet: r.content.substring(0, 300),
+            snippet: compactSnippet(r.content, optimizeToolLoop ? 180 : 300),
           })),
         };
       } catch (error) {
+        failed = true;
         return { resultCount: 0, results: [], error: String(error) };
       } finally {
-        options?.onToolEnd?.("web_search", resolvedStepId);
+        options?.onToolEnd?.("web_search", resolvedStepId, failed);
       }
     },
   });
@@ -219,23 +259,25 @@ export function createTools(
       const query =
         `"${companyName}" company official website ${context || ""}`.trim();
 
+      let failed = false;
       try {
         const response = await tavilySearch(env.TAVILY_API_KEY, query, {
           searchDepth: "basic",
-          maxResults: 5,
+          maxResults: optimizeToolLoop ? 3 : 5,
         });
 
         return {
           results: response.results.map((r) => ({
             title: r.title,
             url: r.url,
-            snippet: r.content.substring(0, 300),
+            snippet: compactSnippet(r.content, optimizeToolLoop ? 180 : 300),
           })),
         };
       } catch (error) {
+        failed = true;
         return { results: [], error: String(error) };
       } finally {
-        options?.onToolEnd?.("company_lookup", resolvedStepId);
+        options?.onToolEnd?.("company_lookup", resolvedStepId, failed);
       }
     },
   });
