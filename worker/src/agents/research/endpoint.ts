@@ -260,8 +260,40 @@ function dataPartToModelText(part: any): { type: "text"; text: string } | undefi
   return undefined;
 }
 
+function sanitizeUiMessagesForModel(uiMessages: UIMessage[]): UIMessage[] {
+  const safeMessages: UIMessage[] = [];
+
+  for (const message of uiMessages) {
+    const rawParts = Array.isArray(message.parts) ? message.parts : [];
+    const safeParts = rawParts.filter((part) => {
+      if (!part || typeof part !== "object" || typeof part.type !== "string") return false;
+      return part.type === "text" || part.type === "data-person" || part.type === "data-email";
+    });
+
+    if (safeParts.length > 0) {
+      safeMessages.push({
+        id: message.id,
+        role: message.role,
+        parts: safeParts,
+      });
+      continue;
+    }
+
+    const fallbackText = extractMessageText(message).trim();
+    if (fallbackText) {
+      safeMessages.push({
+        id: message.id,
+        role: message.role,
+        parts: [{ type: "text", text: fallbackText }],
+      });
+    }
+  }
+
+  return safeMessages;
+}
+
 async function convertUiMessagesToModelMessages(uiMessages: UIMessage[]): Promise<ModelMessage[]> {
-  return convertToModelMessages(uiMessages, {
+  return convertToModelMessages(sanitizeUiMessagesForModel(uiMessages), {
     convertDataPart: (part) => dataPartToModelText(part as any),
   });
 }
