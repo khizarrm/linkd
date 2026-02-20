@@ -5,9 +5,11 @@ import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { ArrowDown } from "lucide-react";
 import { MessageLoading } from "@/components/ui/message-loading";
+import { Button } from "@/components/ui/button";
 import { StepItem, type Step } from "./step-item";
 import { EmailComposeCard, type EmailData, type ProcessedEmailContent } from "./email-compose-card";
 import { ChatComposeModal } from "./chat-compose-modal";
+import { ChatBulkComposeModal } from "./chat-bulk-compose-modal";
 import { ChatPersonCard, type PersonData } from "./person-card";
 import { useProtectedApi } from "@/hooks/use-protected-api";
 import { useScrollToBottom } from "@/hooks/use-scroll-to-bottom";
@@ -84,7 +86,69 @@ function ChatSession({
     useScrollToBottom();
   const isLoading = status === "submitted" || status === "streaming";
   const [composeEmail, setComposeEmail] = useState<EmailData | null>(null);
+  const [selectedEmailIds, setSelectedEmailIds] = useState<Set<string>>(new Set());
+  const [sentEmailIds, setSentEmailIds] = useState<Set<string>>(new Set());
+  const [bulkComposeOpen, setBulkComposeOpen] = useState(false);
   const trackedGeneratedEmailIds = useRef<Set<string>>(new Set());
+
+  const availableEmails = useMemo(() => {
+    const map = new Map<string, EmailData>();
+    for (const message of messages) {
+      if (message.role !== "assistant" || !Array.isArray(message.parts)) continue;
+
+      const emailContentMap = new Map<string, ProcessedEmailContent>();
+      for (const part of message.parts) {
+        if (part.type !== "data-email-content" || !("data" in part)) continue;
+        const data = part.data as {
+          emailId: string;
+          templateId: string;
+          subject: string;
+          body: string;
+          footer: string | null;
+          attachments: string | null;
+        };
+        emailContentMap.set(data.emailId, {
+          templateId: data.templateId,
+          subject: data.subject,
+          body: data.body,
+          footer: data.footer,
+          attachments: data.attachments,
+        });
+      }
+
+      message.parts.forEach((part, index) => {
+        if (part.type !== "data-email" || !("data" in part)) return;
+        const base = part.data as EmailData;
+        const preProcessed = emailContentMap.get(base.id);
+        const partId =
+          "id" in part && typeof part.id === "string" ? part.id : `email_part_${index}`;
+        const uiId = `${message.id}:${partId}`;
+        map.set(
+          uiId,
+          preProcessed
+            ? { ...base, uiId, processedEmail: preProcessed }
+            : { ...base, uiId },
+        );
+      });
+    }
+    return map;
+  }, [messages]);
+
+  const selectedEmails = useMemo(
+    () =>
+      [...selectedEmailIds]
+        .map((id) => availableEmails.get(id))
+        .filter((email): email is EmailData => Boolean(email))
+        .filter((email) => !sentEmailIds.has(email.uiId ?? email.id)),
+    [selectedEmailIds, availableEmails, sentEmailIds],
+  );
+  const unsentAvailableEmailIds = useMemo(
+    () => [...availableEmails.keys()].filter((id) => !sentEmailIds.has(id)),
+    [availableEmails, sentEmailIds],
+  );
+  const totalAvailableEmails = unsentAvailableEmailIds.length;
+  const allEmailsSelected =
+    totalAvailableEmails > 0 && selectedEmails.length === totalAvailableEmails;
 
   const createNewChat = async (): Promise<string> => {
     const response = await api.createChat();
@@ -173,6 +237,7 @@ function ChatSession({
   }, [messages, chatId]);
 
   const handleComposeClick = (email: EmailData) => {
+    if (sentEmailIds.has(email.uiId ?? email.id)) return;
     posthog.capture("email_compose_clicked", {
       source: "research_agent",
       chat_id: chatId,
@@ -183,6 +248,64 @@ function ChatSession({
       verification_status: email.verificationStatus,
     });
     setComposeEmail(email);
+  };
+
+  const handleToggleSelect = (email: EmailData) => {
+    const targetId = email.uiId ?? email.id;
+    if (sentEmailIds.has(targetId)) return;
+    setSelectedEmailIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(targetId)) {
+        next.delete(targetId);
+      } else {
+        next.add(targetId);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAllToggle = () => {
+    if (allEmailsSelected) {
+      setSelectedEmailIds(new Set());
+      return;
+    }
+    setSelectedEmailIds(new Set(unsentAvailableEmailIds));
+  };
+
+  useEffect(() => {
+    setSelectedEmailIds((prev) => {
+      const filtered = [...prev].filter(
+        (id) => availableEmails.has(id) && !sentEmailIds.has(id),
+      );
+      if (filtered.length === prev.size) return prev;
+      return new Set(filtered);
+    });
+  }, [availableEmails, sentEmailIds]);
+
+  const handleEmailSent = (emailId: string) => {
+    setSentEmailIds((prev) => {
+      const next = new Set(prev);
+      next.add(emailId);
+      return next;
+    });
+    setSelectedEmailIds((prev) => {
+      const next = new Set(prev);
+      next.delete(emailId);
+      return next;
+    });
+  };
+
+  const handleBulkSent = (emailIds: string[]) => {
+    setSentEmailIds((prev) => {
+      const next = new Set(prev);
+      for (const id of emailIds) next.add(id);
+      return next;
+    });
+    setSelectedEmailIds((prev) => {
+      const next = new Set(prev);
+      for (const id of emailIds) next.delete(id);
+      return next;
+    });
   };
 
   const isEmpty = messages.length === 0;
@@ -311,14 +434,23 @@ function ChatSession({
                                 case "data-email": {
                                   const emailBase = part.data as EmailData;
                                   const preProcessed = emailContentMap.get(emailBase.id);
+                                  const partId =
+                                    "id" in part && typeof part.id === "string"
+                                      ? part.id
+                                      : `email_part_${index}`;
+                                  const uiId = `${message.id}:${partId}`;
                                   const email: EmailData = preProcessed
-                                    ? { ...emailBase, processedEmail: preProcessed }
-                                    : emailBase;
+                                    ? { ...emailBase, uiId, processedEmail: preProcessed }
+                                    : { ...emailBase, uiId };
+                                  const isSent = sentEmailIds.has(uiId);
                                   elements.push(
                                     <EmailComposeCard
-                                      key={part.id}
+                                      key={uiId}
                                       email={email}
                                       onCompose={handleComposeClick}
+                                      isSelected={selectedEmailIds.has(uiId)}
+                                      onToggleSelect={handleToggleSelect}
+                                      isSent={isSent}
                                     />
                                   );
                                   break;
@@ -360,6 +492,39 @@ function ChatSession({
 
       <div className="p-4 pb-8 bg-gradient-to-t from-background via-background to-transparent">
         <div className="max-w-2xl mx-auto">
+          {totalAvailableEmails > 0 && (
+            <div className="mb-3 rounded-xl border border-[#2a2a2a] bg-[#111111] px-4 py-3 flex items-center justify-between">
+              <p className="text-sm text-[#d0d0d0]">
+                {selectedEmails.length} / {totalAvailableEmails} selected
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleSelectAllToggle}
+                  className="text-[#8a8a8a] hover:text-[#e8e8e8] hover:bg-[#1a1a1a]"
+                >
+                  {allEmailsSelected ? "Unselect all" : "Select all"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedEmailIds(new Set())}
+                  className="text-[#8a8a8a] hover:text-[#e8e8e8] hover:bg-[#1a1a1a]"
+                >
+                  Clear
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => setBulkComposeOpen(true)}
+                  disabled={selectedEmails.length === 0}
+                  className="bg-[#e8e8e8] text-black hover:bg-white"
+                >
+                  Send selected
+                </Button>
+              </div>
+            </div>
+          )}
           <AIInput
             onSubmit={handleSubmit}
             onStop={stop}
@@ -377,6 +542,19 @@ function ChatSession({
           }}
           emailData={composeEmail}
           chatId={chatId}
+          onSendSuccess={handleEmailSent}
+        />
+      )}
+
+      {bulkComposeOpen && selectedEmails.length > 0 && (
+        <ChatBulkComposeModal
+          open={bulkComposeOpen}
+          onOpenChange={(open) => {
+            setBulkComposeOpen(open);
+            if (!open) setSelectedEmailIds(new Set());
+          }}
+          recipients={selectedEmails}
+          onSendSuccess={handleBulkSent}
         />
       )}
     </div>

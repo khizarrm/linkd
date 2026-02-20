@@ -79,6 +79,15 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function needsGmailReconnect(errorMessage: string): boolean {
+  const normalized = errorMessage.toLowerCase();
+  return (
+    normalized.includes("gmail connection expired") ||
+    normalized.includes("gmail not connected") ||
+    normalized.includes("connect your gmail")
+  );
+}
+
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -97,6 +106,7 @@ interface ChatComposeModalProps {
   onOpenChange: (open: boolean) => void;
   emailData: EmailData;
   chatId: string | null;
+  onSendSuccess?: (emailId: string) => void;
 }
 
 export function ChatComposeModal({
@@ -104,6 +114,7 @@ export function ChatComposeModal({
   onOpenChange,
   emailData,
   chatId,
+  onSendSuccess,
 }: ChatComposeModalProps) {
   const protectedApi = useProtectedApi();
   const { templates, isLoading: isLoadingTemplates } = useTemplates() as {
@@ -123,6 +134,8 @@ export function ChatComposeModal({
   const [isCheckingGmail, setIsCheckingGmail] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("none");
   const [isProcessingTemplate, setIsProcessingTemplate] = useState(false);
+  const [templateProgress, setTemplateProgress] = useState(0);
+  const [sendProgress, setSendProgress] = useState(0);
   const [templateError, setTemplateError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -152,8 +165,34 @@ export function ChatComposeModal({
       setSelectedTemplateId("none");
       setTemplateError(null);
       setIsProcessingTemplate(false);
+      setTemplateProgress(0);
+      setSendProgress(0);
     }
   }, [open]);
+
+  useEffect(() => {
+    if (!isProcessingTemplate) {
+      setTemplateProgress(0);
+      return;
+    }
+    setTemplateProgress(12);
+    const interval = window.setInterval(() => {
+      setTemplateProgress((prev) => Math.min(92, prev + Math.max(2, Math.random() * 8)));
+    }, 160);
+    return () => window.clearInterval(interval);
+  }, [isProcessingTemplate]);
+
+  useEffect(() => {
+    if (!isSending) {
+      setSendProgress(0);
+      return;
+    }
+    setSendProgress(10);
+    const interval = window.setInterval(() => {
+      setSendProgress((prev) => Math.min(94, prev + Math.max(1.5, Math.random() * 6)));
+    }, 170);
+    return () => window.clearInterval(interval);
+  }, [isSending]);
 
   // Auto-select the default template when the modal opens and templates are loaded
   const hasAutoSelected = useRef(false);
@@ -271,9 +310,8 @@ export function ChatComposeModal({
       });
 
       setSendSuccess(true);
-      setTimeout(() => {
-        onOpenChange(false);
-      }, 1500);
+      onSendSuccess?.(emailData.uiId ?? emailData.id);
+      onOpenChange(false);
     } catch (error) {
       const errorMessage = (error as Error).message;
       posthog.capture("email_send_failed", {
@@ -287,6 +325,10 @@ export function ChatComposeModal({
         has_attachments: attachments.length > 0,
         error_message: errorMessage,
       });
+
+      if (needsGmailReconnect(errorMessage)) {
+        setGmailConnected(false);
+      }
       setSendError(errorMessage);
     } finally {
       setIsSending(false);
@@ -379,6 +421,36 @@ export function ChatComposeModal({
                   <p className="text-xs text-red-400">{templateError}</p>
                 )}
               </div>
+
+              {isProcessingTemplate && (
+                <div className="rounded-lg border border-[#2a2a2a] bg-[#111111] p-3">
+                  <div className="mb-2 flex items-center justify-between text-xs text-[#8a8a8a]">
+                    <span>Generating email from template...</span>
+                    <span>{Math.round(templateProgress)}%</span>
+                  </div>
+                  <div className="h-1.5 w-full rounded-full bg-[#1d1d1d]">
+                    <div
+                      className="h-1.5 rounded-full bg-blue-500 transition-[width] duration-150"
+                      style={{ width: `${templateProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {isSending && (
+                <div className="rounded-lg border border-[#2a2a2a] bg-[#111111] p-3">
+                  <div className="mb-2 flex items-center justify-between text-xs text-[#8a8a8a]">
+                    <span>Sending email...</span>
+                    <span>{Math.round(sendProgress)}%</span>
+                  </div>
+                  <div className="h-1.5 w-full rounded-full bg-[#1d1d1d]">
+                    <div
+                      className="h-1.5 rounded-full bg-emerald-500 transition-[width] duration-150"
+                      style={{ width: `${sendProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* Unified email card: subject + body + footer */}
               <div className="border border-[#2a2a2a] rounded-lg bg-[#151515] overflow-hidden">

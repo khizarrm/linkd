@@ -13,6 +13,7 @@ interface RichTextEditorProps {
   placeholder?: string;
   className?: string;
   editorClassName?: string;
+  readOnly?: boolean;
 }
 
 function isHtml(text: string): boolean {
@@ -111,6 +112,7 @@ export function RichTextEditor({
   placeholder = 'Write something...',
   className,
   editorClassName,
+  readOnly = false,
 }: RichTextEditorProps) {
   const [floatingPos, setFloatingPos] = useState<FloatingPos | null>(null);
   const [showLinkForm, setShowLinkForm] = useState(false);
@@ -130,7 +132,7 @@ export function RichTextEditor({
         listItem: false,
       }),
       Link.configure({
-        openOnClick: false,
+        openOnClick: readOnly,
         autolink: true,
         linkOnPaste: true,
         defaultProtocol: 'https',
@@ -147,11 +149,13 @@ export function RichTextEditor({
         ),
       },
     },
+    editable: !readOnly,
     content: plainTextToHtml(value),
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
     },
     onSelectionUpdate: ({ editor }) => {
+      if (readOnly) return;
       const { from, to } = editor.state.selection;
       if (from === to) {
         setFloatingPos(null);
@@ -213,7 +217,7 @@ export function RichTextEditor({
   const isLinkActive = editor.isActive('link');
   const { from, to } = editor.state.selection;
   const hasSelection = from !== to;
-  const showFloating = floatingPos && (hasSelection || showLinkForm);
+  const showFloating = !readOnly && floatingPos && (hasSelection || showLinkForm);
 
   return (
     <div ref={containerRef} className={cn('relative', className)}>
