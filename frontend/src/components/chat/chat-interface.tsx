@@ -104,12 +104,14 @@ function ChatSession({
           templateId: string;
           subject: string;
           body: string;
+          footer: string | null;
           attachments: string | null;
         };
         emailContentMap.set(data.emailId, {
           templateId: data.templateId,
           subject: data.subject,
           body: data.body,
+          footer: data.footer,
           attachments: data.attachments,
         });
       }
