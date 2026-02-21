@@ -18,7 +18,6 @@ export const users = sqliteTable("users", {
   twitterUrl: text("twitter_url"),
   info: text("info"),
   googleRefreshToken: text("google_refresh_token"),
-  outreachIntents: text("outreach_intents"),
-  onboardingStep: integer("onboarding_step").default(1),
+  onboardingContext: text("onboarding_context"),
   onboardingCompletedAt: integer("onboarding_completed_at", { mode: "timestamp_ms" }),
 });

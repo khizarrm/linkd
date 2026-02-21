@@ -5,6 +5,7 @@ import { cors } from "hono/cors";
 import type { CloudflareBindings } from "./env.d";
 import Orchestrator from "./agents/orchestrator";
 import { ProtectedEmailSendRoute } from "./endpoints/emailSend";
+import { ProtectedEmailBulkSendRoute } from "./endpoints/emailSendBulk";
 import {
   GoogleAuthInitiateRoute,
   GoogleAuthCallbackRoute,
@@ -236,6 +237,7 @@ openapi.post("/api/public/feedback", PublicFeedbackRoute);
 openapi.post("/api/webhooks/clerk", ClerkWebhookRoute);
 openapi.post("/api/agents/orchestrator", OrchestratorRoute);
 openapi.post("/api/protected/email/send", ProtectedEmailSendRoute);
+openapi.post("/api/protected/email/send-bulk", ProtectedEmailBulkSendRoute);
 openapi.get("/api/protected/auth/google", GoogleAuthInitiateRoute);
 openapi.get("/api/protected/auth/google/callback", GoogleAuthCallbackRoute);
 openapi.get("/api/protected/auth/google/status", GoogleAuthStatusRoute);

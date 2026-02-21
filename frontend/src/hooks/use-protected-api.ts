@@ -22,12 +22,7 @@ export function useProtectedApi() {
           email: string;
           name: string | null;
           image: string | null;
-          outreachIntents: string[];
-          profileBlurb: string | null;
-          linkedinUrl: string | null;
-          websiteUrl: string | null;
-          additionalUrls: Array<{ label: string; url: string }>;
-          onboardingStep: number;
+          onboardingContext: string | null;
           onboardingCompleted: boolean;
           onboardingCompletedAt: number | null;
         };
@@ -35,12 +30,7 @@ export function useProtectedApi() {
     },
 
     updateCurrentUser: async (data: {
-      outreachIntents?: string[];
-      profileBlurb?: string | null;
-      linkedinUrl?: string | null;
-      websiteUrl?: string | null;
-      additionalUrls?: Array<{ label: string; url: string }>;
-      onboardingStep?: number;
+      onboardingContext?: string | null;
       onboardingCompleted?: boolean;
     }) => {
       const token = await getToken();
@@ -56,12 +46,7 @@ export function useProtectedApi() {
           email: string;
           name: string | null;
           image: string | null;
-          outreachIntents: string[];
-          profileBlurb: string | null;
-          linkedinUrl: string | null;
-          websiteUrl: string | null;
-          additionalUrls: Array<{ label: string; url: string }>;
-          onboardingStep: number;
+          onboardingContext: string | null;
           onboardingCompleted: boolean;
           onboardingCompletedAt: number | null;
         };
@@ -223,6 +208,40 @@ export function useProtectedApi() {
         throw new Error(error.message || error.error || 'Failed to send email');
       }
       return response.json();
+    },
+
+    sendBulkEmail: async (data: {
+      items: Array<{
+        clientId: string;
+        to: string;
+        subject: string;
+        body: string;
+        footer?: { text?: string; links: Array<{ label: string; url: string }> } | null;
+        attachments?: Array<{ filename: string; mimeType: string; data: string }>;
+      }>;
+    }) => {
+      const token = await getToken();
+      const response = await apiFetch('/api/protected/email/send-bulk', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }, token);
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Failed to send bulk email' }));
+        throw new Error(error.message || error.error || 'Failed to send bulk email');
+      }
+      return response.json() as Promise<{
+        success: boolean;
+        summary: { total: number; sent: number; failed: number };
+        results: Array<{
+          clientId: string;
+          to: string;
+          success: boolean;
+          attempts: number;
+          messageId?: string;
+          error?: string;
+          statusCode?: number;
+        }>;
+      }>;
     },
 
     // Agents

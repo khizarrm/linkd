@@ -49,6 +49,19 @@ export function AppSidebar() {
     }
   };
 
+  const handleNewChat = () => {
+    const isChatRoot = pathname === '/chat' || pathname === '/chat/';
+    const isChatRoute = pathname?.startsWith('/chat/');
+
+    if (isChatRoot || isChatRoute) {
+      window.dispatchEvent(new Event('linkd:new-chat'));
+    }
+
+    if (!isChatRoot) {
+      router.push('/chat');
+    }
+  };
+
   // Get user info from Clerk
   const userName = user?.fullName || user?.firstName || 'User';
   const userEmail = user?.emailAddresses?.[0]?.emailAddress || '';
@@ -76,13 +89,7 @@ export function AppSidebar() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  onClick={() => {
-                    if (pathname === '/chat') {
-                      window.location.href = '/chat';
-                    } else {
-                      router.push('/chat');
-                    }
-                  }}
+                  onClick={handleNewChat}
                   tooltip="New chat"
                 >
                   <Plus className="size-4" />

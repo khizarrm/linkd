@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useClerk } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
+import { posthog } from '@/../instrumentation-client';
 
 export default function SSOCallback() {
   const { handleRedirectCallback } = useClerk();
@@ -11,13 +12,18 @@ export default function SSOCallback() {
 
   useEffect(() => {
     const handleCallback = async () => {
-      console.log('[SSOCallback] Processing OAuth callback');
       try {
         await handleRedirectCallback({ redirectUrl: '/' });
-        console.log('[SSOCallback] Callback successful, redirecting to home');
-        router.push('/');
+        const source = sessionStorage.getItem('linkd_signin_source') || 'unknown';
+        posthog.capture('google_signin_succeeded', { source });
+        sessionStorage.removeItem('linkd_signin_source');
       } catch (err) {
-        console.error('[SSOCallback] Error processing callback:', err);
+        const source = sessionStorage.getItem('linkd_signin_source') || 'unknown';
+        posthog.capture('google_signin_failed', {
+          source,
+          error: err instanceof Error ? err.message : 'OAuth callback failed',
+        });
+        sessionStorage.removeItem('linkd_signin_source');
         router.push('/login?error=auth_failed');
       }
     };
@@ -36,4 +42,3 @@ export default function SSOCallback() {
     </div>
   );
 }
-
