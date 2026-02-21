@@ -106,6 +106,17 @@ function parseStoredParts(rawParts: string | null | undefined, fallbackText: str
   return [{ type: "text", text: fallbackText }];
 }
 
+function hasPersistableAssistantOutput(parts: Array<{ type?: string; text?: string }>): boolean {
+  for (const part of parts) {
+    if (!part || typeof part !== "object") continue;
+    if (part.type === "text" && typeof part.text === "string" && part.text.trim().length > 0) {
+      return true;
+    }
+    if (part.type !== "text") return true;
+  }
+  return false;
+}
+
 function extractMessageText(message?: UIMessage): string {
   if (!message) return "";
   if (Array.isArray(message.parts)) {
@@ -769,31 +780,34 @@ export class ResearchAgentRoute extends OpenAPIRoute {
       onFinish: async ({ responseMessage, isAborted }) => {
         streamFinishedAtMs = Date.now();
 
-        if (chatId && authResult && ownedChat && !isAborted && responseMessage && responseMessage.role === "assistant") {
+        if (chatId && authResult && ownedChat && responseMessage && responseMessage.role === "assistant") {
           const db = drizzle(env.DB, { schema });
           const now = new Date().toISOString();
-          const textContent = responseMessage.parts
-            .filter((part) => part.type === "text")
-            .map((part) => (part as { text: string }).text)
-            .join("");
+          const responseParts = Array.isArray(responseMessage.parts) ? responseMessage.parts : [];
+          if (hasPersistableAssistantOutput(responseParts as Array<{ type?: string; text?: string }>)) {
+            const textContent = responseParts
+              .filter((part) => part.type === "text")
+              .map((part) => (part as { text: string }).text)
+              .join("");
 
-          const partsToStore = responseMessage.parts && responseMessage.parts.length > 0
-            ? JSON.stringify(responseMessage.parts)
-            : null;
+            const partsToStore = responseParts.length > 0
+              ? JSON.stringify(responseParts)
+              : null;
 
-          await db.insert(messages).values({
-            id: responseMessage.id,
-            chatId,
-            role: responseMessage.role,
-            content: textContent,
-            parts: partsToStore,
-            createdAt: now,
-          });
+            await db.insert(messages).values({
+              id: responseMessage.id,
+              chatId,
+              role: responseMessage.role,
+              content: textContent,
+              parts: partsToStore,
+              createdAt: now,
+            });
 
-          await db
-            .update(chats)
-            .set({ updatedAt: now })
-            .where(eq(chats.id, chatId));
+            await db
+              .update(chats)
+              .set({ updatedAt: now })
+              .where(eq(chats.id, chatId));
+          }
         }
 
         logStructured(flags.baselineTelemetry, "research.request.summary", logMeta, {
