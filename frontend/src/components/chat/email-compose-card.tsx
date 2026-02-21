@@ -7,7 +7,6 @@ export interface ProcessedEmailContent {
   templateId: string;
   subject: string;
   body: string;
-  footer: string | null;
   attachments: string | null;
 }
 

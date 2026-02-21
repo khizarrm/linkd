@@ -6,11 +6,6 @@ export interface Template {
   isDefault?: number;
 }
 
-export interface FooterData {
-  text?: string;
-  links: Array<{ label: string; url: string }>;
-}
-
 export interface AttachmentFile {
   filename: string;
   mimeType: string;
@@ -24,7 +19,6 @@ export interface RecipientDraft {
   domain: string;
   subject: string;
   body: string;
-  footer: FooterData | null;
   attachments: AttachmentFile[];
   status: "ready" | "processing" | "failed";
   error?: string;
@@ -37,19 +31,6 @@ export interface BulkSendResult {
   attempts: number;
   messageId?: string;
   error?: string;
-}
-
-export function parseFooter(raw: string | null | undefined): FooterData | null {
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw);
-    return {
-      text: parsed.text,
-      links: Array.isArray(parsed.links) ? parsed.links : [],
-    };
-  } catch {
-    return null;
-  }
 }
 
 export function parseTemplateAttachments(raw: string | null | undefined): AttachmentFile[] {
@@ -73,7 +54,6 @@ export function toRecipientDraft(recipient: EmailData): RecipientDraft {
       domain: recipient.domain,
       subject: "",
       body: "",
-      footer: null,
       attachments: [],
       status: "failed",
       error: "No pre-generated draft yet. Choose a template to generate.",
@@ -87,7 +67,6 @@ export function toRecipientDraft(recipient: EmailData): RecipientDraft {
     domain: recipient.domain,
     subject: prefilled.subject,
     body: prefilled.body,
-    footer: parseFooter(prefilled.footer),
     attachments: parseTemplateAttachments(prefilled.attachments),
     status: "ready",
   };

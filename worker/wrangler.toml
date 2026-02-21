@@ -15,6 +15,7 @@ binding = "DB"
 database_name = "applyo-db"
 database_id = "f1c25a1c-ba2f-46e7-89f4-a6d632690141"
 migrations_dir = "drizzle"
+remote = true
 
 [dev]
 port = 8787

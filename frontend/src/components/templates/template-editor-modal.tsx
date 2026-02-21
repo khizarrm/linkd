@@ -10,9 +10,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Loader2, Plus, Trash2, Link as LinkIcon, Paperclip, X } from 'lucide-react';
+import { Loader2, Plus, Paperclip, X } from 'lucide-react';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
-import { parseFooter, serializeFooter, type FooterData } from '@/lib/template-footer';
 
 interface TemplateAttachment {
   filename: string;
@@ -30,7 +29,6 @@ interface TemplateEditorModalProps {
     name: string;
     subject: string;
     body: string;
-    footer?: string | null;
     attachments?: string | null;
   } | null;
 }
@@ -72,7 +70,6 @@ export function TemplateEditorModal({ open, onOpenChange, onSuccess, initialData
   const protectedApi = useProtectedApi();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({ name: '', subject: '', body: '' });
-  const [footer, setFooter] = useState<FooterData>({ text: '', links: [] });
   const [attachments, setAttachments] = useState<TemplateAttachment[]>([]);
   const editorRef = useRef<HTMLDivElement>(null);
   const subjectRef = useRef<HTMLInputElement>(null);
@@ -86,12 +83,10 @@ export function TemplateEditorModal({ open, onOpenChange, onSuccess, initialData
         subject: initialData.subject,
         body: initialData.body,
       });
-      setFooter(parseFooter(initialData.footer));
       setAttachments(parseAttachments(initialData.attachments));
     } else if (open && !initialData) {
       setIsLoading(false);
       setFormData({ name: '', subject: '', body: '' });
-      setFooter({ text: '', links: [] });
       setAttachments([]);
     }
   }, [open, initialData]);
@@ -115,21 +110,6 @@ export function TemplateEditorModal({ open, onOpenChange, onSuccess, initialData
         input.setSelectionRange(start + value.length, start + value.length);
       }, 0);
     }
-  };
-
-  const addLink = () => {
-    setFooter(prev => ({ ...prev, links: [...prev.links, { label: '', url: '' }] }));
-  };
-
-  const removeLink = (index: number) => {
-    setFooter(prev => ({ ...prev, links: prev.links.filter((_, i) => i !== index) }));
-  };
-
-  const updateLink = (index: number, field: 'label' | 'url', value: string) => {
-    setFooter(prev => ({
-      ...prev,
-      links: prev.links.map((link, i) => (i === index ? { ...link, [field]: value } : link)),
-    }));
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -159,7 +139,6 @@ export function TemplateEditorModal({ open, onOpenChange, onSuccess, initialData
     try {
       const payload = {
         ...formData,
-        footer: serializeFooter(footer),
         attachments: serializeAttachments(attachments),
       };
       if (initialData) {
@@ -183,7 +162,7 @@ export function TemplateEditorModal({ open, onOpenChange, onSuccess, initialData
             <DialogTitle className="text-sm font-medium tracking-tight">
               {initialData ? 'Edit Template' : 'New Template'}
             </DialogTitle>
-            <p className="text-[11px] text-[#6a6a6a] mt-0.5">Reusable email with variables and footer links</p>
+            <p className="text-[11px] text-[#6a6a6a] mt-0.5">Reusable email with variables and attachments</p>
           </div>
           <Input
             id="name"
@@ -219,81 +198,11 @@ export function TemplateEditorModal({ open, onOpenChange, onSuccess, initialData
                 onChange={html => setFormData(prev => ({ ...prev, body: html }))}
                 placeholder="Write your email body here..."
               />
-              {(footer.text || footer.links.some(l => l.label && l.url)) && (
-                <div className="text-sm leading-relaxed">
-                  {footer.text && (
-                    <div className="text-[#8a8a8a]">{footer.text}</div>
-                  )}
-                  {footer.links.filter(l => l.label && l.url).length > 0 && (
-                    <div>
-                      {footer.links.filter(l => l.label && l.url).map((link, i) => (
-                        <span key={i}>
-                          {i > 0 && <span className="text-[#4a4a4a]"> | </span>}
-                          <span className="text-blue-400">{link.label}</span>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           </div>
 
-          {/* Right: Footer + Attachments */}
+          {/* Right: Attachments */}
           <div className="w-[300px] shrink-0 overflow-y-auto">
-            {/* Footer */}
-            <div className="p-4 pb-5 space-y-4 border-b border-[#1a1a1a]">
-              <div className="flex items-center gap-2">
-                <LinkIcon className="w-3.5 h-3.5 text-[#6a6a6a]" />
-                <span className="text-[10px] font-medium text-[#6a6a6a] uppercase tracking-wider">Footer</span>
-              </div>
-              <Input
-                placeholder="e.g. Best regards, {firstName}"
-                value={footer.text}
-                onChange={e => setFooter(prev => ({ ...prev, text: e.target.value }))}
-                className="h-8 text-xs bg-[#151515] border-[#2a2a2a] text-[#e8e8e8] focus:border-[#4a4a4a] focus:ring-0 placeholder:text-[#4a4a4a]"
-              />
-
-                <div className="space-y-4">
-                  {footer.links.map((link, index) => (
-                    <div key={index} className="space-y-1.5">
-                    <div className="flex items-center gap-1.5">
-                      <Input
-                        placeholder="Link text"
-                        value={link.label}
-                        onChange={e => updateLink(index, 'label', e.target.value)}
-                        className="flex-1 h-7 text-[11px] bg-[#151515] border-[#2a2a2a] text-[#e8e8e8] focus:border-[#4a4a4a] focus:ring-0 placeholder:text-[#4a4a4a]"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeLink(index)}
-                        className="p-1 text-[#6a6a6a] hover:text-red-400 transition-colors shrink-0"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </div>
-                    <Input
-                      placeholder="https://..."
-                      value={link.url}
-                      onChange={e => updateLink(index, 'url', e.target.value)}
-                      className="h-7 text-[11px] bg-[#151515] border-[#2a2a2a] text-[#e8e8e8] focus:border-[#4a4a4a] focus:ring-0 placeholder:text-[#4a4a4a]"
-                    />
-                  </div>
-                ))}
-              </div>
-
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={addLink}
-                className="h-6 px-2 text-[11px] text-[#6a6a6a] hover:text-[#e8e8e8] hover:bg-[#1a1a1a]"
-              >
-                <Plus className="w-3 h-3 mr-1" />
-                Add link
-              </Button>
-            </div>
-
             {/* Attachments */}
             <div className="p-4 space-y-2">
               <div className="flex items-center gap-2">

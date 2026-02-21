@@ -18,7 +18,6 @@ interface Template {
   name: string;
   subject: string;
   body: string;
-  footer?: string | null;
   attachments?: string | null;
   createdAt?: string;
   updatedAt?: string;

@@ -20,7 +20,6 @@ const DEMO_TEMPLATES = [
 <p>Would you be open to a brief chat about any upcoming internship openings? I'd really appreciate the opportunity.</p>
 <p>Thanks for your time,</p>
 <p>Alex</p>`,
-    footer: null,
   },
   {
     name: "Value-First Outreach",
@@ -36,7 +35,6 @@ const DEMO_TEMPLATES = [
 <p>I'm not looking for a passive internship — I want to work on real projects and make an impact. If there's room on your team, I'd love to chat.</p>
 <p>Best,</p>
 <p>Alex</p>`,
-    footer: null,
   },
   {
     name: "Short & Casual",
@@ -46,7 +44,6 @@ const DEMO_TEMPLATES = [
 <p>I've been working on full-stack web projects and I'm eager to apply those skills somewhere fast-paced. Would love to hear if your team has any internship openings coming up.</p>
 <p>Happy to send over my resume or portfolio if helpful. Thanks!</p>
 <p>Alex</p>`,
-    footer: null,
   },
 ];
 
@@ -63,7 +60,6 @@ type TemplateDraft = {
   name: string;
   subject: string;
   body: string;
-  footer: string | null;
   attachments: string | null;
 };
 
@@ -113,39 +109,8 @@ function fallbackOnboardingTemplateDraft(
     name: `${intentLabel} Intro Template`,
     subject: `Interest in ${firstIntent} at Netflix`,
     body: `<p>Hi,</p><p>${introSource}</p><p>I’m reaching out to express interest in opportunities at Netflix and to introduce how I can contribute.</p><p>If helpful, I’d be glad to share more context on my experience.</p>`,
-    footer: buildOnboardingFooter(input),
     attachments: null,
   };
-}
-
-function buildOnboardingFooter(input: OnboardingTemplateInput): string | null {
-  const links: Array<{ label: string; url: string }> = [];
-  if (input.linkedinUrl) {
-    links.push({ label: "LinkedIn", url: input.linkedinUrl });
-  }
-  if (input.websiteUrl) {
-    links.push({ label: "Website", url: input.websiteUrl });
-  }
-  for (const entry of input.additionalUrls) {
-    links.push({
-      label: entry.label,
-      url: entry.url,
-    });
-  }
-
-  const seen = new Set<string>();
-  const uniqueLinks = links.filter((link) => {
-    const key = `${link.label.toLowerCase()}|${link.url.toLowerCase()}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-
-  if (uniqueLinks.length === 0) return null;
-  return JSON.stringify({
-    text: "Best regards,",
-    links: uniqueLinks,
-  });
 }
 
 function parseTemplateDraftFromModelText(rawText: string): Partial<TemplateDraft> {
@@ -175,7 +140,7 @@ function sanitizeOnboardingBody(
   // Remove hyperlink tags and keep visible text only.
   body = body.replace(/<a\s+[^>]*>([\s\S]*?)<\/a>/gi, "$1");
 
-  // Remove explicit user URLs from body. They belong in footer links only.
+  // Remove explicit user URLs from body.
   const urlsToStrip = [
     ...(input.linkedinUrl ? [input.linkedinUrl] : []),
     ...(input.websiteUrl ? [input.websiteUrl] : []),
@@ -256,7 +221,6 @@ JSON format:
       name,
       subject,
       body: sanitizedBody,
-      footer: buildOnboardingFooter(normalized),
       attachments: null,
     };
   } catch (error) {
@@ -283,7 +247,6 @@ async function seedDemoTemplates(
     name: t.name,
     subject: t.subject,
     body: t.body.replace(/Alex/g, firstName),
-    footer: t.footer,
     attachments: null,
     createdAt: new Date(now.getTime() - i * 1000),
     updatedAt: new Date(now.getTime() - i * 1000),
@@ -310,7 +273,6 @@ export class ProtectedTemplatesListRoute extends OpenAPIRoute {
                   name: z.string(),
                   subject: z.string(),
                   body: z.string(),
-                  footer: z.string().nullable(),
                   attachments: z.string().nullable(),
                   createdAt: z.string(),
                   updatedAt: z.string(),
@@ -373,7 +335,6 @@ export class ProtectedTemplatesCreateRoute extends OpenAPIRoute {
               name: z.string(),
               subject: z.string(),
               body: z.string(),
-              footer: z.string().nullable().optional(),
               attachments: z.string().nullable().optional(),
             }),
           },
@@ -392,7 +353,6 @@ export class ProtectedTemplatesCreateRoute extends OpenAPIRoute {
                 name: z.string(),
                 subject: z.string(),
                 body: z.string(),
-                footer: z.string().nullable(),
                 attachments: z.string().nullable(),
                 createdAt: z.string(),
               }),
@@ -416,7 +376,7 @@ export class ProtectedTemplatesCreateRoute extends OpenAPIRoute {
     }
 
     const { clerkUserId } = authResult;
-    const { name, subject, body, footer, attachments } = await this.getValidatedData<
+    const { name, subject, body, attachments } = await this.getValidatedData<
       typeof this.schema
     >().then((d) => d.body);
     const db = drizzle(env.DB, { schema });
@@ -428,7 +388,6 @@ export class ProtectedTemplatesCreateRoute extends OpenAPIRoute {
       name,
       subject,
       body,
-      footer: footer ?? null,
       attachments: attachments ?? null,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -478,7 +437,6 @@ export class ProtectedTemplateGenerateFromOnboardingRoute extends OpenAPIRoute {
                 name: z.string(),
                 subject: z.string(),
                 body: z.string(),
-                footer: z.string().nullable(),
                 attachments: z.string().nullable(),
               }),
             }),
@@ -549,7 +507,6 @@ export class ProtectedTemplatesUpdateRoute extends OpenAPIRoute {
               name: z.string().optional(),
               subject: z.string().optional(),
               body: z.string().optional(),
-              footer: z.string().nullable().optional(),
               attachments: z.string().nullable().optional(),
             }),
           },
@@ -568,7 +525,6 @@ export class ProtectedTemplatesUpdateRoute extends OpenAPIRoute {
                 name: z.string(),
                 subject: z.string(),
                 body: z.string(),
-                footer: z.string().nullable(),
                 attachments: z.string().nullable(),
                 createdAt: z.string(),
                 updatedAt: z.string(),
@@ -601,7 +557,7 @@ export class ProtectedTemplatesUpdateRoute extends OpenAPIRoute {
     const { id } = await this.getValidatedData<typeof this.schema>().then(
       (d) => d.params,
     );
-    const { name, subject, body, footer, attachments } = await this.getValidatedData<
+    const { name, subject, body, attachments } = await this.getValidatedData<
       typeof this.schema
     >().then((d) => d.body);
     const db = drizzle(env.DB, { schema });
@@ -624,7 +580,6 @@ export class ProtectedTemplatesUpdateRoute extends OpenAPIRoute {
         name,
         subject,
         body,
-        footer,
         attachments,
         updatedAt: new Date(),
       })
@@ -814,7 +769,6 @@ export async function processTemplateForPerson(
     template: {
       subject: string;
       body: string;
-      footer?: string | null;
       attachments?: string | null;
     };
     person: {
@@ -827,7 +781,6 @@ export async function processTemplateForPerson(
 ): Promise<{
   subject: string;
   body: string;
-  footer: string | null;
   attachments: string | null;
 }> {
   const model = anthropic("claude-sonnet-4-20250514");
@@ -880,7 +833,6 @@ Return format (JSON only):
     return {
       subject: aiResult.subject,
       body: relinkedBody,
-      footer: data.template.footer ?? null,
       attachments: data.template.attachments ?? null,
     };
   } catch (error) {
@@ -889,7 +841,6 @@ Return format (JSON only):
     return {
       subject: data.template.subject,
       body: data.template.body,
-      footer: data.template.footer ?? null,
       attachments: data.template.attachments ?? null,
     };
   }
@@ -925,7 +876,6 @@ export class ProtectedTemplateProcessRoute extends OpenAPIRoute {
               success: z.boolean(),
               subject: z.string(),
               body: z.string(),
-              footer: z.string().nullable(),
               attachments: z.string().nullable(),
             }),
           },
@@ -986,7 +936,6 @@ export class ProtectedTemplateProcessRoute extends OpenAPIRoute {
       template: {
         subject: template.subject,
         body: template.body,
-        footer: template.footer ?? null,
         attachments: template.attachments ?? null,
       },
       person: personPayload as { name: string; role?: string; email?: string },

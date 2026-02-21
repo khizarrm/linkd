@@ -9,11 +9,9 @@ import {
   attachmentSchema,
   base64UrlEncode,
   buildRawEmail,
-  footerSchema,
   getAccessToken,
   isInvalidGrantError,
   normalizeAttachmentData,
-  normalizeFooterData,
 } from "../lib/gmail";
 
 const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504]);
@@ -24,7 +22,6 @@ const bulkItemSchema = z.object({
   to: z.string().email(),
   subject: z.string().min(1),
   body: z.string().min(1),
-  footer: footerSchema.nullable().optional(),
   attachments: z.array(attachmentSchema).optional(),
 });
 
@@ -64,7 +61,6 @@ async function sendSingleItem(
         item.to,
         item.subject,
         item.body,
-        normalizeFooterData(item.footer),
         normalizeAttachmentData(item.attachments),
       );
       const encodedEmail = base64UrlEncode(rawEmail);

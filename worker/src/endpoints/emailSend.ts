@@ -9,11 +9,9 @@ import {
   attachmentSchema,
   base64UrlEncode,
   buildRawEmail,
-  footerSchema,
   getAccessToken,
   isInvalidGrantError,
   normalizeAttachmentData,
-  normalizeFooterData,
 } from "../lib/gmail";
 
 export class ProtectedEmailSendRoute extends OpenAPIRoute {
@@ -29,7 +27,6 @@ export class ProtectedEmailSendRoute extends OpenAPIRoute {
               to: z.string().email().describe("Recipient email address"),
               subject: z.string().min(1).describe("Email subject"),
               body: z.string().min(1).describe("Email body content"),
-              footer: footerSchema.nullable().optional(),
               attachments: z.array(attachmentSchema).optional(),
             }),
           },
@@ -67,7 +64,7 @@ export class ProtectedEmailSendRoute extends OpenAPIRoute {
     const data = await this.getValidatedData<typeof this.schema>();
     const env = c.env;
     const request = c.req.raw;
-    const { to, subject, body, footer, attachments } = data.body;
+    const { to, subject, body, attachments } = data.body;
 
     try {
       const authResult = await verifyClerkToken(request, env.CLERK_SECRET_KEY);
@@ -112,7 +109,6 @@ export class ProtectedEmailSendRoute extends OpenAPIRoute {
         to,
         subject,
         body,
-        normalizeFooterData(footer),
         normalizeAttachmentData(attachments),
       );
       const encodedEmail = base64UrlEncode(rawEmail);

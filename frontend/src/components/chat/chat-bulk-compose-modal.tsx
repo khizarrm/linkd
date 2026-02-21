@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { EmailData } from "./email-compose-card";
 import { ChatBulkDraftList } from "./chat-bulk-draft-list";
-import { parseFooter, parseTemplateAttachments, toRecipientDraft, type BulkSendResult, type RecipientDraft, type Template } from "./chat-bulk-compose-utils";
+import { parseTemplateAttachments, toRecipientDraft, type BulkSendResult, type RecipientDraft, type Template } from "./chat-bulk-compose-utils";
 
 interface ChatBulkComposeModalProps {
   open: boolean;
@@ -111,7 +111,6 @@ export function ChatBulkComposeModal({
           domain: recipient.domain,
           subject: prefilled.subject,
           body: prefilled.body,
-          footer: parseFooter(prefilled.footer),
           attachments: parseTemplateAttachments(prefilled.attachments),
           status: "ready" as const,
         };
@@ -123,7 +122,6 @@ export function ChatBulkComposeModal({
         domain: recipient.domain,
         subject: "",
         body: "",
-        footer: null,
         attachments: [],
         status: "processing" as const,
       };
@@ -141,7 +139,7 @@ export function ChatBulkComposeModal({
             if (generationTokenRef.current !== currentToken) return;
             setDrafts((prev) => prev.map((draft) =>
               draft.clientId === clientId
-                ? { ...draft, subject: result.subject, body: result.body, footer: parseFooter(result.footer), attachments: parseTemplateAttachments(result.attachments), status: "ready", error: undefined }
+                ? { ...draft, subject: result.subject, body: result.body, attachments: parseTemplateAttachments(result.attachments), status: "ready", error: undefined }
                 : draft,
             ));
           } catch {
@@ -227,7 +225,6 @@ export function ChatBulkComposeModal({
           to: draft.email,
           subject: draft.subject,
           body: draft.body,
-          footer: draft.footer,
           attachments: draft.attachments.map((attachment) => ({ filename: attachment.filename, mimeType: attachment.mimeType, data: attachment.data })),
         })),
       });

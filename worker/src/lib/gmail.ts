@@ -1,25 +1,10 @@
 import { z } from "zod";
 
-export interface FooterData {
-  text?: string;
-  links: Array<{ label: string; url: string }>;
-}
-
 export interface AttachmentData {
   filename: string;
   mimeType: string;
   data: string;
 }
-
-export const footerSchema = z.object({
-  text: z.string().optional(),
-  links: z.array(
-    z.object({
-      label: z.string(),
-      url: z.string(),
-    }),
-  ),
-});
 
 export const attachmentSchema = z.object({
   filename: z.string(),
@@ -142,42 +127,19 @@ function bodyToHtml(text: string): string {
   return escapeHtml(text).replace(/\n/g, "<br>");
 }
 
-function renderFooterHtml(footer: FooterData): string {
-  const parts: string[] = [];
-
-  if (footer.text) {
-    parts.push(`<span style="color:#888888;">${escapeHtml(footer.text)}</span>`);
-  }
-
-  if (footer.links.length > 0) {
-    const linkHtml = footer.links
-      .map(
-        (link) =>
-          `<a href="${escapeHtml(link.url)}" style="color:#1a73e8;">${escapeHtml(link.label)}</a>`,
-      )
-      .join(" | ");
-    parts.push(`<span style="color:#888888;">${linkHtml}</span>`);
-  }
-
-  if (parts.length === 0) return "";
-  return `<div style="margin-top:16px;color:#888888;">${parts.join("<br>")}</div>`;
-}
-
 function inlineEmailStyles(html: string): string {
   return html
     .replace(/<p><\/p>/g, '<p style="margin:0;padding:0;"><br></p>')
     .replace(/<p>/g, '<p style="margin:0;padding:0;">');
 }
 
-function buildHtmlBody(body: string, footer?: FooterData | null): string {
+function buildHtmlBody(body: string): string {
   const bodyHtml = inlineEmailStyles(bodyToHtml(body));
-  const footerHtml = footer ? renderFooterHtml(footer) : "";
 
   return [
     '<!DOCTYPE html><html><head><meta charset="UTF-8"></head>',
     '<body style="margin:0;padding:0;">',
     `<div style="font-family:sans-serif;font-size:14px;line-height:1.5;color:#222222;">${bodyHtml}</div>`,
-    footerHtml,
     "</body></html>",
   ].join("");
 }
@@ -197,10 +159,9 @@ export function buildRawEmail(
   to: string,
   subject: string,
   body: string,
-  footer?: FooterData | null,
   attachments?: AttachmentData[],
 ): string {
-  const htmlContent = buildHtmlBody(body, footer);
+  const htmlContent = buildHtmlBody(body);
   const hasAttachments = attachments && attachments.length > 0;
 
   if (!hasAttachments) {
@@ -240,34 +201,6 @@ export function buildRawEmail(
 
   parts.push(`--${boundary}--`);
   return parts.join("\r\n");
-}
-
-export function normalizeFooterData(input: unknown): FooterData | null {
-  if (!input || typeof input !== "object") return null;
-  const candidate = input as {
-    text?: unknown;
-    links?: Array<{ label?: unknown; url?: unknown }>;
-  };
-
-  const links = Array.isArray(candidate.links)
-    ? candidate.links
-        .filter(
-          (link) =>
-            typeof link?.label === "string" && link.label.trim() !== "" &&
-            typeof link?.url === "string" && link.url.trim() !== "",
-        )
-        .map((link) => ({
-          label: String(link.label).trim(),
-          url: String(link.url).trim(),
-        }))
-    : [];
-
-  const text =
-    typeof candidate.text === "string" && candidate.text.trim() !== ""
-      ? candidate.text.trim()
-      : undefined;
-
-  return { text, links };
 }
 
 export function normalizeAttachmentData(input: unknown): AttachmentData[] | undefined {

@@ -63,7 +63,7 @@ export function useProtectedApi() {
       return response.json();
     },
 
-    createTemplate: async (data: { name: string; subject: string; body: string; footer?: string | null; attachments?: string | null }) => {
+    createTemplate: async (data: { name: string; subject: string; body: string; attachments?: string | null }) => {
       const token = await getToken();
       const response = await apiFetch('/api/protected/templates', {
         method: 'POST',
@@ -73,7 +73,7 @@ export function useProtectedApi() {
       return response.json();
     },
 
-    updateTemplate: async (id: string, data: { name?: string; subject?: string; body?: string; footer?: string | null; attachments?: string | null }) => {
+    updateTemplate: async (id: string, data: { name?: string; subject?: string; body?: string; attachments?: string | null }) => {
       const token = await getToken();
       const response = await apiFetch(`/api/protected/templates/${id}`, {
         method: 'PUT',
@@ -123,7 +123,6 @@ export function useProtectedApi() {
           name: string;
           subject: string;
           body: string;
-          footer: string | null;
           attachments: string | null;
         };
       }>;
@@ -147,7 +146,6 @@ export function useProtectedApi() {
       return {
         subject: result.subject,
         body: result.body,
-        footer: result.footer as string | null,
         attachments: result.attachments as string | null,
       };
     },
@@ -195,7 +193,6 @@ export function useProtectedApi() {
       to: string;
       subject: string;
       body: string;
-      footer?: { text?: string; links: Array<{ label: string; url: string }> } | null;
       attachments?: Array<{ filename: string; mimeType: string; data: string }>;
     }) => {
       const token = await getToken();
@@ -216,7 +213,6 @@ export function useProtectedApi() {
         to: string;
         subject: string;
         body: string;
-        footer?: { text?: string; links: Array<{ label: string; url: string }> } | null;
         attachments?: Array<{ filename: string; mimeType: string; data: string }>;
       }>;
     }) => {

@@ -325,7 +325,6 @@ export class ResearchAgentRoute extends OpenAPIRoute {
                 template: {
                   subject: defaultTemplate.subject,
                   body: defaultTemplate.body,
-                  footer: defaultTemplate.footer ?? null,
                   attachments: defaultTemplate.attachments ?? null,
                 },
                 person: { name: data.name, email: data.email },
@@ -340,7 +339,6 @@ export class ResearchAgentRoute extends OpenAPIRoute {
                   templateId: defaultTemplate.id,
                   subject: result.subject,
                   body: result.body,
-                  footer: result.footer,
                   attachments: result.attachments,
                 },
               });

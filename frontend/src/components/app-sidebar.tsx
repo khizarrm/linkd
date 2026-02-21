@@ -1,6 +1,6 @@
 'use client';
 
-import { User, LogOut, FileText, Info, Plus, LayoutTemplate } from "lucide-react"
+import { User, FileText, Info, Plus, LayoutTemplate, LogOut } from "lucide-react"
 import { useRouter, usePathname } from "next/navigation"
 import Image from "next/image"
 import { useState } from "react"
@@ -9,6 +9,7 @@ import { FeedbackDialog } from "./feedback-dialog"
 import { InfoDialog } from "./info-dialog"
 import { ChatHistoryList } from "./chat/chat-history-list"
 import { TemplateManagementModal } from "./templates/template-management-modal"
+import { ProfileModal } from "./profile-modal"
 
 import {
   Sidebar,
@@ -29,10 +30,11 @@ export function AppSidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const [imageError, setImageError] = useState(false);
-  const [showSignOut, setShowSignOut] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [isFeedbackDialogOpen, setIsFeedbackDialogOpen] = useState(false);
   const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
   const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   // const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
 
   const { user } = useUser();
@@ -40,9 +42,7 @@ export function AppSidebar() {
 
   const handleSignOut = async () => {
     try {
-      // Sign out using Clerk
       await signOut();
-      // Manually redirect after signout completes
       window.location.href = '/login';
     } catch (error) {
       console.error('Sign out failed:', error);
@@ -124,33 +124,36 @@ export function AppSidebar() {
               <span>Feedback</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
-          {showSignOut && (
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                onClick={handleSignOut}
-                tooltip="Sign out"
-                className="text-muted-foreground hover:text-destructive animate-in slide-in-from-bottom-2 fade-in duration-200"
-              >
-                <LogOut />
-                <span>Sign out</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+          {showProfileMenu && (
+            <>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => { setShowProfileMenu(false); setIsProfileModalOpen(true); }}
+                  tooltip="Personalize"
+                  className="text-muted-foreground hover:text-foreground animate-in slide-in-from-bottom-2 fade-in duration-200"
+                >
+                  <User />
+                  <span>Personalize</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={handleSignOut}
+                  tooltip="Sign out"
+                  className="text-muted-foreground hover:text-destructive animate-in slide-in-from-bottom-2 fade-in duration-200"
+                >
+                  <LogOut />
+                  <span>Sign out</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </>
           )}
-          {/* <SidebarMenuItem>
-            <SidebarMenuButton
-              onClick={() => setIsSettingsDialogOpen(true)}
-              tooltip="Settings"
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <Settings />
-              <span>Settings</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem> */}
           <SidebarMenuItem>
             <SidebarMenuButton
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-              onClick={() => setShowSignOut(!showSignOut)}
+              onClick={() => setShowProfileMenu(!showProfileMenu)}
+              tooltip="Profile"
             >
               {userImage && !imageError ? (
                 <Image 
@@ -175,10 +178,10 @@ export function AppSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
-      {/* <ProfileSettingsDialog
-        open={isSettingsDialogOpen}
-        onOpenChange={setIsSettingsDialogOpen}
-      /> */}
+      <ProfileModal
+        open={isProfileModalOpen}
+        onOpenChange={setIsProfileModalOpen}
+      />
       <FeedbackDialog
         open={isFeedbackDialogOpen}
         onOpenChange={setIsFeedbackDialogOpen}

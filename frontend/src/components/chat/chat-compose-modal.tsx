@@ -38,29 +38,11 @@ interface Template {
   isDefault?: number;
 }
 
-interface FooterData {
-  text?: string;
-  links: Array<{ label: string; url: string }>;
-}
-
 interface AttachmentFile {
   filename: string;
   mimeType: string;
   data: string;
   size: number;
-}
-
-function parseFooter(raw: string | null | undefined): FooterData | null {
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw);
-    return {
-      text: parsed.text,
-      links: Array.isArray(parsed.links) ? parsed.links : [],
-    };
-  } catch {
-    return null;
-  }
 }
 
 function parseTemplateAttachments(raw: string | null | undefined): AttachmentFile[] {
@@ -126,7 +108,6 @@ export function ChatComposeModal({
   const [isSending, setIsSending] = useState(false);
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
-  const [emailFooter, setEmailFooter] = useState<FooterData | null>(null);
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [sendSuccess, setSendSuccess] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
@@ -157,7 +138,6 @@ export function ChatComposeModal({
     if (!open) {
       setEmailSubject("");
       setEmailBody("");
-      setEmailFooter(null);
       setAttachments([]);
       setSendSuccess(false);
       setSendError(null);
@@ -224,7 +204,6 @@ export function ChatComposeModal({
     setTemplateError(null);
 
     if (templateId === "none") {
-      setEmailFooter(null);
       return;
     }
 
@@ -240,7 +219,6 @@ export function ChatComposeModal({
       });
       setEmailSubject(result.subject);
       setEmailBody(result.body);
-      setEmailFooter(parseFooter(result.footer));
       setAttachments(parseTemplateAttachments(result.attachments));
     } catch (error) {
       setTemplateError("Failed to process template");
@@ -292,7 +270,6 @@ export function ChatComposeModal({
         to: emailData.email,
         subject: emailSubject,
         body: emailBody,
-        footer: emailFooter,
         attachments: attachments.length > 0
           ? attachments.map(({ filename, mimeType, data }) => ({ filename, mimeType, data }))
           : undefined,
@@ -470,33 +447,6 @@ export function ChatComposeModal({
                   />
                 </div>
 
-                {/* Footer preview — read-only, rendered inline */}
-                {emailFooter && (emailFooter.text || emailFooter.links.length > 0) && (
-                  <>
-                    <div className="px-4 pb-3 space-y-1">
-                      {emailFooter.text && (
-                        <p className="text-sm text-[#8a8a8a]">{emailFooter.text}</p>
-                      )}
-                      {emailFooter.links.length > 0 && (
-                        <div className="flex flex-wrap items-center gap-y-1">
-                          {emailFooter.links.map((link, i) => (
-                            <span key={i} className="flex items-center">
-                              {i > 0 && <span className="mx-2 text-[#4a4a4a]">|</span>}
-                              <a
-                                href={link.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-sm text-blue-400 hover:text-blue-300 underline underline-offset-2"
-                              >
-                                {link.label}
-                              </a>
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </>
-                )}
               </div>
 
               {/* Attachments */}
