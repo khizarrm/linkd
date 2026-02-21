@@ -30,6 +30,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { EmailData } from "./email-compose-card";
+
+import { TemplateEditorModal } from "@/components/templates/template-editor-modal";
 import { posthog } from "@/../instrumentation-client";
 
 interface Template {
@@ -118,6 +120,7 @@ export function ChatComposeModal({
   const [templateProgress, setTemplateProgress] = useState(0);
   const [sendProgress, setSendProgress] = useState(0);
   const [templateError, setTemplateError] = useState<string | null>(null);
+  const [showCreateTemplate, setShowCreateTemplate] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
@@ -147,6 +150,7 @@ export function ChatComposeModal({
       setIsProcessingTemplate(false);
       setTemplateProgress(0);
       setSendProgress(0);
+      setShowCreateTemplate(false);
     }
   }, [open]);
 
@@ -312,7 +316,7 @@ export function ChatComposeModal({
     }
   };
 
-  return (
+  return (<>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] p-0 gap-0 bg-[#0a0a0a] border-[#2a2a2a] text-[#e8e8e8]">
         <DialogHeader className="p-6 pb-4 border-b border-[#2a2a2a]">
@@ -330,26 +334,30 @@ export function ChatComposeModal({
               <Loader2 className="w-6 h-6 animate-spin mr-3" />
               Checking Gmail connection...
             </div>
-          ) : gmailConnected === false ? (
+          ) : isLoadingTemplates ? (
+            <div className="flex items-center justify-center py-12 text-[#8a8a8a]">
+              <Loader2 className="w-6 h-6 animate-spin mr-3" />
+              Loading templates...
+            </div>
+          ) : templates.length === 0 ? (
             <div className="text-center py-8 space-y-4">
-              <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center mx-auto">
-                <Mail className="w-8 h-8 text-blue-500" />
+              <div className="w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto">
+                <Sparkles className="w-8 h-8 text-amber-500" />
               </div>
               <div className="space-y-2">
                 <h4 className="text-lg font-medium text-[#e8e8e8]">
-                  Connect Gmail
+                  Create your first template
                 </h4>
                 <p className="text-sm text-[#8a8a8a] max-w-sm mx-auto">
-                  Connect your Gmail account to send emails. Your emails will be
-                  sent from your own address.
+                  You need at least one email template to compose emails. Templates let you write reusable emails with personalization.
                 </p>
               </div>
               <Button
-                onClick={handleConnectGmail}
+                onClick={() => setShowCreateTemplate(true)}
                 className="bg-[#e8e8e8] text-black hover:bg-white"
               >
-                <Mail className="w-4 h-4 mr-2" />
-                Connect Gmail
+                <Sparkles className="w-4 h-4 mr-2" />
+                Create Template
               </Button>
             </div>
           ) : (
@@ -497,7 +505,7 @@ export function ChatComposeModal({
           )}
         </div>
 
-        {gmailConnected && (
+        {gmailConnected && templates.length > 0 && (
           <div className="p-6 pt-0 flex justify-end gap-3">
             <Button
               variant="ghost"
@@ -529,5 +537,11 @@ export function ChatComposeModal({
         )}
       </DialogContent>
     </Dialog>
-  );
+      <TemplateEditorModal
+        open={showCreateTemplate}
+        onOpenChange={setShowCreateTemplate}
+        onSuccess={() => setShowCreateTemplate(false)}
+        initialData={null}
+      />
+  </>);
 }

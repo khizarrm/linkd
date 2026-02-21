@@ -12,6 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import type { EmailData } from "./email-compose-card";
 import { ChatBulkDraftList } from "./chat-bulk-draft-list";
 import { parseTemplateAttachments, toRecipientDraft, type BulkSendResult, type RecipientDraft, type Template } from "./chat-bulk-compose-utils";
+import { TemplateEditorModal } from "@/components/templates/template-editor-modal";
 
 interface ChatBulkComposeModalProps {
   open: boolean;
@@ -53,6 +54,7 @@ export function ChatBulkComposeModal({
   const [sendProgress, setSendProgress] = useState(0);
   const [sendError, setSendError] = useState<string | null>(null);
   const [sendResults, setSendResults] = useState<BulkSendResult[] | null>(null);
+  const [showCreateTemplate, setShowCreateTemplate] = useState(false);
   const generationTokenRef = useRef(0);
 
   const selectedTemplate = templates.find((template) => template.id === selectedTemplateId);
@@ -74,6 +76,7 @@ export function ChatBulkComposeModal({
       setSendProgress(0);
       setSendError(null);
       setSendResults(null);
+      setShowCreateTemplate(false);
       generationTokenRef.current += 1;
       return;
     }
@@ -290,6 +293,19 @@ export function ChatBulkComposeModal({
         <div className="p-6 space-y-4 overflow-y-auto max-h-[78vh]">
           {isCheckingGmail ? (
             <div className="flex items-center justify-center py-10 text-[#8a8a8a]"><Loader2 className="w-5 h-5 animate-spin mr-2" /> Checking Gmail connection...</div>
+          ) : isLoadingTemplates ? (
+            <div className="flex items-center justify-center py-10 text-[#8a8a8a]"><Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading templates...</div>
+          ) : templates.length === 0 ? (
+            <div className="text-center py-8 space-y-4">
+              <div className="w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto">
+                <Sparkles className="w-8 h-8 text-amber-500" />
+              </div>
+              <div className="space-y-2">
+                <h4 className="text-lg font-medium text-[#e8e8e8]">Create your first template</h4>
+                <p className="text-sm text-[#8a8a8a] max-w-sm mx-auto">You need at least one email template to compose emails. Templates let you write reusable emails with personalization.</p>
+              </div>
+              <Button onClick={() => setShowCreateTemplate(true)} className="bg-[#e8e8e8] text-black hover:bg-white"><Sparkles className="w-4 h-4 mr-2" /> Create Template</Button>
+            </div>
           ) : gmailConnected === false ? (
             <div className="text-center py-8 space-y-4">
               <h4 className="text-lg font-medium text-[#e8e8e8]">Connect Gmail</h4>
