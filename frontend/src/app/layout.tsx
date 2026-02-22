@@ -45,7 +45,7 @@ export default function RootLayout({
       signInFallbackRedirectUrl="/login"
       signUpFallbackRedirectUrl="/login"
     >
-      <html lang="en">
+      <html lang="en" className="dark">
         <body
           className={`${geistSans.variable} ${geistMono.variable} ${dmSerif.variable} ${firaMono.variable} antialiased bg-background font-sans`}
         >
